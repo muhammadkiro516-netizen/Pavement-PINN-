@@ -58,7 +58,7 @@ export const LeanShell: React.FC<{
   const tabs = TABS_BY_ROLE[role] ?? [];
   const lit = tabOf(activeRoute);
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[#F4F7FC] text-[#0E1B2C]">
+    <div className="relative h-full w-full overflow-hidden bg-[#000000] text-[#FFFFFF]">
       <main className="absolute inset-0">{children}</main>
       <nav
         aria-label="Navigasi utama"

@@ -40,7 +40,7 @@ export const RoadDetailPage: React.FC<{ params: Record<string, string> }> = ({ p
   }, [segment, workflow.gateway, workflow.views]);
 
   const back = (
-    <button type="button" onClick={closePage} className="cursor-pointer rounded-full bg-[#EEF2F7] p-2.5" aria-label="Kembali">
+    <button type="button" onClick={closePage} className="cursor-pointer rounded-full bg-[#2C2C2E] p-2.5" aria-label="Kembali">
       <span className="block rotate-180"><Glyph name="arrow" size={20} /></span>
     </button>
   );
@@ -59,16 +59,16 @@ export const RoadDetailPage: React.FC<{ params: Record<string, string> }> = ({ p
   return (
     <SnapPage title={segment.name} subtitle={`${segment.corridor} · ${segment.province} · ${segment.lengthKm} km`} action={back}>
       <SnapCard>
-        <p className="text-xs font-bold text-[#7A8899]">Kondisi menurut laporan & inspeksi</p>
+        <p className="text-xs font-bold text-[#8E8E93]">Kondisi menurut laporan & inspeksi</p>
         {risk ? (
           <>
             <div className="mt-2"><Pill tone={risk.tone}>{risk.label}</Pill></div>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[#2A3647]">
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[#E5E5EA]">
               {assessment!.riskReasons.map((r) => <li key={r}>{r}</li>)}
             </ul>
           </>
         ) : (
-          <p className="mt-2 text-sm text-[#5B6B7F]">{error ? `Belum dapat dimuat: ${error}` : 'Memuat…'}</p>
+          <p className="mt-2 text-sm text-[#A1A1AA]">{error ? `Belum dapat dimuat: ${error}` : 'Memuat…'}</p>
         )}
       </SnapCard>
 
@@ -78,14 +78,14 @@ export const RoadDetailPage: React.FC<{ params: Record<string, string> }> = ({ p
 
       <h2 className="pt-2 text-lg font-extrabold">Laporan di ruas ini</h2>
       {cases.length === 0 ? (
-        <SnapCard><p className="text-sm text-[#5B6B7F]">Belum ada laporan.</p></SnapCard>
+        <SnapCard><p className="text-sm text-[#A1A1AA]">Belum ada laporan.</p></SnapCard>
       ) : (
         cases.map((v) => (
           <SnapCard key={v.case.id}>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-extrabold">{v.case.report.damageTypeLabel}</p>
-                <p className="text-xs text-[#7A8899]">{v.case.id}</p>
+                <p className="text-xs text-[#8E8E93]">{v.case.id}</p>
               </div>
               <StatusPill state={v.case.state} />
             </div>

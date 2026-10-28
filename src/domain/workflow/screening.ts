@@ -32,6 +32,8 @@ export const VERIFIED_CV_PROVIDER: CvScreeningProvider = {
   classify(report) {
     const ai = report.aiAnalysis;
     if (!ai || ai.modelStatus !== 'REAL' || typeof ai.confidence !== 'number') return null;
+    // A photo the scene model doubts is a road never passes automatically.
+    if (report.cvAssessment?.scene && report.cvAssessment.scene.isRoad === false) return null;
     return { detectedClass: ai.class, confidence: ai.confidence, modelVersion: ai.modelVersion };
   }
 };

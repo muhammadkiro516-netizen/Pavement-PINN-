@@ -51,10 +51,10 @@ export const MyReportsPage: React.FC = () => {
                     {r.aiAnalysis?.modelStatus === 'REAL' && <Pill tone="blue">AI: {r.aiAnalysis.label}</Pill>}
                   </div>
                   <p className="mt-2 truncate text-[15px] font-extrabold">{r.damageTypeLabel} · {r.segmentName}</p>
-                  <p className="text-xs text-[#7A8899]">
+                  <p className="text-xs text-[#8E8E93]">
                     {v.case.id} · {relativeTime(v.case.createdAt)}
                   </p>
-                  {last && <p className="mt-1 text-sm text-[#2A3647]">{last.note}</p>}
+                  {last && <p className="mt-1 text-sm text-[#E5E5EA]">{last.note}</p>}
                 </div>
               </div>
             </SnapCard>
@@ -82,10 +82,10 @@ export const NotificationsPage: React.FC = () => {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-extrabold">{n.title}</p>
-                <p className="mt-0.5 text-sm text-[#3E4C5E]">{n.description}</p>
-                <p className="mt-1 text-xs text-[#9AA7B8]">{n.caseId}</p>
+                <p className="mt-0.5 text-sm text-[#D1D1D6]">{n.description}</p>
+                <p className="mt-1 text-xs text-[#6E6E73]">{n.caseId}</p>
               </div>
-              <span className="shrink-0 text-xs text-[#7A8899]">{relativeTime(n.at)}</span>
+              <span className="shrink-0 text-xs text-[#8E8E93]">{relativeTime(n.at)}</span>
             </div>
           </SnapCard>
         ))

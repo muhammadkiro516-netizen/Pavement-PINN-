@@ -35,6 +35,7 @@ import { useSheetDrag } from '../../components/ui/useSheetDrag';
 import { CV_DAMAGE_CLASSES } from '../../engines/computer-vision/classification/cvDamageClasses';
 import type { CvAnalysis, CvJobStage, CvJobView, CvSeverityLevel } from '../../types/cv';
 import { AiPhotoScan } from './AiPhotoScan';
+import { LiveAiOverlay } from './LiveAiOverlay';
 import { lastDeviceFix } from '../location/deviceLocation';
 import { CV_STAGE_LABELS, CvClientError, checkImageInput, runCvAnalysis } from './cvClient';
 
@@ -871,18 +872,8 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
               className={`w-full h-full object-cover ${isCameraActive ? '' : 'hidden'}`}
             />
 
-            {/* Viewfinder Center Reticle (Subtle Framing Corners) */}
-            <div className={`absolute inset-0 flex items-center justify-center pointer-events-none ${isCameraActive ? '' : 'hidden'}`}>
-              <div className="w-64 h-64 sm:w-80 sm:h-80 border border-white/20 rounded-2xl relative">
-                <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white/80 rounded-tl-xl" />
-                <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white/80 rounded-tr-xl" />
-                <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white/80 rounded-bl-xl" />
-                <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white/80 rounded-br-xl" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-white/40 animate-ping" />
-                </div>
-              </div>
-            </div>
+            {/* What the AI sees, live, before the photo is taken */}
+            <LiveAiOverlay video={videoRef.current} active={isCameraActive && currentState === 'CAMERA_CAPTURE'} />
           </div>
 
           {/* Permission state on the dark page (no stand-in image) */}

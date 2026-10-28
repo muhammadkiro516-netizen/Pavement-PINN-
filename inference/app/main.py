@@ -217,6 +217,7 @@ def run_monte_carlo(req: AssessRequest, sg: Subgrade, assumptions: list[str]) ->
 
 # ---------------------------------------------------------------- Computer Vision (road damage)
 from fastapi import Request  # noqa: E402
+from starlette.concurrency import run_in_threadpool  # noqa: E402
 
 from .cv import engine as cv_engine, jobs as cv_jobs, video as cv_video  # noqa: E402
 
@@ -224,7 +225,7 @@ CV_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
 def _cv_error(exc: "cv_engine.CvError") -> HTTPException:
-    status = {"INVALID_IMAGE": 422, "INVALID_VIDEO": 422, "IMAGE_UNUSABLE": 422}.get(exc.code, 503)
+    status = {"INVALID_IMAGE": 422, "INVALID_VIDEO": 422, "IMAGE_UNUSABLE": 422, "BUSY": 429}.get(exc.code, 503)
     return HTTPException(status_code=status, detail={"code": exc.code, "message": exc.message})
 
 
@@ -238,8 +239,26 @@ async def cv_analyze_image(request: Request) -> dict:
     """Synchronous analysis of raw image bytes (Content-Type image/jpeg|png|webp)."""
     if request.headers.get("content-type", "").split(";")[0] not in CV_IMAGE_TYPES:
         raise HTTPException(status_code=415, detail={"code": "UNSUPPORTED_TYPE", "message": "Send JPEG, PNG or WebP bytes."})
+    data = await request.body()
     try:
-        return cv_engine.analyze_image(await request.body())
+        return await run_in_threadpool(cv_engine.analyze_image, data)
+    except cv_engine.CvError as exc:
+        raise _cv_error(exc) from exc
+
+
+LIVE_MAX_BYTES = 300_000
+
+
+@app.post("/v1/cv/live")
+async def cv_live(request: Request) -> dict:
+    """Camera preview frame (JPEG <= 300 KB): detector + scene only, never queued (429 BUSY)."""
+    if request.headers.get("content-type", "").split(";")[0] != "image/jpeg":
+        raise HTTPException(status_code=415, detail={"code": "UNSUPPORTED_TYPE", "message": "Send a JPEG frame."})
+    data = await request.body()
+    if len(data) > LIVE_MAX_BYTES:
+        raise HTTPException(status_code=413, detail={"code": "TOO_LARGE", "message": "Live frames must be at most 300 KB."})
+    try:
+        return await run_in_threadpool(cv_engine.analyze_live, data)
     except cv_engine.CvError as exc:
         raise _cv_error(exc) from exc
 
@@ -326,3 +345,71 @@ def geometry_crack(req: CrackRequest) -> dict:
     """Pan et al. (2023) one-stage crack detection + quantification on a stored depth grid."""
     out = crack_from_grid(req.depth, req.cell_size, metric=req.unit == "mm", plane_rms=req.plane_rms)
     return {"object_id": req.object_id, **out, "method": "geometry.crack_from_grid (Pan et al. 2023, eq. 13–15)"}
+
+
+# ----------------------------------------------------------------- structural decision (PINN/MLET)
+from . import decide as decide_mod  # noqa: E402
+from .mlet import mlet_strains as _mlet_strains  # noqa: E402
+
+
+class DecideLayer(Strict):
+    h_mm: float = Field(ge=25, le=600)
+    E_mpa: float = Field(ge=50, le=30000)
+    nu: float = Field(default=0.35, ge=0.15, le=0.5)
+
+
+class DecideSubgrade(Strict):
+    cbr: float = Field(ge=1, le=50)
+    soaked_factor: float = Field(default=0.5, gt=0, le=1)
+
+
+class Distress(Strict):
+    source: Literal["INSPECTION", "PHOTO"] = "INSPECTION"
+    alligator_pct: float = Field(default=0, ge=0, le=100)
+    transverse_pct: float = Field(default=0, ge=0, le=100)
+    severity: Literal["LOW", "MEDIUM", "HIGH"] = "LOW"
+
+
+class DecideRequest(Strict):
+    segment_id: str = Field(min_length=1, max_length=64)
+    layers: list[DecideLayer] = Field(min_length=1, max_length=2)
+    subgrade: DecideSubgrade
+    distress: Distress | None = None
+    counts: dict[str, float] | None = None
+    esal_day: float | None = Field(default=None, gt=0, le=1e6)
+    odol_share: float = Field(default=0.3, ge=0, le=1)
+    growth: float = Field(default=0.04, ge=0, le=0.15)
+    direction_factor: float = Field(default=0.5, gt=0, le=1)
+    lane_factor: float = Field(default=1.0, gt=0, le=1)
+    wet_months: float = Field(default=6, ge=0, le=12)
+    target_years: float = Field(default=10, ge=1, le=40)
+    criterion: Literal["AI", "AUS"] = "AI"
+    axle_t: float = Field(default=8.16, ge=1, le=30)
+    odol_axle_t: float = Field(default=13.0, ge=1, le=40)
+    odol_tyre_mpa: float = Field(default=0.70, ge=0.4, le=1.2)
+
+    @model_validator(mode="after")
+    def known_classes(self):
+        if self.counts:
+            unknown = [k for k in self.counts if k not in decide_mod.VEHICLES["classes"]]
+            if unknown:
+                raise ValueError(f"unknown vehicle classes: {unknown}")
+            if any(v < 0 or v > 200000 for v in self.counts.values()):
+                raise ValueError("vehicle counts must be 0-200000 per day")
+        return self
+
+
+@app.get("/v1/decide/vehicle-classes")
+def decide_vehicle_classes() -> dict:
+    return decide_mod.VEHICLES
+
+
+@app.post("/v1/decide")
+async def decide(req: DecideRequest) -> dict:
+    t = time.perf_counter()
+    try:
+        out = await run_in_threadpool(decide_mod.decide, req.model_dump(), _mlet_strains)
+    except (ValueError, ArithmeticError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    out["engine"] = {"solver": METHOD, "elapsed_ms": round((time.perf_counter() - t) * 1000, 1)}
+    return out

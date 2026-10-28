@@ -51,6 +51,12 @@ export interface CvAnalysis {
   segmentation?: { instances: unknown[]; totalCrackPixels: number } | null;
   primary?: { taxonomyCode: string; damageType: string; label: string; confidence: number } | null;
   overallSeverity?: CvSeverityLevel;
+  /** Zero-shot scene model (CLIP on OpenVINO), uncalibrated: routes reports, never decides. */
+  scene?: CvScene | null;
+  /** Relative visual damage index 0-100 (share of the road area covered by defects; image space). */
+  surfaceIndex?: number;
+  /** GENANGAN (standing water) and/or RUSAK_TOTAL (surface destroyed), for human confirmation. */
+  hazards?: CvHazard[];
   measurements?: {
     coordinateSpace: 'image_pixels' | 'metric';
     metricCalibrationStatus: 'validated' | 'unavailable' | 'unvalidated';
@@ -86,6 +92,18 @@ export interface CvJobView {
 }
 
 /** What a report keeps: the server-verified analysis plus the reporter's corrections, side by side. */
+export type CvHazard = 'GENANGAN' | 'RUSAK_TOTAL';
+
+export interface CvScene {
+  modelId: string;
+  calibrated: false;
+  isRoad: boolean;
+  road?: Record<string, number>;
+  surface?: Record<string, number>;
+  surfaceTop?: { key: string; label: string; p: number };
+  water: { flooded: boolean; p: number };
+}
+
 export interface CvAssessment {
   analysisId: string;
   status: CvAnalysisStatus;
@@ -106,4 +124,7 @@ export interface CvAssessment {
   imageSha256: string;
   /** Reporter choices that differ from the model output; the model output above is unchanged. */
   userCorrections: { damageType?: { model: string | null; user: string }; severity?: { model: CvSeverityLevel; user: string } };
+  scene?: CvScene | null;
+  surfaceIndex?: number;
+  hazards?: CvHazard[];
 }

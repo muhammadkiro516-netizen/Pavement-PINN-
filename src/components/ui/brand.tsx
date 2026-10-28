@@ -37,8 +37,8 @@ export const LogoMark: React.FC<{ size?: number; className?: string }> = ({ size
 );
 
 export const Wordmark: React.FC<{ light?: boolean }> = ({ light }) => (
-  <span className={`text-[17px] font-extrabold tracking-tight ${light ? 'text-[#FFFFFF]' : 'text-[#0E1B2C]'}`}>
-    Pavement<span className="text-[#1463FF]">PINN</span>
+  <span className={`text-[17px] font-extrabold tracking-tight text-[#FFFFFF]`}>
+    Pavement<span className="text-[#FFE14D]">PINN</span>
   </span>
 );
 

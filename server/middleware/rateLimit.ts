@@ -1,14 +1,16 @@
 import type { NextFunction, Request, Response } from "express";
 
 /**
- * Fixed-window rate limiter kept in process memory (per client IP and bucket name).
- * Adequate for a single demo server; a multi-instance deployment needs a shared store.
+ * Fixed-window rate limiter kept in process memory (per client and bucket name).
+ * The client is the IP by default; `keyFn` can key by signed-in account instead, which matters on
+ * Indonesian mobile networks where many phones share one public IP (CGNAT).
+ * Adequate for a single server; a multi-instance deployment needs a shared store.
  */
-export function rateLimit(bucket: string, limit: number, windowMs: number) {
+export function rateLimit(bucket: string, limit: number, windowMs: number, keyFn?: (req: Request) => string | null) {
   const hits = new Map<string, { count: number; resetAt: number }>();
   return function rateLimitMiddleware(req: Request, res: Response, next: NextFunction) {
     const now = Date.now();
-    const key = `${bucket}:${req.ip}`;
+    const key = `${bucket}:${keyFn?.(req) ?? req.ip}`;
     const entry = hits.get(key);
     if (!entry || entry.resetAt <= now) {
       hits.set(key, { count: 1, resetAt: now + windowMs });

@@ -21,12 +21,14 @@ import os
 import threading
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
 import cv2
 import numpy as np
+
+from . import scene as scene_mod
 
 MODELS_DIR = Path(__file__).resolve().parents[3] / "models" / "cv"
 REGISTRY_PATH = MODELS_DIR / "cv_registry.json"
@@ -59,6 +61,13 @@ class _Model:
     imgsz: int
     names: list[str]
     cfg: dict
+    # One OpenVINO compiled model shares one implicit infer request: concurrent callers (jobs
+    # thread, sync analysis, live preview) must not run it at the same time.
+    lock: threading.Lock = field(default_factory=threading.Lock)
+
+    def infer(self, x: np.ndarray):
+        with self.lock:
+            return self.compiled(x)
 
 
 def _read_names(xml: Path) -> list[str]:
@@ -120,9 +129,9 @@ class _Runtime:
     def _warmup(self) -> float:
         t = time.perf_counter()
         dummy = np.zeros((1, 3, 640, 640), dtype=np.float32)
-        self.detector.compiled(dummy)
+        self.detector.infer(dummy)
         if self.segmenter:
-            self.segmenter.compiled(dummy)
+            self.segmenter.infer(dummy)
         return round((time.perf_counter() - t) * 1000, 1)
 
     @classmethod
@@ -348,7 +357,7 @@ PAINT_DELTA = 50.0  # mask brighter than the image median by this much = lane pa
 def _segment(rt: _Runtime, tensor: np.ndarray, r: float, pad: tuple[int, int], w: int, h: int, gray: np.ndarray):
     seg = rt.segmenter
     road_level = float(np.median(gray))
-    outs = seg.compiled(tensor)
+    outs = seg.infer(tensor)
     pred = outs[seg.compiled.outputs[0]][0]
     proto = outs[seg.compiled.outputs[1]][0]  # (32, 160, 160)
     cfg = seg.cfg
@@ -413,7 +422,7 @@ def _analyze_bgr(bgr: np.ndarray, source_type: str, source_ref: str, stage: Stag
     stage("detecting")
     ti = time.perf_counter()
     try:
-        out = rt.detector.compiled(tensor)[rt.detector.compiled.outputs[0]][0]
+        out = rt.detector.infer(tensor)[rt.detector.compiled.outputs[0]][0]
     except Exception as exc:
         raise CvError("INFERENCE_FAILED", f"Detector inference failed: {exc}") from exc
     timings["detectionMs"] = round((time.perf_counter() - ti) * 1000, 1)
@@ -482,6 +491,33 @@ def _analyze_bgr(bgr: np.ndarray, source_type: str, source_ref: str, stage: Stag
     if not seg_ran:
         reasons.append("Crack segmentation model unavailable; crack metrics come from boxes only.")
 
+    # Scene understanding (optional CLIP model): not-road, surface condition, standing water.
+    stage("scene")
+    tsc = time.perf_counter()
+    try:
+        scene_res = scene_mod.classify(bgr)
+    except Exception as exc:  # the scene model must never break the evidence pipeline
+        scene_res = None
+        reasons.append(f"Scene model failed: {exc}")
+    if scene_res is not None:
+        timings["sceneMs"] = round((time.perf_counter() - tsc) * 1000, 1)
+    index = scene_mod.surface_damage_index(boxes if len(boxes) else np.zeros((0, 4)), crack_mask, w, h)
+    hazards: list[str] = []
+    total = scene_mod.total_failure(index, scene_res)
+    if scene_res is not None:
+        if not scene_res["isRoad"]:
+            status = "review_required"
+            reasons.append("The scene model thinks this photo may not show a road; an officer checks it.")
+        if scene_res["water"]["flooded"]:
+            hazards.append("GENANGAN")
+            reasons.append(f"Standing water / flooding likely (scene model {scene_res['water']['p']:.2f}).")
+            if status == "inconclusive":
+                status = "review_required"
+        if total:
+            hazards.append("RUSAK_TOTAL")
+            reasons.append(f"Surface largely destroyed: visual index {index:.0f}/100 and scene model agree; an officer confirms.")
+            status = "review_required" if status != "completed" else status
+
     primary = detections[0] if detections else None
     overall = "unknown"
     for d in detections:
@@ -516,12 +552,55 @@ def _analyze_bgr(bgr: np.ndarray, source_type: str, source_ref: str, stage: Stag
         "primary": None if primary is None else {"taxonomyCode": primary["taxonomyCode"], "damageType": primary["damageType"],
                                                  "label": primary["label"], "confidence": primary["confidence"]},
         "overallSeverity": overall,
+        "scene": scene_res,
+        "surfaceIndex": index,
+        "hazards": hazards,
         "measurements": {"coordinateSpace": "image_pixels", "metricCalibrationStatus": "unavailable",
                          "physicalDepthStatus": "not_estimable", "relativeDepthStatus": "not_available",
                          "note": "No calibration, scale reference or depth model: physical size and depth are not estimated."},
         "overlayJpegBase64": base64.b64encode(overlay).decode(),
         "timings": timings,
     }
+
+
+_live_lock = threading.Lock()
+
+
+def analyze_live(data: bytes) -> dict:
+    """Fast path for the camera preview: detector + scene only (no segmentation, no overlay).
+    Never queues: when another live frame is being processed it raises BUSY, so the preview
+    always shows the newest frame. Results are hints; the captured photo still goes through the
+    full pipeline as evidence."""
+    if not _live_lock.acquire(blocking=False):
+        raise CvError("BUSY", "Previous frame still processing.")
+    try:
+        t0 = time.perf_counter()
+        bgr = decode_image(data)
+        h, w = bgr.shape[:2]
+        rt = _Runtime.get()
+        tensor, r, pad = letterbox(bgr, rt.detector.imgsz)
+        out = rt.detector.infer(tensor)[rt.detector.compiled.outputs[0]][0]
+        dcfg = rt.detector.cfg
+        boxes, cls, scores, _ = _decode_boxes(out, len(rt.detector.names), dcfg["conf_candidate"], dcfg["iou_nms"], r, pad, w, h)
+        found = []
+        for box, c, sc in zip(boxes, cls, scores):
+            lab = dcfg["labels"][rt.detector.names[int(c)]]
+            found.append({"bbox": [round(float(v), 1) for v in box], "taxonomyCode": lab["taxonomy"], "label": lab["label"],
+                          "confidence": round(float(sc), 4), "accepted": bool(sc >= dcfg["conf_accept"])})
+        tq = time.perf_counter()
+        scene_res = scene_mod.classify(bgr)
+        scene_ms = round((time.perf_counter() - tq) * 1000, 1)
+        gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+        warnings = []
+        if cv2.Laplacian(gray, cv2.CV_64F).var() < BLUR_LAPLACIAN_VAR:
+            warnings.append("BLURRY")
+        if gray.mean() < DARK_MEAN:
+            warnings.append("TOO_DARK")
+        index = scene_mod.surface_damage_index(boxes if len(boxes) else np.zeros((0, 4)), None, w, h)
+        return {"frame": {"w": w, "h": h}, "boxes": found, "scene": scene_res, "surfaceIndex": index,
+                "quality": {"warnings": warnings}, "ms": {"total": round((time.perf_counter() - t0) * 1000, 1), "scene": scene_ms}}
+    finally:
+        _live_lock.release()
 
 
 def analyze_image(data: bytes, stage: Stage | None = None) -> dict:

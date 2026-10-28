@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import express, { type Request, type Response, type Router } from "express";
 import { rateLimit } from "../middleware/rateLimit";
+import { actorFrom } from "../auth/actor";
 import { callInference, callInferenceBytes } from "../services/inferenceClient";
 import { MAX_PHOTO_BYTES } from "../services/photoValidation";
 import type { WorkflowRuntime } from "../services/workflowRuntime";
@@ -13,7 +14,8 @@ export const CV_PATHS = {
   analysis: "/api/cv/analyses/:id",
   overlay: "/api/cv/analyses/:id/overlay",
   mask: "/api/cv/analyses/:id/mask",
-  video: "/api/cv/analyze-video"
+  video: "/api/cv/analyze-video",
+  live: "/api/cv/live"
 } as const;
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -46,6 +48,20 @@ export function registerCvRoutes(router: Router, runtime: WorkflowRuntime): void
   const pending = new Map<string, PendingJob>();
   const byKey = new Map<string, string>();
   const raw = express.raw({ type: IMAGE_TYPES, limit: MAX_PHOTO_BYTES });
+
+  // Camera preview: detector + scene on a small frame, several times a second. Signed-in only,
+  // limited per account (not per IP), nothing stored: the captured photo is the evidence.
+  const liveLimit = rateLimit("cv-live", 240, 60_000, (req) => actorFrom(req, runtime)?.id ?? null);
+  const liveRaw = express.raw({ type: "image/jpeg", limit: 300_000 });
+  router.post(CV_PATHS.live, liveLimit, liveRaw, async (req: Request, res: Response) => {
+    res.setHeader("Cache-Control", "no-store");
+    if (!actorFrom(req, runtime)) return fail(res, 401, "UNAUTHENTICATED", "Sign in to use the live camera check.");
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) return fail(res, 422, "INVALID_IMAGE", "No frame received.");
+    const reply = await callInferenceBytes("/v1/cv/live", req.body, "image/jpeg", 2500);
+    if ("unavailable" in reply) return fail(res, 503, "INFERENCE_UNAVAILABLE", reply.message);
+    if (!reply.ok) return fail(res, reply.status, inferenceError(reply.body).code, inferenceError(reply.body).message);
+    res.json({ success: true, live: reply.body });
+  });
 
   router.get(CV_PATHS.health, async (_req: Request, res: Response) => {
     const reply = await callInference("GET", "/v1/cv/health");

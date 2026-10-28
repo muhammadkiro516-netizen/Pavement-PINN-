@@ -155,8 +155,8 @@ function Splash() {
         Pavement<span className="text-[#FFE14D]">PINN</span>
       </p>
       <p className="pp-rise mt-2 text-sm font-semibold text-[#FFFFFF]/80" style={{ animationDelay: '450ms' }}>Potret jalan rusak. Kami kawal sampai beres.</p>
-      <div className="mt-8 h-1 w-40 overflow-hidden rounded-full bg-[#FFFFFF]/25">
-        <div className="h-full rounded-full bg-[#FFFFFF]" style={{ animation: 'pp-load 1.7s ease-out forwards' }} />
+      <div className="mt-8 h-1 w-40 overflow-hidden rounded-full bg-[#1C1C1E]/25">
+        <div className="h-full rounded-full bg-[#1C1C1E]" style={{ animation: 'pp-load 1.7s ease-out forwards' }} />
       </div>
     </div>
   );
@@ -169,7 +169,7 @@ export default function App() {
         <AppStateProvider>
           <GlobalModalsProvider>
             <AppErrorBoundary>
-              <div className="pp-light flex h-[100dvh] flex-col overflow-hidden bg-[#F4F7FC]">
+              <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#000000]">
                 <ServerVersionBanner />
                 <div className="relative min-h-0 flex-1 overflow-hidden">
                   <AppShell />

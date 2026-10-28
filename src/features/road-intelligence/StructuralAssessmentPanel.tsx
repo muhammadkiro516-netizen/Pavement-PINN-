@@ -213,7 +213,7 @@ export const StructuralAssessmentPanel: React.FC<{
       </div>
       {error && <p role="alert" className="text-xs text-rose-200">Penilaian gagal: {error}</p>}
       {/* Plain-language decisions first; the technical numbers follow for the engineer. */}
-      <PinnDecisionCard base={buildRequest(segmentId, values, criterion)} onRun={onRun} />
+      <PinnDecisionCard base={buildRequest(segmentId, values, criterion)} />
       {result && (
         <div className="space-y-3" role="status">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

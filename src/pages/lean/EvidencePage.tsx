@@ -41,7 +41,7 @@ export const EvidencePage: React.FC = () => {
     <SnapPage
       title="Bukti & Transparansi"
       subtitle="Semua angka di halaman ini diukur, bukan diperkirakan."
-      action={<button type="button" onClick={() => history.length > 1 ? history.back() : navigateTo('login')} className="cursor-pointer rounded-full bg-[#EEF2F7] p-2.5" aria-label="Kembali"><span className="block rotate-180"><Glyph name="arrow" size={20} /></span></button>}
+      action={<button type="button" onClick={() => history.length > 1 ? history.back() : navigateTo('login')} className="cursor-pointer rounded-full bg-[#2C2C2E] p-2.5" aria-label="Kembali"><span className="block rotate-180"><Glyph name="arrow" size={20} /></span></button>}
     >
       <SnapCard>
         <p className="mb-2 font-extrabold">Status layanan AI saat ini</p>
@@ -53,25 +53,25 @@ export const EvidencePage: React.FC = () => {
       {ENGINES.map((e) => (
         <SnapCard key={e.name}>
           <p className="font-extrabold">{e.name}</p>
-          <p className="mt-1 text-sm text-[#3E4C5E]">{e.what}</p>
-          <p className="mt-1 text-sm text-[#1463FF]">{e.why}</p>
+          <p className="mt-1 text-sm text-[#D1D1D6]">{e.what}</p>
+          <p className="mt-1 text-sm text-[#FFE14D]">{e.why}</p>
         </SnapCard>
       ))}
 
       <h2 className="pt-2 text-lg font-extrabold">Kecepatan inferensi (Intel OpenVINO)</h2>
       {S.latency.length === 0 ? (
-        <SnapCard><p className="text-sm text-[#5B6B7F]">Belum diukur.</p></SnapCard>
+        <SnapCard><p className="text-sm text-[#A1A1AA]">Belum diukur.</p></SnapCard>
       ) : (
         <SnapCard>
-          {S.machine && <p className="mb-2 text-xs text-[#7A8899]">{S.machine.cpu} · OpenVINO {S.machine.openvino} · perangkat: {S.machine.devices.join(', ')}</p>}
+          {S.machine && <p className="mb-2 text-xs text-[#8E8E93]">{S.machine.cpu} · OpenVINO {S.machine.openvino} · perangkat: {S.machine.devices.join(', ')}</p>}
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="text-xs text-[#7A8899]">
+              <thead className="text-xs text-[#8E8E93]">
                 <tr><th className="py-1 pr-2">Model</th><th className="pr-2">Presisi</th><th className="pr-2">Perangkat</th><th className="pr-2 text-right">p50 (ms)</th><th className="text-right">FPS</th></tr>
               </thead>
               <tbody>
                 {S.latency.map((r) => (
-                  <tr key={`${r.model}-${r.precision}-${r.device}`} className="border-t border-[#EEF2F7]">
+                  <tr key={`${r.model}-${r.precision}-${r.device}`} className="border-t border-[#2C2C2E]">
                     <td className="py-1.5 pr-2">{r.model}</td><td className="pr-2">{r.precision}</td><td className="pr-2">{r.device}</td>
                     <td className="pr-2 text-right font-bold">{r.p50Ms.toFixed(1)}</td><td className="text-right">{r.fps.toFixed(0)}</td>
                   </tr>
@@ -80,12 +80,12 @@ export const EvidencePage: React.FC = () => {
             </table>
           </div>
           {S.int8Agreement?.agreement != null && (
-            <p className="mt-2 text-sm text-[#3E4C5E]">
+            <p className="mt-2 text-sm text-[#D1D1D6]">
               Kuantisasi INT8 (NNCF) menemukan {S.int8Agreement.int8Matched} dari {S.int8Agreement.fp32Objects} objek yang ditemukan versi FP32
               ({Math.round(S.int8Agreement.agreement * 100)}%, {S.int8Agreement.photos} foto). Karena belum setara, aplikasi tetap memakai FP32.
             </p>
           )}
-          {S.generatedAt && <p className="mt-2 text-xs text-[#9AA7B8]">Diukur {new Date(S.generatedAt).toLocaleString('id-ID')} pada mesin di atas; median dari 40 kali jalan.</p>}
+          {S.generatedAt && <p className="mt-2 text-xs text-[#6E6E73]">Diukur {new Date(S.generatedAt).toLocaleString('id-ID')} pada mesin di atas; median dari 40 kali jalan.</p>}
         </SnapCard>
       )}
 
@@ -96,20 +96,20 @@ export const EvidencePage: React.FC = () => {
             <Stat value={S.accuracy.map50.toFixed(3)} label="mAP@50" />
             <Stat value={S.accuracy.f1.toFixed(3)} label="F1" hint={`presisi ${S.accuracy.precision.toFixed(2)} · recall ${S.accuracy.recall.toFixed(2)}`} />
           </div>
-          <SnapCard><p className="text-sm text-[#3E4C5E]">{S.accuracy.dataset} · {S.accuracy.images} foto. {S.accuracy.note}</p></SnapCard>
+          <SnapCard><p className="text-sm text-[#D1D1D6]">{S.accuracy.dataset} · {S.accuracy.images} foto. {S.accuracy.note}</p></SnapCard>
         </>
       ) : (
-        <SnapCard><p className="text-sm text-[#5B6B7F]">Belum diukur.</p></SnapCard>
+        <SnapCard><p className="text-sm text-[#A1A1AA]">Belum diukur.</p></SnapCard>
       )}
       <SnapCard>
-        <p className="text-sm text-[#3E4C5E]">
+        <p className="text-sm text-[#D1D1D6]">
           Akurasi lapangan dihitung terus dari koreksi petugas pada setiap inspeksi (human-in-the-loop) dan tampil di Statistik Koordinator.
         </p>
       </SnapCard>
 
       <h2 className="pt-2 text-lg font-extrabold">Privasi & etika</h2>
       <SnapCard>
-        <ul className="list-disc space-y-1.5 pl-5 text-sm text-[#2A3647]">
+        <ul className="list-disc space-y-1.5 pl-5 text-sm text-[#E5E5EA]">
           <li>Semua AI berjalan di server kami sendiri (OpenVINO). Foto tidak dikirim ke layanan AI pihak ketiga.</li>
           <li>Metadata foto (EXIF, termasuk GPS kamera) dibuang saat foto dianalisis; lokasi laporan hanya titik yang Anda pilih.</li>
           <li>AI hanya mengusulkan. Setiap keputusan (terima laporan, tugaskan, setujui perbaikan) diambil manusia dan tercatat di jejak audit.</li>
@@ -120,7 +120,7 @@ export const EvidencePage: React.FC = () => {
 
       <h2 className="pt-2 text-lg font-extrabold">Batasan yang kami akui</h2>
       <SnapCard>
-        <ul className="list-disc space-y-1.5 pl-5 text-sm text-[#2A3647]">
+        <ul className="list-disc space-y-1.5 pl-5 text-sm text-[#E5E5EA]">
           <li>Kedalaman lubang tidak bisa diukur dari satu foto; petugas mengukurnya di lokasi.</li>
           <li>Model deteksi dilatih dengan dataset kerusakan jalan internasional; akurasi pada jalan Indonesia diukur dari koreksi petugas.</li>
           <li>Perkiraan umur jalan dari PINN bergantung pada tebal lapisan dan jumlah truk yang diisi petugas; hasilnya indikatif, bukan desain.</li>
@@ -129,7 +129,7 @@ export const EvidencePage: React.FC = () => {
 
       <h2 className="pt-2 text-lg font-extrabold">Pengungkapan penggunaan GenAI</h2>
       <SnapCard>
-        <p className="text-sm text-[#2A3647]">
+        <p className="text-sm text-[#E5E5EA]">
           Aplikasi ini dikembangkan dengan bantuan asisten coding AI, termasuk Claude (Anthropic) melalui Claude Code, untuk
           penulisan dan refactor kode, tes, dan dokumentasi. Daftar lengkap tool ada di docs/GENAI_DISCLOSURE.md. Ide, konsep human-in-the-loop, keputusan produk, dan pengujian dilakukan oleh tim.
           Aplikasi yang berjalan

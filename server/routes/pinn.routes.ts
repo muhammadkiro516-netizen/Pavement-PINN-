@@ -7,6 +7,8 @@ import type { WorkflowRuntime } from "../services/workflowRuntime";
 
 export const ENGINE_ASSESS_PATH = "/api/engine/assess";
 export const ENGINE_HEALTH_PATH = "/api/engine/health";
+export const ENGINE_DECIDE_PATH = "/api/engine/decide";
+export const ENGINE_VEHICLES_PATH = "/api/engine/vehicle-classes";
 
 /** First validation message from FastAPI ({detail: string | [{loc, msg}]}), for the UI. */
 function describe(body: unknown): string {
@@ -52,5 +54,22 @@ export function registerPinnRoutes(router: Router, runtime: WorkflowRuntime): vo
     if (!actor) return res.status(401).json({ success: false, error: { code: "UNAUTHENTICATED", message: "Structural assessment requires an engineer session." } });
     if (actor.role !== "FIELD_ENGINEER") return res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Structural assessment is limited to field engineers." } });
     relay(res, await callInference("POST", "/v1/assess", req.body ?? {}));
+  });
+
+  // One structural decision (damage -> modulus, traffic with ODOL, seasonal life, overlay and
+  // reconstruction options) for field officers and coordinators.
+  const decideLimit = rateLimit("engine-decide", 30, 60_000, (req) => actorFrom(req, runtime)?.id ?? null);
+  router.post(ENGINE_DECIDE_PATH, decideLimit, async (req: Request, res: Response) => {
+    await runtime.ready;
+    const actor = actorFrom(req, runtime);
+    if (!actor) return res.status(401).json({ success: false, error: { code: "UNAUTHENTICATED", message: "Sign in as staff." } });
+    if (actor.role !== "FIELD_ENGINEER" && actor.role !== "OPERATIONS_MANAGER") {
+      return res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Structural decisions are for field officers and coordinators." } });
+    }
+    relay(res, await callInference("POST", "/v1/decide", req.body ?? {}));
+  });
+
+  router.get(ENGINE_VEHICLES_PATH, async (_req: Request, res: Response) => {
+    relay(res, await callInference("GET", "/v1/decide/vehicle-classes"));
   });
 }

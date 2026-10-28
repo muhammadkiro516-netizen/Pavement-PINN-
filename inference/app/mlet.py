@@ -50,9 +50,11 @@ def _pymastic(q_kpa, xs, zs, hs, E, nu):
 
 def mlet_strains(axle_t: float, h_mm: list[float], E_mpa: list[float], nu: list[float],
                  q_mpa: float = 0.55, tyres_per_axle: int = 4,
-                 dual_spacing_mm: float | None = None) -> dict:
-    """Critical strains for one axle: et = horizontal tensile strain at the bottom of the
-    asphalt layer, ev = vertical compressive strain at the top of the subgrade (both positive).
+                 dual_spacing_mm: float | None = None, et_layer: int = 0,
+                 allow_compressive_et: bool = False) -> dict:
+    """Critical strains for one axle: et = horizontal tensile strain at the bottom of bound layer
+    `et_layer` (0 = the asphalt; 1 = the old asphalt under an overlay), ev = vertical compressive
+    strain at the top of the subgrade (both positive).
     With dual_spacing_mm, strains are superposed at x = 0, d/2, d and the maximum is taken."""
     if not (len(E_mpa) == len(nu) == len(h_mm) + 1):
         raise ValueError("E and nu need one entry per layer including the subgrade")
@@ -61,7 +63,9 @@ def mlet_strains(axle_t: float, h_mm: list[float], E_mpa: list[float], nu: list[
     wheel_n = axle_t * 9.80665e3 / tyres_per_axle
     a = math.sqrt(wheel_n / (math.pi * q_mpa))  # contact radius, mm
     s = a  # lengths are normalised by a for numerical stability
-    z_t = (h_mm[0] - 0.01) / s
+    if not 0 <= et_layer < len(h_mm):
+        raise ValueError("et_layer must point at one of the layers above the subgrade")
+    z_t = (sum(h_mm[: et_layer + 1]) - 0.01) / s
     z_v = (sum(h_mm) + 0.01) / s
     xs = [0.0] if dual_spacing_mm is None else [0.0, dual_spacing_mm / (2 * s), dual_spacing_mm / s]
     # PyMastic multiplies E by 1000 internally, so q goes in kPa when E is in MPa.
@@ -72,8 +76,14 @@ def mlet_strains(axle_t: float, h_mm: list[float], E_mpa: list[float], nu: list[
     else:
         et = max(-(er[0, 0] + er[0, 2]), -2 * er[0, 1])
         ev = max(ez[1, 0] + ez[1, 2], 2 * ez[1, 1])
-    if not (np.isfinite(et) and np.isfinite(ev)) or et <= 0 or ev <= 0:
+    if not (np.isfinite(et) and np.isfinite(ev)) or ev <= 0:
         raise ArithmeticError("MLET returned a non-finite or non-positive strain")
+    if et <= 0:
+        # The bottom of this layer is in compression (e.g. a soft old layer under a stiff overlay):
+        # fatigue there is not critical. Only accepted when the caller says so.
+        if not allow_compressive_et:
+            raise ArithmeticError("MLET returned a non-finite or non-positive strain")
+        et = 1e-9  # 0.001 microstrain: fatigue life effectively unlimited, rutting governs
     return {"et_ue": float(et * 1e6), "ev_ue": float(ev * 1e6), "a_mm": float(a)}
 
 

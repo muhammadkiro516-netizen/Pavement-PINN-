@@ -23,3 +23,6 @@ docs/handoff/
 __pycache__/
 *.pyc
 *.pyo
+
+# CLIP scene model (downloaded by inference/scripts/fetch_clip.py, >90 MB)
+models/cv/clip/

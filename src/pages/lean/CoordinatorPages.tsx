@@ -52,10 +52,10 @@ export const StatsPage: React.FC = () => {
         <SnapCard>
           <p className="mb-2 font-extrabold">Akurasi per jenis kerusakan</p>
           {Object.entries(s.perClass).map(([cls, [ok, n]]) => (
-            <div key={cls} className="flex items-center justify-between border-t border-[#EEF2F7] py-2 text-sm">
+            <div key={cls} className="flex items-center justify-between border-t border-[#2C2C2E] py-2 text-sm">
               <span>{cls}</span>
               <span className="font-bold">
-                {pct(ok, n)} <span className="font-normal text-[#7A8899]">({ok}/{n})</span>
+                {pct(ok, n)} <span className="font-normal text-[#8E8E93]">({ok}/{n})</span>
               </span>
             </div>
           ))}
@@ -127,7 +127,7 @@ export const TeamPage: React.FC = () => {
       subtitle="Akun petugas lapangan dan koordinator instansi Anda."
       action={<SnapButton onClick={() => setOpen((v) => !v)}><Glyph name="plus" size={18} /> Tambah</SnapButton>}
     >
-      {error && <p className="rounded-2xl bg-[#FDECEC] p-3 text-sm text-[#C53035]">{error}</p>}
+      {error && <p className="rounded-2xl bg-[#3A1416] p-3 text-sm text-[#FF6B6B]">{error}</p>}
       {open && (
         <SnapCard>
           <form onSubmit={create} className="space-y-3">
@@ -141,7 +141,7 @@ export const TeamPage: React.FC = () => {
                   key={role}
                   type="button"
                   onClick={() => setForm({ ...form, role })}
-                  className={`flex-1 cursor-pointer rounded-2xl px-3 py-3 text-sm font-bold ${form.role === role ? 'bg-[#1463FF] text-[#0E1B2C]' : 'bg-[#EEF2F7] text-[#0E1B2C]'}`}
+                  className={`flex-1 cursor-pointer rounded-2xl px-3 py-3 text-sm font-bold ${form.role === role ? 'bg-[#FFE14D] text-[#FFFFFF]' : 'bg-[#2C2C2E] text-[#FFFFFF]'}`}
                 >
                   {label}
                 </button>
@@ -159,7 +159,7 @@ export const TeamPage: React.FC = () => {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-extrabold">{a.name}</p>
-                <p className="truncate text-xs text-[#7A8899]">{a.email} · {a.agency}</p>
+                <p className="truncate text-xs text-[#8E8E93]">{a.email} · {a.agency}</p>
                 <div className="mt-1.5 flex gap-2">
                   <Pill tone="blue">{ROLE_NAME[a.role] ?? a.role}</Pill>
                   {!a.active && <Pill tone="red">Nonaktif</Pill>}

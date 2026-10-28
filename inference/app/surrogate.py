@@ -7,6 +7,7 @@ withheld (status CROSSCHECK_FAILED) rather than shown.
 from __future__ import annotations
 
 import hashlib
+import threading
 import json
 import math
 import os
@@ -38,9 +39,11 @@ class Surrogate:
         self.openvino_version = ov.__version__
         self.precision = PRECISION
         self.device = DEVICE
+        self._lock = threading.Lock()
 
     def predict(self, F: np.ndarray) -> np.ndarray:
-        return self.compiled(F.astype(np.float32))[0]
+        with self._lock:  # one compiled model = one implicit infer request; serialise callers
+            return self.compiled(F.astype(np.float32))[0]
 
     def in_domain(self, F: np.ndarray) -> np.ndarray:
         return ((F >= self.fmin) & (F <= self.fmax)).all(1)

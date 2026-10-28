@@ -62,7 +62,10 @@ export async function attachCvAnalysis(
       timings: a.timings,
       overlayUrl: a.overlayUrl ?? null,
       imageSha256: record.imageSha256,
-      userCorrections: corrections
+      userCorrections: corrections,
+      scene: a.scene ?? null,
+      surfaceIndex: a.surfaceIndex,
+      hazards: a.hazards ?? []
     }
   };
 }

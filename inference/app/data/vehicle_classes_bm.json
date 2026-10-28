@@ -1,0 +1,12 @@
+{
+  "note": "Bina Marga vehicle classes (Golongan 5B-7C) with axle groups. Loads are ASSUMED typical values (tonnes) for an indicative estimate: 'normal' = within the legal limit, 'actual' = typical overloaded (ODOL) loading seen on Indonesian freight corridors. Edit with local WIM / survey data when available.",
+  "standard_loads_t": { "STRT": 5.4, "STRG": 8.16, "SDRG": 13.76, "STrRG": 18.45 },
+  "classes": {
+    "5B":  { "name": "Bus besar",                 "groups": ["STRT", "STRG"],                   "normal": [5.0, 8.0],          "actual": [5.5, 9.0] },
+    "6A":  { "name": "Truk 2 sumbu ringan",       "groups": ["STRT", "STRG"],                   "normal": [2.5, 4.5],          "actual": [3.5, 7.0] },
+    "6B":  { "name": "Truk 2 sumbu sedang/berat", "groups": ["STRT", "STRG"],                   "normal": [5.0, 8.0],          "actual": [6.5, 13.0] },
+    "7A":  { "name": "Truk 3 sumbu",              "groups": ["STRT", "SDRG"],                   "normal": [6.0, 14.0],         "actual": [7.5, 22.0] },
+    "7B":  { "name": "Truk gandeng",              "groups": ["STRT", "STRG", "STRG", "STRG"],   "normal": [6.0, 8.0, 8.0, 8.0], "actual": [7.0, 12.0, 12.0, 12.0] },
+    "7C":  { "name": "Truk semi-trailer",         "groups": ["STRT", "SDRG", "STrRG"],          "normal": [6.0, 14.0, 20.0],   "actual": [7.5, 20.0, 30.0] }
+  }
+}
