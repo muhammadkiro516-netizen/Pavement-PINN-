@@ -9,7 +9,7 @@
  * "offline demo" label in that mode; nothing there is persisted or authorized by a server.
  */
 import { WORKFLOW_API_PATHS } from '../../types';
-import type { DamageReport, EngineAssessRequest, EngineAssessResult, UserRole } from '../../types';
+import type { AccountProfile, DamageReport, EngineAssessRequest, EngineAssessResult, UserRole } from '../../types';
 import { apiUrl, isStaticHost } from './client';
 import type { Actor, ReportCase, WorkflowAction } from '../../domain/workflow/model';
 import { availableActions, type WorkflowCommand } from '../../domain/workflow/stateMachine';
@@ -65,10 +65,18 @@ export interface SessionAccount {
   role: UserRole;
 }
 
+/** A started session: the actor, and the registered account's profile (null for test fixtures). */
+export interface SignedIn {
+  actor: Actor;
+  account: AccountProfile | null;
+}
+
 export interface WorkflowGateway {
   readonly mode: GatewayMode;
-  /** Check credentials and start a session for the account they open. Returns the actor. */
-  login(credentials: LoginCredentials): Promise<Actor>;
+  /** Check credentials and start a session for the account they open. */
+  login(credentials: LoginCredentials): Promise<SignedIn>;
+  /** Create a citizen account and sign it in. */
+  register(input: { email: string; name: string; password: string }): Promise<SignedIn>;
   /** End the signed-in session: forgotten here at once; settles once the server has revoked it. */
   logout(): Promise<void>;
   /** Called when the server refuses a signed-in session as ended (2-hour limit or logged out elsewhere). */
@@ -206,7 +214,7 @@ export class HttpWorkflowGateway implements WorkflowGateway {
       this.token = null;
       writeStorage(TOKEN_KEY, null);
       const me = await this.request<{ actor: Actor }>('GET', WORKFLOW_API_PATHS.me);
-      if (me.actor.id !== account.id || me.actor.kind !== 'DEMO_ACCOUNT') {
+      if (me.actor.id !== account.id || (me.actor.kind !== 'ACCOUNT' && me.actor.kind !== 'DEMO_ACCOUNT')) {
         this.actor = null;
         this.sessionKey = null;
         throw new WorkflowApiError('UNAUTHENTICATED', 'Sesi tidak ditemukan atau sudah berakhir. Silakan masuk kembali.', 401);
@@ -246,15 +254,24 @@ export class HttpWorkflowGateway implements WorkflowGateway {
     return res.actor;
   }
 
-  async login(credentials: LoginCredentials): Promise<Actor> {
+  async login(credentials: LoginCredentials): Promise<SignedIn> {
     // End the previous identity first, and wait for it: a logout still in flight when the new
     // session cookie arrives would revoke the new session instead of the old one.
     this.forget();
     await this.endServerSession();
-    const res = await this.request<{ actor: Actor }>('POST', WORKFLOW_API_PATHS.login, credentials);
+    return this.startSession(await this.request<SignedIn>('POST', WORKFLOW_API_PATHS.login, credentials));
+  }
+
+  async register(input: { email: string; name: string; password: string }): Promise<SignedIn> {
+    this.forget();
+    await this.endServerSession();
+    return this.startSession(await this.request<SignedIn>('POST', WORKFLOW_API_PATHS.register, input));
+  }
+
+  private startSession(res: SignedIn): SignedIn {
     this.actor = res.actor;
     this.sessionKey = `demo:${res.actor.id}`;
-    return res.actor;
+    return { actor: res.actor, account: res.account ?? null };
   }
 
   logout(): Promise<void> {
@@ -376,7 +393,11 @@ export class OfflineWorkflowGateway implements WorkflowGateway {
     return this.view(result.value);
   }
 
-  async login(credentials: LoginCredentials): Promise<Actor> {
+  async register(): Promise<SignedIn> {
+    throw new WorkflowApiError('DISABLED', 'Registration needs the server.', 403);
+  }
+
+  async login(credentials: LoginCredentials): Promise<SignedIn> {
     if (!this.verifyCredentials) {
       throw new WorkflowApiError('DISABLED', 'Login is not available in this static build (demo access is not enabled).', 403);
     }
@@ -385,7 +406,7 @@ export class OfflineWorkflowGateway implements WorkflowGateway {
     if (!accountId || !role) throw new WorkflowApiError('UNAUTHENTICATED', 'Invalid username or password.', 401);
     writeStorage(OFFLINE_LOGIN_KEY, accountId);
     this.actor = { id: accountId, role, kind: 'DEMO_ACCOUNT' };
-    return this.actor;
+    return { actor: this.actor, account: null };
   }
 
   onSessionEnded(): void {

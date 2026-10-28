@@ -16,6 +16,9 @@ export interface AppOptions {
  */
 export function createApp(options: AppOptions = {}): Express {
   const app = express();
+  // The public link is a tunnel agent on this machine (ngrok / cloudflared): trust its
+  // X-Forwarded-For so rate limits see each visitor, not the agent. Only loopback is trusted.
+  app.set("trust proxy", "loopback");
   const workflow = options.workflow ?? createWorkflowRuntime();
 
   app.disable("x-powered-by");

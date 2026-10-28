@@ -294,7 +294,7 @@ test('DEMO_AUTH=false switches off demo login; anonymous sessions remain', async
   const s = await listen(createApp({ workflow: runtime }));
   try {
     const r = await fetch(`${s.base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentialsFor('USR-008')) });
-    assert.equal(r.status, 403);
+    assert.equal(r.status, 401);
     const a = await fetch(`${s.base}/api/auth/anonymous`, { method: 'POST' });
     assert.equal(a.status, 200);
   } finally {
@@ -307,9 +307,9 @@ test('system health reports demo and missing components as they are', async () =
   assert.equal(r.status, 200);
   assert.equal(r.body.storage.status, 'ok');
   assert.match(r.body.storage.kind, /LOCAL_FILE/);
-  assert.equal(r.body.cloudDatabase.status, 'NOT_CONFIGURED');
-  assert.equal(r.body.authentication.status, 'DEMO');
-  assert.equal(r.body.ai.computerVision.status, 'DEMO');
-  assert.equal(r.body.ai.pinn.status, 'RULE_BASED');
-  assert.equal(r.body.externalIntegrations.wim.status, 'NOT_AVAILABLE');
+  assert.equal(r.body.authentication.status, 'TEST_FIXTURES');
+  // No inference service in this test: the live check reports it as unavailable, never as OK.
+  assert.equal(r.body.ai.computerVision.status, 'UNAVAILABLE');
+  assert.equal(r.body.ai.structural.status, 'UNAVAILABLE');
+  assert.equal(r.body.ai.screening.status, 'DEMO');
 });

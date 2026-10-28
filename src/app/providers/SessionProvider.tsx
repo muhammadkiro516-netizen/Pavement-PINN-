@@ -17,7 +17,7 @@
  * Limits: docs/LOGIN_AND_DEMO_AUTH.md.
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { UserRole, WORKFLOW_API_PATHS } from '../../types';
+import { UserRole, WORKFLOW_API_PATHS, type AccountProfile } from '../../types';
 import { USER_ACCOUNTS, UserAccount } from '../../features/authentication/demoAccounts';
 import { apiUrl, isStaticHost } from '../../services/api/client';
 
@@ -45,6 +45,31 @@ export const ANONYMOUS_ACCOUNT: UserAccount = {
   allowedScopes: ['Lihat peta & laporan publik', 'Buat laporan kerusakan anonim', 'Lacak status laporan dengan ID laporan'],
   restrictedScopes: ['Mengedit laporan', 'Data internal petugas & audit trail']
 };
+
+const ROLE_TITLE: Partial<Record<UserRole, string>> = {
+  PUBLIC_REPORTER: 'Warga',
+  FIELD_ENGINEER: 'Petugas Lapangan',
+  OPERATIONS_MANAGER: 'Koordinator'
+};
+
+/** The app's account shape for a registered account (no fixture fields are invented). */
+export function accountFromProfile(profile: AccountProfile): UserAccount {
+  return {
+    id: profile.id,
+    name: profile.name,
+    title: ROLE_TITLE[profile.role] ?? profile.role,
+    role: profile.role,
+    agency: profile.agency ?? 'Warga',
+    agencyCode: profile.agency ?? '',
+    email: profile.email,
+    nip: '',
+    clearanceLevel: ROLE_TITLE[profile.role] ?? '',
+    avatarUrl: NEUTRAL_AVATAR,
+    layoutStyle: 'MODERN_APP',
+    allowedScopes: [],
+    restrictedScopes: []
+  };
+}
 
 /** Identity before any login. */
 export const DEFAULT_PUBLIC_ACCOUNT: UserAccount = ANONYMOUS_ACCOUNT;
@@ -94,11 +119,16 @@ async function fetchServerSession(): Promise<ServerSession> {
     return { kind: 'unreachable' };
   }
   const json = (await res.json().catch(() => null)) as
-    | { success?: boolean; actor?: { id: string; kind: string }; expiresAt?: string; error?: { code?: string } }
+    | { success?: boolean; actor?: { id: string; kind: string }; account?: AccountProfile | null; expiresAt?: string; error?: { code?: string } }
     | null;
   if (res.status >= 500 || !json) return { kind: 'unreachable' };
   if (!res.ok || !json.success) return json.error?.code === 'SESSION_EXPIRED' ? { kind: 'expired' } : { kind: 'none' };
-  const account = json.actor?.kind === 'DEMO_ACCOUNT' ? USER_ACCOUNTS.find((a) => a.id === json.actor!.id) : undefined;
+  const account =
+    json.actor?.kind === 'ACCOUNT' && json.account
+      ? accountFromProfile(json.account)
+      : json.actor?.kind === 'DEMO_ACCOUNT'
+        ? USER_ACCOUNTS.find((a) => a.id === json.actor!.id)
+        : undefined;
   return account && json.expiresAt ? { kind: 'account', account, expiresAt: json.expiresAt } : { kind: 'none' };
 }
 

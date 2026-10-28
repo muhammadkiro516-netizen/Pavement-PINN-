@@ -31,7 +31,8 @@ export const WORKFLOW_STATES = [
 export type WorkflowState = (typeof WORKFLOW_STATES)[number];
 
 /** Who acted. `SYSTEM` is the automated screening step; it never makes human decisions. */
-export type ActorKind = 'DEMO_ACCOUNT' | 'ANONYMOUS' | 'SYSTEM';
+/** `ACCOUNT` = a registered account (server account store); `DEMO_ACCOUNT` = test fixtures only. */
+export type ActorKind = 'ACCOUNT' | 'DEMO_ACCOUNT' | 'ANONYMOUS' | 'SYSTEM';
 export interface Actor {
   id: string;
   role: UserRole | 'SYSTEM';

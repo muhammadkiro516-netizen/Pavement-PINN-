@@ -140,7 +140,7 @@ test('static build gateway: login, refresh, logout and wrong credentials', async
   const first = offline();
   assert.equal(await code(first.useAccount({ id: 'USR-008', role: 'OPERATIONS_MANAGER' })), 'UNAUTHENTICATED');
   assert.equal(await code(first.login({ username: 'ops.hendra', password: 'wrong' })), 'UNAUTHENTICATED');
-  const actor = await first.login({ username: 'OPS.HENDRA', password: 'OpsPinn2026!' });
+  const { actor } = await first.login({ username: 'OPS.HENDRA', password: 'OpsPinn2026!' });
   assert.deepEqual(actor, { id: 'USR-008', role: 'OPERATIONS_MANAGER', kind: 'DEMO_ACCOUNT' });
 
   // Refresh: a new gateway in the same tab resumes the signed-in account, and only that one.

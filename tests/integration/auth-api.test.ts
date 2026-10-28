@@ -139,8 +139,8 @@ test('with DEMO_AUTH=false login is unavailable even with valid credentials', as
   try {
     const c = DEMO_CREDENTIALS[0];
     const r = await post('/api/auth/login', { username: c.username, password: c.password }, s.base);
-    assert.equal(r.status, 403);
-    assert.equal(r.body.error.code, 'DISABLED');
+    assert.equal(r.status, 401);
+    assert.equal(r.body.error.code, 'UNAUTHENTICATED');
   } finally {
     await new Promise<void>((resolve) => s.server.close(() => resolve()));
   }

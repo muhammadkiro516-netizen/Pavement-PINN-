@@ -5,6 +5,7 @@ import { loadServerConfig, type ServerConfig } from "../config/env";
 import { attachFrontendHost } from "../middleware/frontendHost";
 import { FileCaseStore } from "../repositories/fileCaseStore";
 import { createWorkflowRuntime } from "../services/workflowRuntime";
+import { AccountStore } from "../repositories/accountStore";
 import { setRuntimePorts, setRuntimeStore } from "./runtimeIdentity";
 import { resolveSessionSecret } from "../auth/sessionTokens";
 
@@ -52,6 +53,9 @@ export async function startServer(options: StartOptions = {}): Promise<StartedSe
     sessionMaxAgeSeconds: config.sessionMaxAgeSeconds,
     revocationFile: path.join(path.dirname(store.location), "revoked-sessions.json"),
     demoAuthEnabled: config.demoAuthEnabled,
+    // Real data only: no sample reports or sample workspaces are loaded into the product.
+    seed: false,
+    accounts: new AccountStore(path.join(config.dataDir, "accounts.json")),
     cvDir: path.join(config.dataDir, "cv-analyses"),
     workspaceDir: path.join(config.dataDir, "workspaces")
   });

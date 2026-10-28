@@ -28,6 +28,11 @@ export const WORKFLOW_API_PATHS = {
   me: '/api/auth/me',
   /** Ends the signed-in session (revokes the token, clears the cookie). */
   logout: '/api/auth/logout',
+  /** Citizen self-registration (creates a PUBLIC_REPORTER account and signs it in). */
+  register: '/api/auth/register',
+  /** Staff accounts, managed by a Koordinator (OPERATIONS_MANAGER). */
+  staff: '/api/staff',
+  staffActive: '/api/staff/:id/active',
   reports: '/api/workflow/reports',
   report: '/api/workflow/reports/:id',
   transitions: '/api/workflow/reports/:id/transitions',
@@ -113,4 +118,15 @@ export interface RuntimeIdentity {
   dataStore: { kind: 'file' | 'memory'; storeId: string; relativeLocation: string | null };
   api: { baseUrl: string };
   sessions: 'per-process' | 'shared-secret';
+}
+
+/** A registered account as the server returns it (login, register, /api/auth/me). */
+export interface AccountProfile {
+  id: string;
+  email: string;
+  name: string;
+  role: import('./rbac').UserRole;
+  agency: string | null;
+  createdAt?: string;
+  active?: boolean;
 }

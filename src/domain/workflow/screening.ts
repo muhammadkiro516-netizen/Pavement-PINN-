@@ -18,8 +18,23 @@ export interface CvScreeningProvider {
   readonly status: 'REAL' | 'DEMO' | 'MODEL_UNAVAILABLE';
   readonly modelVersion: string | null;
   /** Returns the model's class and confidence for the report image, or null when no output. */
-  classify(report: DamageReport): { detectedClass: string; confidence: number } | null;
+  classify(report: DamageReport): { detectedClass: string; confidence: number; modelVersion?: string } | null;
 }
+
+/**
+ * The product provider: the OpenVINO detector's result for the report photo, which the server
+ * attached by photo hash (reportFactory sets `modelStatus: 'REAL'` only from that record).
+ * A report without such a result gets no class and goes to human review.
+ */
+export const VERIFIED_CV_PROVIDER: CvScreeningProvider = {
+  status: 'REAL',
+  modelVersion: null,
+  classify(report) {
+    const ai = report.aiAnalysis;
+    if (!ai || ai.modelStatus !== 'REAL' || typeof ai.confidence !== 'number') return null;
+    return { detectedClass: ai.class, confidence: ai.confidence, modelVersion: ai.modelVersion };
+  }
+};
 
 /**
  * The provider used while no trained model is deployed: it reports the in-app demo
@@ -85,11 +100,12 @@ export function screenReport(report: DamageReport, createdAt: string, existing: 
 
   const confidence = output ? output.confidence : null;
   const confident = cv.status === 'REAL' && confidence !== null && confidence >= SCREENING_CONFIDENCE_THRESHOLD;
-  if (cv.status === 'REAL' && !confident) reasons.push('Kepercayaan model di bawah ambang; perlu peninjauan manusia.');
+  if (cv.status === 'REAL' && !output) reasons.push('Foto belum dianalisis model; perlu peninjauan petugas.');
+  else if (cv.status === 'REAL' && !confident) reasons.push('Kepercayaan model di bawah ambang; perlu peninjauan petugas.');
 
   return {
     modelStatus: cv.status,
-    modelVersion: cv.modelVersion,
+    modelVersion: output?.modelVersion ?? cv.modelVersion,
     detectedClass: output ? output.detectedClass : null,
     confidence,
     passed: confident && inIndonesia && duplicates.length === 0,

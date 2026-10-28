@@ -1,7 +1,6 @@
 import type { Request, Response, Router } from "express";
 import { WORKFLOW_API_PATHS } from "../../src/types";
-import { DEMO_CV_PROVIDER } from "../../src/domain/workflow/screening";
-import { isGeminiConfigured } from "../integrations/gemini/geminiClient";
+import { callInference, type InferenceReply } from "../services/inferenceClient";
 import type { WorkflowRuntime } from "../services/workflowRuntime";
 
 /**
@@ -10,13 +9,17 @@ import type { WorkflowRuntime } from "../services/workflowRuntime";
  */
 export function registerSystemRoutes(router: Router, runtime: WorkflowRuntime): void {
   router.get(WORKFLOW_API_PATHS.systemHealth, async (_req: Request, res: Response) => {
+    const [cvReply, engineReply] = await Promise.all([callInference("GET", "/v1/cv/health"), callInference("GET", "/v1/health")]);
+    const live = (reply: InferenceReply) => ("unavailable" in reply ? { status: "UNAVAILABLE", detail: reply.message } : { status: reply.ok ? "OK" : "ERROR", detail: reply.body });
+    const cvHealth = live(cvReply);
+    const engineHealth = live(engineReply);
     let storage: { status: "ok" | "error"; kind: string; detail: string };
     try {
       await runtime.ready;
       const n = (await runtime.service.listCases()).length;
       storage = {
         status: "ok",
-        kind: runtime.storeKind === "file" ? "LOCAL_FILE (development/demo store)" : "MEMORY (not persisted)",
+        kind: runtime.storeKind === "file" ? "LOCAL_FILE (one server, daily backup)" : "MEMORY (not persisted)",
         detail: `${n} report cases`
       };
     } catch (error) {
@@ -27,19 +30,15 @@ export function registerSystemRoutes(router: Router, runtime: WorkflowRuntime): 
       timestamp: new Date().toISOString(),
       application: { status: "ok" },
       storage,
-      cloudDatabase: { status: "NOT_CONFIGURED", detail: "Supabase PostgreSQL schema exists in supabase/migrations; no credentials configured." },
-      objectStorage: { status: "NOT_CONFIGURED", detail: "Photos are kept inside report records (base64, max 5 MB)." },
-      authentication: { status: runtime.demoAuthEnabled ? "DEMO" : "DISABLED", detail: "Demo credential login with dummy accounts and server-signed sessions; no identity provider configured, not production authentication." },
+      photos: { status: "LOCAL", detail: "Photos are kept inside report records (base64, max 5 MB)." },
+      authentication: runtime.demoAuthEnabled
+        ? { status: "TEST_FIXTURES", detail: "Fixture identities enabled (DEMO_AUTH=true); never on the product server." }
+        : { status: "ACCOUNTS", detail: `Registered accounts with scrypt passwords and server-signed sessions (${runtime.accounts.list().length} accounts).` },
       ai: {
-        computerVision: { status: DEMO_CV_PROVIDER.status, modelVersion: DEMO_CV_PROVIDER.modelVersion },
-        pinn: { status: "RULE_BASED", detail: "Deterministic formula in src/engines/pinn; no trained PINN weights." },
-        openvino: { status: "NOT_CONFIGURED", detail: "No OpenVINO runtime or IR model in this deployment; export endpoints return illustrative artifacts." },
-        narrative: { status: isGeminiConfigured() ? "CONFIGURED" : "OFFLINE_RULE_ENGINE" }
-      },
-      externalIntegrations: {
-        weather: { status: "NOT_CONFIGURED", fallback: "DEMO data, labelled" },
-        traffic: { status: "NOT_CONFIGURED", fallback: "INFERRED from segment attributes, labelled" },
-        wim: { status: "NOT_AVAILABLE", fallback: "WIM DATA NOT AVAILABLE; bundled WIM records are SIMULATED" }
+        // Read live from the inference service, never upgraded: unreachable means unavailable.
+        computerVision: cvHealth,
+        structural: engineHealth,
+        screening: { status: runtime.demoAuthEnabled ? "DEMO" : "REAL", detail: "Only a server-verified OpenVINO result can pass screening; everything else goes to human review." }
       }
     });
   });

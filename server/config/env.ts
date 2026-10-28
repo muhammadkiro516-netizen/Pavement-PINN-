@@ -17,7 +17,7 @@ export interface ServerConfig {
   dataDir: string;
   /** HMAC secret for session tokens (>= 32 chars). Unset: a key kept in the data directory. */
   sessionSecret: string | undefined;
-  /** Demo account picker sessions. Set DEMO_AUTH=false where real auth is required. */
+  /** Test fixture identities. Off unless DEMO_AUTH=true; the product uses registered accounts only. */
   demoAuthEnabled: boolean;
   /**
    * Absolute session lifetime in seconds: 2 hours. SESSION_MAX_AGE_SECONDS may only shorten it,
@@ -35,7 +35,7 @@ export function loadServerConfig(env: NodeJS.ProcessEnv = process.env): ServerCo
     basePath: normalizeBasePath(env.VITE_BASE_PATH),
     dataDir: env.DATA_DIR && env.DATA_DIR.trim() !== "" ? env.DATA_DIR : ".data",
     sessionSecret: env.SESSION_SECRET && env.SESSION_SECRET.length >= 32 ? env.SESSION_SECRET : undefined,
-    demoAuthEnabled: env.DEMO_AUTH !== "false",
+    demoAuthEnabled: env.DEMO_AUTH === "true",
     sessionMaxAgeSeconds: sessionMaxAge(env)
   };
 }

@@ -15,6 +15,7 @@ import { attachCvAnalysis } from "../services/cvAttach";
 import type { WorkflowRuntime } from "../services/workflowRuntime";
 import { actorFrom, clearSessionCookie, credentialFrom, sessionFrom, setSessionCookie } from "../auth/actor";
 import { verifyDemoLogin } from "../auth/demoLogin";
+import { AccountError, toProfile, type AccountProfile } from "../repositories/accountStore";
 import { segmentById } from "../services/segments";
 import { assessSegment, snapshotOf } from "../../src/domain/intelligence/assessment";
 import { personOf } from "../../src/domain/identity/people";
@@ -44,6 +45,11 @@ export const SPEC_PATHS = { reports: "/api/reports", login: "/api/auth/login" } 
 
 function sendError(res: Response, code: ErrorCode, message: string): void {
   res.status(STATUS[code]).json({ success: false, error: { code, message } });
+}
+
+function accountFailure(res: Response, error: unknown): void {
+  if (!(error instanceof AccountError)) throw error;
+  sendError(res, error.code === "CONFLICT" ? "VERSION_CONFLICT" : error.code, error.message);
 }
 
 function sendResult(res: Response, result: ServiceResult<ReportCase>, actor: Actor, status = 200): void {
@@ -98,8 +104,21 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
   // credentials. Only while DEMO_AUTH is not "false"; there is no production identity
   // provider yet (docs/LOGIN_AND_DEMO_AUTH.md). A body naming an account id without a
   // password is refused: identity is never taken from the request.
+  const signIn = (req: Request, res: Response, profile: AccountProfile) => {
+    const actor: Actor = { id: profile.id, role: profile.role, kind: "ACCOUNT" };
+    const { token, expiresAt, issuedAt } = signer.issue(actor);
+    setSessionCookie(req, res, token, expiresAt);
+    res.json({ success: true, expiresAt, issuedAt, actor, account: profile, authentication: "ACCOUNT" });
+  };
+
   const demoLoginHandler = (req: Request, res: Response) => {
-    if (!runtime.demoAuthEnabled) return sendError(res, "DISABLED", "Login is not available on this server (demo login is disabled and no identity provider is configured).");
+    const identifier = req.body?.email ?? req.body?.username;
+    if (typeof identifier !== "string" || typeof req.body?.password !== "string" || identifier.trim() === "" || req.body.password === "") {
+      return sendError(res, "VALIDATION", "Email dan kata sandi wajib diisi.");
+    }
+    const profile = runtime.accounts.verify(identifier, req.body.password);
+    if (profile) return signIn(req, res, profile);
+    if (!runtime.demoAuthEnabled) return sendError(res, "UNAUTHENTICATED", "Email atau kata sandi salah.");
     const result = verifyDemoLogin(req.body?.username, req.body?.password, req.body?.layout);
     if (result.ok === false) {
       return result.reason === "MISSING_FIELDS"
@@ -119,6 +138,51 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
   // Older path of the same call; it now requires credentials too.
   router.post(WORKFLOW_API_PATHS.demoSession, loginLimit, demoLoginHandler);
 
+  // Citizens register themselves; staff accounts come from a Koordinator (below).
+  const registerLimit = rateLimit("register", 10, 60 * 60_000);
+  router.post(WORKFLOW_API_PATHS.register, registerLimit, (req: Request, res: Response) => {
+    try {
+      const profile = runtime.accounts.create({ email: req.body?.email, name: req.body?.name, password: req.body?.password, role: "PUBLIC_REPORTER" });
+      signIn(req, res, profile);
+    } catch (error) {
+      accountFailure(res, error);
+    }
+  });
+
+  const coordinator = (req: Request, res: Response): Actor | null => {
+    const actor = actorFrom(req, runtime);
+    if (!actor) return sendError(res, "UNAUTHENTICATED", "Masuk sebagai Koordinator."), null;
+    if (actor.role !== "OPERATIONS_MANAGER") return sendError(res, "FORBIDDEN", "Hanya Koordinator yang dapat mengelola akun petugas."), null;
+    return actor;
+  };
+
+  router.get(WORKFLOW_API_PATHS.staff, (req: Request, res: Response) => {
+    if (!coordinator(req, res)) return;
+    res.json({ success: true, items: [...runtime.accounts.list("FIELD_ENGINEER"), ...runtime.accounts.list("OPERATIONS_MANAGER")] });
+  });
+
+  router.post(WORKFLOW_API_PATHS.staff, writeLimit, (req: Request, res: Response) => {
+    const actor = coordinator(req, res);
+    if (!actor) return;
+    const role = req.body?.role;
+    if (role !== "FIELD_ENGINEER" && role !== "OPERATIONS_MANAGER") return sendError(res, "VALIDATION", "Peran harus Petugas Lapangan atau Koordinator.");
+    try {
+      const profile = runtime.accounts.create({ email: req.body?.email, name: req.body?.name, password: req.body?.password, agency: req.body?.agency, role, createdBy: actor.id });
+      res.status(201).json({ success: true, account: profile });
+    } catch (error) {
+      accountFailure(res, error);
+    }
+  });
+
+  router.post(WORKFLOW_API_PATHS.staffActive, writeLimit, (req: Request, res: Response) => {
+    const actor = coordinator(req, res);
+    if (!actor) return;
+    if (req.params.id === actor.id) return sendError(res, "VALIDATION", "Tidak dapat menonaktifkan akun sendiri.");
+    const target = runtime.accounts.get(req.params.id);
+    if (!target || target.role === "PUBLIC_REPORTER") return sendError(res, "NOT_FOUND", "Akun petugas tidak ditemukan.");
+    res.json({ success: true, account: runtime.accounts.setActive(target.id, req.body?.active === true) });
+  });
+
   router.post(WORKFLOW_API_PATHS.anonymousSession, sessionLimit, (_req: Request, res: Response) => {
     // The id is chosen by the server, so a browser cannot pick (or reuse) someone else's.
     const actor: Actor = { id: `anon-${newClaimToken().token.slice(0, 12)}`, role: "PUBLIC_VIEWER", kind: "ANONYMOUS" };
@@ -137,9 +201,15 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
       return sendError(res, "UNAUTHENTICATED", "No valid session.");
     }
     const { payload } = session;
+    const account = session.actor.kind === "ACCOUNT" ? runtime.accounts.get(session.actor.id) : null;
+    if (session.actor.kind === "ACCOUNT" && (!account || !account.active)) {
+      clearSessionCookie(req, res);
+      return sendError(res, "UNAUTHENTICATED", "Akun tidak aktif.");
+    }
     res.json({
       success: true,
       actor: session.actor,
+      account: account ? toProfile(account) : null,
       issuedAt: new Date(payload.iat * 1000).toISOString(),
       expiresAt: new Date(Math.min(payload.exp, payload.iat + signer.maxAgeSeconds) * 1000).toISOString()
     });
@@ -275,7 +345,12 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
     res.json({
       success: true,
       // One entry per person (canonical account), so M.O cannot pick a duplicate account by mistake.
-      items: USER_ACCOUNTS.filter((a) => a.role === "FIELD_ENGINEER" && personOf(a.id) === a.id).map((a) => ({ id: a.id, name: a.name, title: a.title, agencyCode: a.agencyCode }))
+      items: [
+        ...runtime.accounts.list("FIELD_ENGINEER").filter((a) => a.active).map((a) => ({ id: a.id, name: a.name, title: "Petugas Lapangan", agencyCode: a.agency ?? "" })),
+        ...(runtime.demoAuthEnabled
+          ? USER_ACCOUNTS.filter((a) => a.role === "FIELD_ENGINEER" && personOf(a.id) === a.id).map((a) => ({ id: a.id, name: a.name, title: a.title, agencyCode: a.agencyCode }))
+          : [])
+      ]
     });
   });
 }

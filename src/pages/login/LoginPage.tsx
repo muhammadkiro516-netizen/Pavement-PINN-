@@ -5,7 +5,7 @@ import { usePageContext } from '../../app/pageContext';
 import { useRouter } from '../../app/router';
 import { sanitizeNextPath } from '../../app/guards/routeAccess';
 import { useAppState } from '../../app/providers/AppStateProvider';
-import { isAnonymousAccount, useSession } from '../../app/providers/SessionProvider';
+import { accountFromProfile, isAnonymousAccount, useSession } from '../../app/providers/SessionProvider';
 import { USER_ACCOUNTS } from '../../features/authentication/demoAccounts';
 import { ROLE_LABELS } from '../../features/authentication/roleLabels';
 import { DEMO_ACCESS_ENABLED } from '../../features/authentication/demoAccess';
@@ -45,8 +45,8 @@ export const LoginPage: React.FC = () => {
       setSubmitting(true);
       setFormError(null);
       try {
-        const actor = await workflow.gateway.login(credentials);
-        const account = USER_ACCOUNTS.find((a) => a.id === actor.id);
+        const signed = await workflow.gateway.login(credentials);
+        const account = signed.account ? accountFromProfile(signed.account) : USER_ACCOUNTS.find((a) => a.id === signed.actor.id);
         if (!account) throw new WorkflowApiError('UNKNOWN_ACCOUNT', 'Account not in catalogue', 0);
         completeLogin(account, sanitizeNextPath(query.get('next')));
       } catch (error) {
