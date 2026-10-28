@@ -1,0 +1,116 @@
+{
+  "generatedAt": "2026-10-28T10:15:01.264830+00:00",
+  "machine": {
+    "cpu": "AMD Ryzen 7 5800HS with Radeon Graphics        ",
+    "devices": [
+      "CPU",
+      "GPU"
+    ],
+    "openvino": "2026.4.1-22982-e213a147257-releases/2026/4"
+  },
+  "latency": [
+    {
+      "model": "Deteksi kerusakan (YOLOv8n)",
+      "precision": "FP32",
+      "device": "CPU",
+      "p50Ms": 34.392,
+      "p90Ms": 36.733,
+      "fps": 29.076
+    },
+    {
+      "model": "Deteksi kerusakan (YOLOv8n)",
+      "precision": "INT8 (NNCF)",
+      "device": "CPU",
+      "p50Ms": 19.59,
+      "p90Ms": 20.536,
+      "fps": 51.047
+    },
+    {
+      "model": "Segmentasi retak (YOLOv8s-seg)",
+      "precision": "FP32",
+      "device": "CPU",
+      "p50Ms": 150.308,
+      "p90Ms": 179.383,
+      "fps": 6.653
+    },
+    {
+      "model": "PINN surrogate (batch 256)",
+      "precision": "FP32",
+      "device": "CPU",
+      "p50Ms": 0.305,
+      "p90Ms": 0.386,
+      "fps": 3273.322
+    },
+    {
+      "model": "PINN surrogate (batch 256)",
+      "precision": "FP16",
+      "device": "CPU",
+      "p50Ms": 0.302,
+      "p90Ms": 0.327,
+      "fps": 3311.258
+    },
+    {
+      "model": "PINN surrogate (batch 256)",
+      "precision": "INT8 (NNCF)",
+      "device": "CPU",
+      "p50Ms": 0.857,
+      "p90Ms": 1.221,
+      "fps": 1167.474
+    },
+    {
+      "model": "Deteksi kerusakan (YOLOv8n)",
+      "precision": "FP32",
+      "device": "GPU",
+      "p50Ms": 83.702,
+      "p90Ms": 86.522,
+      "fps": 11.947
+    },
+    {
+      "model": "Deteksi kerusakan (YOLOv8n)",
+      "precision": "INT8 (NNCF)",
+      "device": "GPU",
+      "p50Ms": 86.912,
+      "p90Ms": 87.977,
+      "fps": 11.506
+    },
+    {
+      "model": "Segmentasi retak (YOLOv8s-seg)",
+      "precision": "FP32",
+      "device": "GPU",
+      "p50Ms": 376.134,
+      "p90Ms": 381.483,
+      "fps": 2.659
+    },
+    {
+      "model": "PINN surrogate (batch 256)",
+      "precision": "FP32",
+      "device": "GPU",
+      "p50Ms": 2.314,
+      "p90Ms": 2.814,
+      "fps": 432.087
+    },
+    {
+      "model": "PINN surrogate (batch 256)",
+      "precision": "FP16",
+      "device": "GPU",
+      "p50Ms": 2.314,
+      "p90Ms": 2.608,
+      "fps": 432.124
+    },
+    {
+      "model": "PINN surrogate (batch 256)",
+      "precision": "INT8 (NNCF)",
+      "device": "GPU",
+      "p50Ms": 2.502,
+      "p90Ms": 2.822,
+      "fps": 399.744
+    }
+  ],
+  "accuracy": null,
+  "int8Agreement": {
+    "photos": 18,
+    "fp32Objects": 13,
+    "int8Matched": 10,
+    "agreement": 0.7692307692307693
+  }
+}

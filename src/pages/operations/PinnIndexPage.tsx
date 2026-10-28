@@ -97,7 +97,7 @@ export const PinnIndexPage: React.FC = () => {
                 <span className="rounded bg-[#18243A] px-2 py-0.5 font-mono text-[12px] text-[#E8B52B]">{i.reportId}</span>
                 {i.demo && <StatusBadge tone="violet">{t('demoBadge')}</StatusBadge>}
                 <span className="truncate text-[13px] text-[#C9D4E3]">{i.segment}</span>
-                <button type="button" onClick={() => navigateTo('operationsPinnWorkspace', { reportId: i.reportId })} className="ml-auto rounded-lg bg-[#E8B52B] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14]" data-testid={`open-${i.reportId}`}>
+                <button type="button" onClick={() => navigateTo('analysisWorkspace', { reportId: i.reportId })} className="ml-auto rounded-lg bg-[#E8B52B] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14]" data-testid={`open-${i.reportId}`}>
                   {t('openWorkspace')}
                 </button>
               </div>
@@ -119,7 +119,7 @@ export const PinnIndexPage: React.FC = () => {
           <h2 className="text-[14px] font-semibold">{t('approvalQueue')}</h2>
           {pending.length === 0 && <p className="mt-2 text-[12px] text-[#9AA8BC]">{t('noPending')}</p>}
           {pending.map((p) => (
-            <button key={`${p.reportId}-${p.version}`} type="button" onClick={() => navigateTo('operationsPinnWorkspace', { reportId: p.reportId })} className="mt-2 block w-full rounded-lg border border-[#273244] p-2 text-left text-[12px] hover:border-[#E8B52B]/60">
+            <button key={`${p.reportId}-${p.version}`} type="button" onClick={() => navigateTo('analysisWorkspace', { reportId: p.reportId })} className="mt-2 block w-full rounded-lg border border-[#273244] p-2 text-left text-[12px] hover:border-[#E8B52B]/60">
               <div className="flex items-center justify-between gap-2"><span className="font-mono text-[#E8B52B]">{p.reportId} · v{p.version}</span>{p.demo && <StatusBadge tone="violet">{t('demoBadge')}</StatusBadge>}</div>
               <div className="mt-1 text-[#C9D4E3]">{p.changeSummaryPublic}</div>
             </button>

@@ -174,7 +174,7 @@ test('one report id travels R.E → M.O → F.E → D.M with consistent tasks, b
     assert.equal(c.state, 'ACTION_RECOMMENDED');
     assert.equal(c.inspection.measuredAreaM2, 2.4);
     assert.equal(c.recommendation.treatment, 'Patching');
-    assert.equal(c.recommendation.assessment.engine, 'RULE_BASED');
+    assert.equal(c.recommendation.assessment.engine, 'EVIDENCE');
   }
   assert.ok(workflowNotifications(mo, { id: MO, role: 'OPERATIONS_MANAGER' }).some((n) => n.caseId === id && n.title === 'Rekomendasi menunggu persetujuan Anda'));
   assert.ok(workflowNotifications(dm, { id: DM, role: 'POLICY_MAKER' }).some((n) => n.caseId === id && n.title === 'Rekomendasi penanganan baru'));
@@ -269,6 +269,6 @@ test('offline demo gateway attaches the segment assessment to a recommendation, 
   await gw.login({ username: 'eng', password: 'x' });
   v = await gw.transition(target.case.id, { action: 'RECOMMEND_ACTION', treatment: 'Patching', urgency: 'ROUTINE', rationale: 'ok', assessmentId: null }, v.case.version);
   const rec = (v.case as any).recommendation;
-  assert.equal(rec.assessment.engine, 'RULE_BASED');
+  assert.equal(rec.assessment.engine, 'EVIDENCE');
   assert.equal(typeof rec.assessmentId, 'string');
 });

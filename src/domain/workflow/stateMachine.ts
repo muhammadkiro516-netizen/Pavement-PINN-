@@ -128,7 +128,7 @@ function validSnapshot(a: unknown): a is AssessmentSnapshot {
   const s = a as AssessmentSnapshot;
   return (
     typeof s.id === 'string' &&
-    (s.engine === 'PINN' || s.engine === 'RULE_BASED') &&
+    (s.engine === 'PINN' || s.engine === 'EVIDENCE' || (s.engine as string) === 'RULE_BASED') &&
     typeof s.modelVersion === 'string' &&
     ['HIGH', 'WATCH', 'MODERATE', 'GOOD'].includes(s.risk) &&
     s.validationStatus === 'VALIDATION_REQUIRED'

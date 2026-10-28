@@ -9,52 +9,27 @@
  */
 import type { UserRole } from '../types';
 
-export const ALL_ROLES: readonly UserRole[] = [
-  'FIELD_ENGINEER',
-  'OPERATIONS_MANAGER',
-  'POLICY_MAKER',
-  'PUBLIC_REPORTER',
-  'PUBLIC_VIEWER'
-];
+export const ALL_ROLES: readonly UserRole[] = ['PUBLIC_REPORTER', 'FIELD_ENGINEER', 'OPERATIONS_MANAGER'];
+/** Public pages are open to every identity, including a signed-out visitor (PUBLIC_VIEWER). */
+const EVERYONE: readonly UserRole[] = [...ALL_ROLES, 'PUBLIC_VIEWER', 'POLICY_MAKER'];
 
 export type RouteId =
-  // public
-  | 'dashboard'
-  | 'dashboardAnalytics'
   | 'login'
+  | 'track'
+  | 'evidence'
+  | 'map'
+  | 'myReports'
+  | 'notifications'
+  | 'tasks'
+  | 'queue'
+  | 'analysis'
+  | 'analysisWorkspace'
+  | 'team'
+  | 'stats'
   | 'roadDetail'
-  | 'reports'
-  | 'settings'
-  // engine
-  | 'engine'
-  | 'enginePinn'
-  | 'engineSimulation'
-  | 'engineFwd'
-  | 'enginePrediction'
-  // computer vision
-  | 'computerVision'
-  | 'computerVisionDetection'
-  | 'computerVisionHistory'
-  // stakeholder workspaces
-  | 'engineering'
-  | 'engineeringTasks'
-  | 'engineeringReference'
-  | 'operations'
-  | 'operationsTasks'
-  | 'operationsAlerts'
-  | 'operationsMonitoringRoadCondition'
-  | 'operationsMonitoringWim'
-  | 'operationsMonitoringOdol'
-  | 'operationsMonitoringWeather'
-  | 'operationsActionsTrafficEngineering'
-  | 'operationsActionsAlerts'
-  | 'operationsPinn'
-  | 'operationsPinnWorkspace'
-  | 'policy'
-  // public tracking (citizen)
-  | 'track';
+  | 'profile';
 
-/** `PUBLIC` = reachable without logging in (every role, including the two public ones). */
+/** `PUBLIC` = reachable without logging in. Everything else needs a registered account. */
 export type RouteAccess = 'PUBLIC' | readonly UserRole[];
 
 export interface RouteDefinition {
@@ -63,59 +38,31 @@ export interface RouteDefinition {
   path: string;
   title: string;
   access: RouteAccess;
-  /**
-   * `workspace` — rendered by the persistent application shell itself.
-   * `page`      — a route-level page component mounted in the shell's outlet.
-   */
-  kind: 'workspace' | 'page';
+  /** `tab` = one of the bottom-bar tabs of the shell; `page` = opened from a tab. */
+  kind: 'tab' | 'page';
 }
 
-const ENGINEERING: readonly UserRole[] = ['FIELD_ENGINEER'];
-const OPERATIONS: readonly UserRole[] = ['OPERATIONS_MANAGER'];
-const POLICY: readonly UserRole[] = ['POLICY_MAKER'];
-const FIELD_TECHNICAL: readonly UserRole[] = ['FIELD_ENGINEER', 'OPERATIONS_MANAGER'];
+const SIGNED_IN = ALL_ROLES;
+const CITIZEN: readonly UserRole[] = ['PUBLIC_REPORTER'];
+const ENGINEER: readonly UserRole[] = ['FIELD_ENGINEER'];
+const COORDINATOR: readonly UserRole[] = ['OPERATIONS_MANAGER'];
+const STAFF: readonly UserRole[] = ['FIELD_ENGINEER', 'OPERATIONS_MANAGER'];
 
 export const ROUTES: readonly RouteDefinition[] = [
-  // ---- Public -------------------------------------------------------------------
-  { id: 'dashboard', path: '/dashboard/', title: 'Road Health Dashboard', access: 'PUBLIC', kind: 'workspace' },
-  { id: 'dashboardAnalytics', path: '/dashboard/analytics/', title: 'National Pavement Analytics', access: 'PUBLIC', kind: 'page' },
-  { id: 'login', path: '/login/', title: 'Account Login', access: 'PUBLIC', kind: 'page' },
-  { id: 'roadDetail', path: '/roads/:roadId/', title: 'Road Detail', access: 'PUBLIC', kind: 'page' },
-  { id: 'reports', path: '/reports/', title: 'Community Road Damage Reports', access: 'PUBLIC', kind: 'page' },
-  { id: 'settings', path: '/settings/', title: 'Settings', access: 'PUBLIC', kind: 'page' },
-
-  // ---- Engine -------------------------------------------------------------------
-  { id: 'engine', path: '/engine/', title: 'Engine Hub', access: 'PUBLIC', kind: 'page' },
-  { id: 'enginePinn', path: '/engine/pinn/', title: 'PINN Engine Overview', access: 'PUBLIC', kind: 'page' },
-  { id: 'engineSimulation', path: '/engine/simulation/', title: 'PINN Simulation', access: 'PUBLIC', kind: 'page' },
-  { id: 'engineFwd', path: '/engine/fwd/', title: 'FWD & Overlay Engineering Tools', access: FIELD_TECHNICAL, kind: 'page' },
-  { id: 'enginePrediction', path: '/engine/prediction/', title: 'PCI Trend & Treatment History', access: FIELD_TECHNICAL, kind: 'page' },
-
-  // ---- Computer Vision ----------------------------------------------------------
-  { id: 'computerVision', path: '/computer-vision/', title: 'Computer Vision', access: 'PUBLIC', kind: 'page' },
-  { id: 'computerVisionDetection', path: '/computer-vision/detection/', title: 'Damage Detection', access: 'PUBLIC', kind: 'page' },
-  { id: 'computerVisionHistory', path: '/computer-vision/history/', title: 'Detection History', access: 'PUBLIC', kind: 'page' },
-
-  // ---- Stakeholder workspaces ---------------------------------------------------
-  { id: 'engineering', path: '/engineering/', title: 'Engineering Workspace', access: ENGINEERING, kind: 'workspace' },
-  { id: 'engineeringTasks', path: '/engineering/tasks/', title: 'Tasks & Inspections (SPK)', access: ENGINEERING, kind: 'workspace' },
-  { id: 'engineeringReference', path: '/engineering/reference/', title: 'Technical Reference', access: FIELD_TECHNICAL, kind: 'page' },
-
-  { id: 'operations', path: '/operations/', title: 'Operations Workspace', access: OPERATIONS, kind: 'workspace' },
-  { id: 'operationsTasks', path: '/operations/tasks/', title: 'Team & Tasks (SPK)', access: OPERATIONS, kind: 'workspace' },
-  { id: 'operationsAlerts', path: '/operations/alerts/', title: 'Operational Alerts', access: OPERATIONS, kind: 'workspace' },
-  { id: 'operationsMonitoringRoadCondition', path: '/operations/monitoring/road-condition/', title: 'Monitoring: Road Condition', access: OPERATIONS, kind: 'workspace' },
-  { id: 'operationsMonitoringWim', path: '/operations/monitoring/wim/', title: 'Monitoring: WIM Posts', access: OPERATIONS, kind: 'workspace' },
-  { id: 'operationsMonitoringOdol', path: '/operations/monitoring/odol/', title: 'Monitoring: ODOL Enforcement', access: OPERATIONS, kind: 'workspace' },
-  { id: 'operationsMonitoringWeather', path: '/operations/monitoring/weather/', title: 'Monitoring: Weather & Flood', access: OPERATIONS, kind: 'workspace' },
-  { id: 'operationsActionsTrafficEngineering', path: '/operations/actions/traffic-engineering/', title: 'Action: Traffic Engineering', access: OPERATIONS, kind: 'workspace' },
-  { id: 'operationsActionsAlerts', path: '/operations/actions/alerts/', title: 'Action: Warnings', access: OPERATIONS, kind: 'workspace' },
-
-  // Analysis Workspace (handoff addendum): M.O approves, F.E corrects; citizens and policy makers get 403.
-  { id: 'operationsPinn', path: '/operations/pinn/', title: 'PINN — Structural & Damage Analysis', access: FIELD_TECHNICAL, kind: 'page' },
-  { id: 'operationsPinnWorkspace', path: '/operations/pinn/:reportId/', title: 'Analysis Workspace', access: FIELD_TECHNICAL, kind: 'page' },
-  { id: 'policy', path: '/policy/', title: 'Policy Workspace', access: POLICY, kind: 'workspace' },
-  { id: 'track', path: '/track/:code/', title: 'Track Report', access: 'PUBLIC', kind: 'page' }
+  { id: 'login', path: '/login/', title: 'Masuk', access: 'PUBLIC', kind: 'page' },
+  { id: 'track', path: '/lacak/:code/', title: 'Lacak Laporan', access: 'PUBLIC', kind: 'page' },
+  { id: 'evidence', path: '/bukti/', title: 'Bukti & Transparansi', access: 'PUBLIC', kind: 'page' },
+  { id: 'map', path: '/peta/', title: 'Peta', access: SIGNED_IN, kind: 'tab' },
+  { id: 'myReports', path: '/laporanku/', title: 'Laporanku', access: CITIZEN, kind: 'tab' },
+  { id: 'notifications', path: '/notifikasi/', title: 'Notifikasi', access: SIGNED_IN, kind: 'tab' },
+  { id: 'tasks', path: '/tugas/', title: 'Tugas', access: ENGINEER, kind: 'tab' },
+  { id: 'queue', path: '/antrian/', title: 'Antrian', access: COORDINATOR, kind: 'tab' },
+  { id: 'analysis', path: '/analisis/', title: 'Analisis PINN', access: STAFF, kind: 'tab' },
+  { id: 'analysisWorkspace', path: '/analisis/:reportId/', title: 'Analisis Laporan', access: STAFF, kind: 'page' },
+  { id: 'team', path: '/tim/', title: 'Tim', access: COORDINATOR, kind: 'tab' },
+  { id: 'stats', path: '/statistik/', title: 'Statistik', access: COORDINATOR, kind: 'tab' },
+  { id: 'roadDetail', path: '/ruas/:roadId/', title: 'Detail Ruas', access: SIGNED_IN, kind: 'page' },
+  { id: 'profile', path: '/profil/', title: 'Profil', access: SIGNED_IN, kind: 'tab' }
 ];
 
 const ROUTE_BY_ID = new Map<RouteId, RouteDefinition>(ROUTES.map((route) => [route.id, route]));
@@ -127,7 +74,7 @@ export function getRoute(id: RouteId): RouteDefinition {
 }
 
 export function allowedRolesFor(route: RouteDefinition): readonly UserRole[] {
-  return route.access === 'PUBLIC' ? ALL_ROLES : route.access;
+  return route.access === 'PUBLIC' ? EVERYONE : route.access;
 }
 
 export function isPublicRoute(route: RouteDefinition): boolean {
@@ -195,13 +142,15 @@ export function buildPath(id: RouteId, params: Record<string, string> = {}): str
  * as compatibility redirects. Keys and values are canonical app-relative paths.
  */
 export const LEGACY_REDIRECTS: Readonly<Record<string, string>> = {
-  '/map/': '/dashboard/',
-  '/simulation/': '/engine/simulation/',
-  '/simulator/': '/engine/simulation/',
-  '/analytics/': '/dashboard/analytics/',
-  '/cv/': '/computer-vision/',
-  '/engineer/': '/engineering/',
-  '/ops/': '/operations/'
+  '/dashboard/': '/peta/',
+  '/map/': '/peta/',
+  '/reports/': '/laporanku/',
+  '/settings/': '/profil/',
+  '/engineering/': '/tugas/',
+  '/engineering/tasks/': '/tugas/',
+  '/operations/': '/antrian/',
+  '/operations/tasks/': '/antrian/',
+  '/operations/pinn/': '/analisis/'
 };
 
 // ---------------------------------------------------------------------------------

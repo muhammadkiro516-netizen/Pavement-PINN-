@@ -1,6 +1,6 @@
 import React from 'react';
 import { LegacyCaseBoard } from '../../features/workflow/legacy/LegacyCaseBoard';
-import { usePageContext } from '../../app/pageContext';
+import { useSession } from '../../app/providers/SessionProvider';
 import { useAppState } from '../../app/providers/AppStateProvider';
 import { useRouter } from '../../app/router';
 import { reportForDisplay } from '../../domain/workflow/projections';
@@ -13,8 +13,9 @@ import type { ReportCase } from '../../domain/workflow/model';
  * - Operations Manager: the operations queue (triage, assignment, decisions, work orders).
  */
 export const WorkOrdersPage: React.FC = () => {
-  const { isFieldEngineer, currentAccount, roadSegments, onSelectSegment, setActiveNav } = usePageContext();
-  const { workflow, startNavigation } = useAppState();
+  const { currentAccount } = useSession();
+  const isFieldEngineer = currentAccount.role === 'FIELD_ENGINEER';
+  const { workflow, startNavigation, roadSegments, selectSegment: onSelectSegment } = useAppState();
   const { navigateTo } = useRouter();
 
   const segmentOf = (segmentId: string) => roadSegments.find((s) => s.id === segmentId);
@@ -24,8 +25,7 @@ export const WorkOrdersPage: React.FC = () => {
     const segment = segmentOf(c.segmentId);
     if (segment) onSelectSegment(segment);
     startNavigation(report);
-    setActiveNav('MAP');
-    navigateTo('dashboard');
+    navigateTo('map');
   };
 
   return (
@@ -45,10 +45,10 @@ export const WorkOrdersPage: React.FC = () => {
         onShowOnMap={(c) => {
           const segment = segmentOf(c.segmentId);
           if (segment) onSelectSegment(segment);
-          navigateTo('dashboard');
+          navigateTo('map');
         }}
         onStartNavigation={handleStartNavigation}
-        onOpenAnalysis={(c) => navigateTo('operationsPinnWorkspace', { reportId: c.id })}
+        onOpenAnalysis={(c) => navigateTo('analysisWorkspace', { reportId: c.id })}
       />
     </div>
   );

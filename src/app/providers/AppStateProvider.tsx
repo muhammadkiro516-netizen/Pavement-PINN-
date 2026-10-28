@@ -16,9 +16,7 @@ import { RoadSegment, SimulationResult, AuditLogItem, DamageReport, ReportMutati
 import { INDONESIAN_ROAD_SEGMENTS } from '../../data/reference/indonesianRoads';
 import { KARAWANG_PILOT_SEGMENTS } from '../../data/reference/karawangPilot';
 import { BEKASI_CORRIDOR_SEGMENTS } from '../../data/reference/bekasiCorridor';
-import { INITIAL_COMMUNITY_REPORTS } from '../../data/mock/communityReports';
 import { USER_ACCOUNTS } from '../../features/authentication/demoAccounts';
-import { runPinnSimulation } from '../../engines/pinn/core/pinnEngine';
 import { isOfficialRole } from '../../domain/access';
 import type { Actor } from '../../domain/workflow/model';
 import type { WorkflowCommand } from '../../domain/workflow/stateMachine';
@@ -33,7 +31,6 @@ import {
   WorkflowGateway
 } from '../../services/api/workflowClient';
 import { isAnonymousAccount, useSession } from './SessionProvider';
-import { offlineDemoVerifier } from '../../features/authentication/demoAccess';
 
 /** Seed upvote flags belong to the reporter persona the demo data was written for. */
 const SEED_UPVOTE_OWNER = 'USR-004';
@@ -123,10 +120,11 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Report list with the per-account upvote ledger. Starts from the bundled seed so the
   // map is never empty, then is replaced by the workflow store's records.
-  const [reportState, setReportState] = useState<ReportState>(() => createReportState(INITIAL_COMMUNITY_REPORTS, SEED_UPVOTE_OWNER));
+  const [reportState, setReportState] = useState<ReportState>(() => createReportState([], SEED_UPVOTE_OWNER));
   const communityReports = useMemo(() => viewReportsAs(reportState, currentAccount.id), [reportState, currentAccount.id]);
 
-  const gateway = useMemo(() => createWorkflowGateway(INITIAL_COMMUNITY_REPORTS, roleOfDemoAccount, LOCAL_ENGINEERS, ROAD_SEGMENTS, offlineDemoVerifier), []);
+  // Real data only: the server is the source of every report (no bundled sample reports).
+  const gateway = useMemo(() => createWorkflowGateway([], roleOfDemoAccount, LOCAL_ENGINEERS, ROAD_SEGMENTS), []);
 
   // The server refused a signed-in session as ended (2-hour limit, or logged out in another tab).
   useEffect(() => {
@@ -330,26 +328,6 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const upvoteCommunityReport = (reportId: string) => {
     setReportState((prev) => toggleUpvote(prev, currentAccount.id, reportId));
   };
-
-  // Run initial simulation on load
-  useEffect(() => {
-    const initialRes = runPinnSimulation(
-      {
-        segmentId: selectedSegment.id,
-        axleLoadTon: selectedSegment.defaultAxleLoadTon,
-        rainIntensityMmHr: 45,
-        floodDurationHours: 6,
-        surfaceTemperatureC: 42,
-        subgradeCbrPercent: selectedSegment.defaultCbrPercent,
-        asphaltThicknessCm: selectedSegment.defaultAsphaltThicknessCm,
-        asphaltModulusMpa: 2400,
-        targetDevice: 'NPU',
-        precisionMode: 'INT8_NNCF'
-      },
-      selectedSegment
-    );
-    setCurrentResult(initialRes);
-  }, [selectedSegment]);
 
   // Callback when a new simulation finishes (a local session event, not a workflow change)
   const completeSimulation = (result: SimulationResult) => {

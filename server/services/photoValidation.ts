@@ -33,3 +33,52 @@ export function checkPhotoReference(photoUrl: unknown): PhotoCheck {
   if (!kind) return { ok: false, message: "Photo content is not a JPEG, PNG or WebP image." };
   return { ok: true, kind };
 }
+
+/**
+ * Removes metadata from a base64 photo before it is stored (privacy: camera GPS, device,
+ * owner name). JPEG: APP1–APP15 (EXIF, XMP, ...) and COM segments are dropped, APP0 and
+ * the image data are kept. PNG: textual and eXIf chunks are dropped. Other values pass
+ * through unchanged. Run after the CV analysis is bound by photo hash.
+ */
+export function stripPhotoMetadata(photoUrl: string): string {
+  const match = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/i.exec(photoUrl);
+  if (!match) return photoUrl;
+  const bytes = Buffer.from(match[2], "base64");
+  const cleaned = stripJpeg(bytes) ?? stripPng(bytes);
+  return cleaned ? `data:${match[1]};base64,${cleaned.toString("base64")}` : photoUrl;
+}
+
+function stripJpeg(b: Buffer): Buffer | null {
+  if (b.length < 4 || b[0] !== 0xff || b[1] !== 0xd8) return null;
+  const parts: Buffer[] = [b.subarray(0, 2)];
+  let i = 2;
+  while (i + 4 <= b.length && b[i] === 0xff) {
+    const marker = b[i + 1];
+    if (marker === 0xda) break; // start of scan: the rest is image data
+    const len = b.readUInt16BE(i + 2);
+    const isMeta = (marker >= 0xe1 && marker <= 0xef) || marker === 0xfe;
+    if (!isMeta) parts.push(b.subarray(i, i + 2 + len));
+    i += 2 + len;
+  }
+  parts.push(b.subarray(i));
+  return Buffer.concat(parts);
+}
+
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const PNG_META = new Set(["tEXt", "iTXt", "zTXt", "eXIf", "tIME"]);
+
+function stripPng(b: Buffer): Buffer | null {
+  if (b.length < 8 || !b.subarray(0, 8).equals(PNG_SIGNATURE)) return null;
+  const parts: Buffer[] = [b.subarray(0, 8)];
+  let i = 8;
+  while (i + 12 <= b.length) {
+    const len = b.readUInt32BE(i);
+    const type = b.toString("latin1", i + 4, i + 8);
+    const end = i + 12 + len;
+    if (!PNG_META.has(type)) parts.push(b.subarray(i, end));
+    i = end;
+  }
+  // Anything after the last chunk is kept as it was: only metadata chunks are removed.
+  parts.push(b.subarray(i));
+  return Buffer.concat(parts);
+}

@@ -102,7 +102,7 @@ export const TrackPage: React.FC<{ params: Record<string, string> }> = ({ params
           </section>
         )}
         <div className="flex gap-2">
-          <button type="button" onClick={() => navigateTo('dashboard')} className="rounded-lg bg-[#1D6FD8] px-3 py-2 text-[13px] font-semibold">Lihat di peta</button>
+          <button type="button" onClick={() => navigateTo('map')} className="rounded-lg bg-[#1D6FD8] px-3 py-2 text-[13px] font-semibold">Lihat di peta</button>
         </div>
       </div>
     </div>

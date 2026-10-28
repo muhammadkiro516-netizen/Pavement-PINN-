@@ -88,34 +88,8 @@ export function registerIntelligenceRoutes(router: Router, runtime: WorkflowRunt
 
   // POST /api/simulations — spec Lampiran L: Field Engineer only; out-of-range → 422.
   router.post(SIMULATIONS_PATH, simulateLimit, async (req: Request, res: Response) => {
-    await runtime.ready;
-    const actor = actorFrom(req, runtime);
-    if (!actor) return res.status(401).json({ success: false, error: { code: "UNAUTHENTICATED", message: "What-If simulation requires an engineer session." } });
-    if (actor.role !== "FIELD_ENGINEER") return res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "What-If simulation is limited to field engineers." } });
-    const segment = segmentById(String(req.body?.segmentId ?? ""));
-    if (!segment) return res.status(400).json({ success: false, error: { code: "VALIDATION", message: "segmentId must be a known road segment." } });
-    const raw = req.body?.scenario ?? {};
-    const scenario: Partial<AssessmentInputs> = {};
-    for (const key of SCENARIO_KEYS) {
-      const v = raw[key];
-      if (v === undefined) continue;
-      if (typeof v !== "number" || !Number.isFinite(v)) {
-        return res.status(400).json({ success: false, error: { code: "VALIDATION", message: `${key} must be a number.` } });
-      }
-      const [lo, hi] = SCENARIO_RANGES[key];
-      if (v < lo || v > hi) {
-        return res.status(422).json({ success: false, error: { code: "OUTSIDE_VALIDATED_RANGE", message: `Outside validated range: ${key} must be ${lo}–${hi}.` } });
-      }
-      scenario[key] = v;
-    }
-    const cases = await runtime.service.listCases();
-    const at = new Date().toISOString();
-    const result = runWhatIf(segment, scenario, { now: at, cases });
-    const saved = await runtime.service.recordSimulation({ segmentId: segment.id, requestedBy: actor, summary: result.explanation, result });
-    if (saved.ok === false) {
-      return res.status(503).json({ success: false, error: { code: "STORAGE", message: (saved as { message: string }).message } });
-    }
-    res.status(201).json({ success: true, simulationId: saved.value.id, result, persisted: true });
+    // Retired with the formula engine: scenarios now run on the PINN surrogate (/api/engine/assess).
+    return res.status(410).json({ success: false, error: { code: "GONE", message: "Retired: use POST /api/engine/assess (PINN surrogate + MLET)." } });
   });
 
   router.get(SIMULATION_PATH, async (req: Request, res: Response) => {

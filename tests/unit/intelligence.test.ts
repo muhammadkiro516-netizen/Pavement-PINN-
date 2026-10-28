@@ -77,25 +77,16 @@ test('weather and baseline fallbacks are labelled DEMO / SYNTHETIC REFERENCE BAS
   assert.match(b.source, /REFERENCE BASELINE/);
 });
 
-test('assessment is RULE_BASED with provenance, LOW confidence, no physics residual, validation required', () => {
+test('segment risk comes from observed evidence only: no formula engine, no strains, validation required', () => {
   const a = assessSegment(KRW1, { now: NOW });
-  assert.equal(a.engine, 'RULE_BASED');
-  assert.match(a.modelVersion, /no trained weights/);
+  assert.equal(a.engine, 'EVIDENCE');
+  assert.equal(a.dataStatus, 'OBSERVED');
+  assert.equal(a.outputs.tensileStrainMicro, null, 'strains come only from the PINN / MLET service');
   assert.equal(a.physicsResidual, null);
   assert.equal(a.validationStatus, 'VALIDATION_REQUIRED');
-  assert.equal(a.confidence, 'LOW');
-  assert.ok(a.uncertaintyReasons.some((r) => /WIM data is unavailable/.test(r)));
-  for (const v of Object.values(a.inputProvenance)) assert.ok(v.length > 0);
-  assert.equal(snapshotOf(a).engine, 'RULE_BASED');
-  // Same inputs → same id (traceable), different inputs → different id.
+  assert.equal(a.risk, 'GOOD', 'no reports -> no evidence of damage');
+  assert.equal(snapshotOf(a).engine, 'EVIDENCE');
   assert.equal(assessSegment(KRW1, { now: NOW }).id, a.id);
-  assert.notEqual(assessSegment(KRW1, { now: NOW, inputs: { asphaltThicknessCm: 15 } }).id, a.id);
-});
-
-test('out-of-range inputs are flagged and clamped, not silently predicted', () => {
-  const a = assessSegment(KRW1, { now: NOW, inputs: { axleLoadTon: 40 } });
-  assert.equal(a.outOfRange.length, 1);
-  assert.ok(a.uncertaintyReasons.some((r) => /Outside validated range/.test(r)));
 });
 
 test('a confirmed CRITICAL inspection raises the risk; evidence never lowers it', () => {
@@ -103,8 +94,8 @@ test('a confirmed CRITICAL inspection raises the risk; evidence never lowers it'
   const critical = { segmentId: 'KRW-004', state: 'INSPECTED', inspection: { verdict: 'CONFIRMED', severity: 'CRITICAL' } } as unknown as ReportCase;
   const raised = assessSegment(KRW4, { now: NOW, cases: [critical] });
   assert.equal(raised.risk, 'HIGH');
-  assert.ok(raised.riskReasons.some((r) => /CRITICAL/.test(r)));
-  assert.equal(base.outputs.conditionScorePrototype, raised.outputs.conditionScorePrototype);
+  assert.ok(raised.riskReasons.some((r) => /KRITIS/.test(r)));
+  assert.ok(raised.outputs.conditionScorePrototype < base.outputs.conditionScorePrototype, 'confirmed damage lowers the evidence score');
 });
 
 test('explanation answers what/why/evidence/confidence/next with qualitative levels only', () => {
@@ -117,23 +108,6 @@ test('explanation answers what/why/evidence/confidence/next with qualitative lev
   assert.equal(e.why.find((f) => /Riwayat/.test(f.factor))?.level, 'UNCERTAIN');
   assert.ok(e.next.length > 0);
   for (const n of e.next) assert.doesNotMatch(n, /otomatis (menilang|memblokir)|automatically/i);
-});
-
-test('What-If is labelled SIMULATION and checks physical direction', () => {
-  const thicker = runWhatIf(KRW2, { asphaltThicknessCm: KRW2.defaultAsphaltThicknessCm + 4 }, { now: NOW });
-  assert.equal(thicker.label, 'SIMULATION');
-  assert.equal(thicker.changed[0].parameter, 'asphaltThicknessCm');
-  assert.ok(thicker.deltas.tensileStrainMicro < 0, 'thicker asphalt lowers tensile strain in the engine');
-  assert.equal(thicker.sanity.flaggedForReview, false);
-  assert.equal(thicker.scenario.inputProvenance.asphaltThicknessCm, 'USER SCENARIO INPUT (SIMULATED)');
-
-  const heavier = runWhatIf(KRW2, { axleLoadTon: 20 }, { now: NOW });
-  assert.ok(heavier.deltas.tensileStrainMicro >= 0);
-  assert.equal(heavier.sanity.flaggedForReview, false);
-
-  const none = runWhatIf(KRW2, {}, { now: NOW });
-  assert.equal(none.changed.length, 0);
-  assert.equal(none.deltas.conditionScore, 0);
 });
 
 test('CV → engineering translation stops at a surface indicator: CALIBRATION REQUIRED', () => {

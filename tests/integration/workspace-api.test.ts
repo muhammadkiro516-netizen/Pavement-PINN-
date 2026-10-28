@@ -18,7 +18,7 @@ import { createWorkflowRuntime, type WorkflowRuntime } from '../../server/servic
 import { demoLoginFor } from '../../src/data/reference/demoCredentials';
 import { bodyWithSession } from '../helpers/sessionCookie';
 
-const PY = path.join(process.cwd(), 'inference', '.venv', 'bin', 'python');
+const PY = [path.join(process.cwd(), 'inference', '.venv', 'bin', 'python'), path.join(process.cwd(), 'inference', '.venv', 'Scripts', 'python.exe')].find((p) => existsSync(p)) ?? 'python-not-installed';
 const PY_PORT = 8199;
 let py: ChildProcess | null = null;
 let pyReady = false;

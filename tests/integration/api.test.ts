@@ -12,10 +12,8 @@ import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { createApp } from '../../server/app';
 import { loadServerConfig } from '../../server/config/env';
-import { generateNarrative, buildFallbackNarrative } from '../../server/services/narrativeService';
 import { INDONESIAN_ROAD_SEGMENTS } from '../../src/data/reference/indonesianRoads';
 import { API_PATHS } from '../../src/types';
-import { defaultParamsFor } from '../physics-validation/pinnScenarios';
 
 // Never call the real Gemini API from the test suite: without a key the endpoint must
 // deterministically answer with the offline rule-engine narrative.
@@ -44,7 +42,6 @@ test('API_PATHS keeps the six pre-restructure endpoint paths', () => {
     health: '/api/health',
     roads: '/api/roads',
     simulate: '/api/simulate',
-    generateNarrative: '/api/generate-narrative'
   });
 });
 
@@ -74,7 +71,7 @@ test('GET /api/roads returns the full reference dataset, byte-identical to basel
 });
 
 test('POST /api/simulate is retired: 410 pointing to the MLET engine (F-03, F-11, v3 M1)', async () => {
-  const res = await postJson('/api/simulate', { params: defaultParamsFor(INDONESIAN_ROAD_SEGMENTS[0]) });
+  const res = await postJson('/api/simulate', { params: { segmentId: INDONESIAN_ROAD_SEGMENTS[0].id } });
   assert.equal(res.status, 410);
   const body = await res.json();
   assert.equal(body.error.code, 'GONE');
@@ -88,56 +85,6 @@ test('GET /api/openvino/export-ir and export-config are removed: 404 (F-13, v3 P
   }
 });
 
-test('POST /api/generate-narrative: 200 envelope, offline rule-engine source when no API key is configured', async () => {
-  const res = await postJson('/api/generate-narrative', { role: 'FIELD_ENGINEER', simulationData: {} });
-  assert.equal(res.status, 200);
-  const body = await res.json();
-  assert.deepEqual(Object.keys(body), ['success', 'narrative', 'source']);
-  assert.equal(body.success, true);
-  assert.equal(typeof body.narrative, 'string');
-  assert.equal(body.source, 'rule-engine-offline');
-  assert.ok(body.narrative.startsWith('[CATATAN TEKNIS - RULE_BASED, INDIKATIF]'));
-});
-
-test('POST /api/generate-narrative: malformed JSON is rejected with HTTP 400', async () => {
-  const res = await fetch(base + '/api/generate-narrative', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: 'not json'
-  });
-  assert.equal(res.status, 400);
-});
-
-test('narrative service: offline text matches the baseline fallback, per role', async () => {
-  const offline = await generateNarrative('FIELD_ENGINEER', {}, null);
-  assert.equal(offline.source, 'rule-engine-offline');
-  assert.equal(
-    offline.narrative,
-    '[CATATAN TEKNIS - RULE_BASED, INDIKATIF]\nRegangan tarik dasar aspal: tidak tersedia; regangan tekan tanah dasar: tidak tersedia. Nilai dari mesin rumus, bukan desain; opsi perbaikan diputuskan insinyur.'
-  );
-  assert.match(buildFallbackNarrative('OPERATIONS_MANAGER', {}), /^\[SINYAL OPERASIONAL - RULE_BASED\]/);
-  assert.match(buildFallbackNarrative('POLICY_MAKER', {}), /^\[RINGKASAN KEBIJAKAN - RULE_BASED\]/);
-  // Any unrecognised role (including the public roles) receives the policy narrative.
-  assert.equal(buildFallbackNarrative('PUBLIC_VIEWER', {}), buildFallbackNarrative('POLICY_MAKER', {}));
-});
-
-test('narrative service: prefers the narrative embedded in the simulation result', () => {
-  const simulationData = { aiNarrative: { fieldEngineerNarrative: 'embedded-text' } };
-  assert.equal(buildFallbackNarrative('FIELD_ENGINEER', simulationData), 'embedded-text');
-});
-
-test('narrative service: a failing Gemini client degrades to rule-engine-fallback', async () => {
-  const failingClient = { models: { generateContent: async () => { throw new Error('boom'); } } };
-  const originalWarn = console.warn;
-  console.warn = () => {};
-  try {
-    const result = await generateNarrative('POLICY_MAKER', {}, failingClient as never);
-    assert.equal(result.source, 'rule-engine-fallback');
-    assert.equal(result.narrative, buildFallbackNarrative('POLICY_MAKER', {}));
-  } finally {
-    console.warn = originalWarn;
-  }
-});
 
 test('no endpoint requires authentication (documents the absence of backend authorization)', async () => {
   // Requests carry no credentials or role header and are all accepted. If auth is ever

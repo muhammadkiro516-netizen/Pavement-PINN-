@@ -2,13 +2,12 @@
  * Route guard logic — pure functions deciding what an identity may open and where it
  * lands. Kept free of React so the full role x route matrix is unit-tested in node.
  *
- * FRONTEND GUARD ONLY. This hides screens from demo identities; it does not protect
- * data. The backend has no authorization (see docs/architecture/RBAC_MATRIX.md).
+ * Frontend guard only: it hides screens. Data is protected by the server (roles,
+ * ownership and transitions are checked on every API call).
  */
 import type { UserRole } from '../../types';
-import { evaluateAccess, isPublicRole, AccessDecision } from '../../features/rbac/accessPolicy';
+import { evaluateAccess, AccessDecision } from '../../features/rbac/accessPolicy';
 import { allowedRolesFor, buildPath, getRoute, RouteDefinition, RouteId, RouteMatch } from '../routeConfig';
-import { navAfterAccountSwitch, navForRoute, roleDashboardRoute, routeForNav } from '../navigation';
 
 /** The slice of a demo account the guards need. */
 export interface GuardIdentity {
@@ -24,47 +23,26 @@ export function canOpenRoute(routeId: RouteId, identity: GuardIdentity): boolean
   return resolveRouteAccess(getRoute(routeId), identity) === 'ALLOW';
 }
 
-/**
- * Which shell an identity uses — unchanged from the original App.tsx rule:
- * public roles and MODERN_APP accounts use the modern shell, CLASSIC_PORTAL accounts
- * the classic portal.
- */
-export function usesModernShell(identity: GuardIdentity): boolean {
-  return isPublicRole(identity.role) || identity.layoutStyle === 'MODERN_APP';
-}
-
-/**
- * Landing route for an identity: the public dashboard for public roles and for
- * classic-portal accounts (whose default tab is the map), the role dashboard for
- * modern-app officials.
- */
+/** Landing route: guests sign in; each role opens on its own main tab. */
 export function homeRouteFor(identity: GuardIdentity): RouteId {
-  if (isPublicRole(identity.role) || !usesModernShell(identity)) return 'dashboard';
-  return roleDashboardRoute(identity.role);
+  switch (identity.role) {
+    case 'FIELD_ENGINEER':
+      return 'tasks';
+    case 'OPERATIONS_MANAGER':
+      return 'queue';
+    case 'PUBLIC_REPORTER':
+      return 'map';
+    default:
+      return 'login';
+  }
 }
 
-/**
- * Where to go right after the identity changes (login / account switch).
- * Stays on the current page when the new identity may still see it, applying the
- * modern shell's legacy landing rules; otherwise falls back to the identity's home.
- */
+/** After login: stay on the page that asked for it when the account may open it, else go home. */
 export function landingRouteAfterLogin(identity: GuardIdentity, current: RouteMatch | null): { id: RouteId; params: Record<string, string> } {
-  const home = { id: homeRouteFor(identity), params: {} };
-  if (!current || current.route.id === 'login') return home;
-
-  let targetId: RouteId = current.route.id;
-  if (usesModernShell(identity)) {
-    const nav = navForRoute(current.route.id);
-    if (nav) {
-      targetId = routeForNav(navAfterAccountSwitch(identity.role, nav), identity.role);
-    } else if (identity.role === 'POLICY_MAKER') {
-      // The policy workspace always opened on its dashboard after a switch.
-      targetId = 'policy';
-    }
+  if (current && current.route.id !== 'login' && canOpenRoute(current.route.id, identity)) {
+    return { id: current.route.id, params: current.params };
   }
-
-  if (!canOpenRoute(targetId, identity)) return home;
-  return { id: targetId, params: targetId === current.route.id ? current.params : {} };
+  return { id: homeRouteFor(identity), params: {} };
 }
 
 /** `/login/?next=<path>` for a protected deep link hit by a public identity. */

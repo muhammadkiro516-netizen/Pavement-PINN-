@@ -16,27 +16,24 @@ import {
   allowedRolesFor,
   RouteId
 } from '../../src/app/routeConfig';
-import { classicTabForRoute, navForRoute, routeForClassicTab, routeForNav, roleDashboardRoute } from '../../src/app/navigation';
 import { DEFAULT_BASE_PATH, normalizeBasePath } from '../../src/constants/deployment';
 
 /** The URL contract requested for the restructure. */
 const REQUIRED_URLS: Array<[string, RouteId]> = [
-  ['/dashboard/', 'dashboard'],
   ['/login/', 'login'],
-  ['/roads/JLN-KRW-KIIC-1/', 'roadDetail'],
-  ['/reports/', 'reports'],
-  ['/engine/', 'engine'],
-  ['/engine/pinn/', 'enginePinn'],
-  ['/engine/simulation/', 'engineSimulation'],
-  ['/engine/fwd/', 'engineFwd'],
-  ['/engine/prediction/', 'enginePrediction'],
-  ['/computer-vision/', 'computerVision'],
-  ['/computer-vision/detection/', 'computerVisionDetection'],
-  ['/computer-vision/history/', 'computerVisionHistory'],
-  ['/engineering/', 'engineering'],
-  ['/operations/', 'operations'],
-  ['/policy/', 'policy'],
-  ['/settings/', 'settings']
+  ['/lacak/ABC123/', 'track'],
+  ['/bukti/', 'evidence'],
+  ['/peta/', 'map'],
+  ['/laporanku/', 'myReports'],
+  ['/notifikasi/', 'notifications'],
+  ['/tugas/', 'tasks'],
+  ['/antrian/', 'queue'],
+  ['/analisis/', 'analysis'],
+  ['/analisis/REP-1/', 'analysisWorkspace'],
+  ['/tim/', 'team'],
+  ['/statistik/', 'stats'],
+  ['/ruas/JLN-KRW-KIIC-1/', 'roadDetail'],
+  ['/profil/', 'profile']
 ];
 
 test('every required URL resolves to its route', () => {
@@ -46,24 +43,24 @@ test('every required URL resolves to its route', () => {
 });
 
 test('unknown URLs resolve to null (not-found), including near-misses', () => {
-  for (const url of ['/nope/', '/engine/unknown/', '/roads/', '/roads/a/b/', '/dashboard/x/', '/operations/monitoring/', '/api/health/']) {
+  for (const url of ['/nope/', '/engine/pinn/', '/ruas/', '/ruas/a/b/', '/peta/x/', '/operations/monitoring/', '/api/health/']) {
     assert.equal(matchRoute(url), null, url);
   }
 });
 
 test('paths are matched with or without a trailing slash and with duplicate slashes', () => {
-  assert.equal(matchRoute('/engine/pinn')?.route.id, 'enginePinn');
-  assert.equal(matchRoute('engine//pinn/')?.route.id, 'enginePinn');
-  assert.equal(normalizePath('/engine/pinn'), '/engine/pinn/');
+  assert.equal(matchRoute('/analisis')?.route.id, 'analysis');
+  assert.equal(matchRoute('ruas//X/')?.route.id, 'roadDetail');
+  assert.equal(normalizePath('/analisis'), '/analisis/');
   assert.equal(normalizePath(''), '/');
   assert.equal(normalizePath('///'), '/');
 });
 
 test('route params are captured and percent-decoded; buildPath is the inverse', () => {
-  const match = matchRoute('/roads/JLN%20A%2FB/');
+  const match = matchRoute('/ruas/JLN%20A%2FB/');
   assert.equal(match?.route.id, 'roadDetail');
   assert.deepEqual(match?.params, { roadId: 'JLN A/B' });
-  assert.equal(buildPath('roadDetail', { roadId: 'JLN A/B' }), '/roads/JLN%20A%2FB/');
+  assert.equal(buildPath('roadDetail', { roadId: 'JLN A/B' }), '/ruas/JLN%20A%2FB/');
   assert.throws(() => buildPath('roadDetail'));
 });
 
@@ -117,30 +114,6 @@ test('base path: strip and re-apply are inverse for the GitHub Pages base and fo
   assert.equal(normalizeBasePath('PavementPinn'), '/PavementPinn/');
 });
 
-test('modern shell: every view-bound route round-trips through its view key', () => {
-  for (const route of ROUTES) {
-    const nav = navForRoute(route.id);
-    if (!nav) continue;
-    for (const role of allowedRolesFor(route)) {
-      const back = routeForNav(nav, role);
-      // DASHBOARD and SPK_ORDERS are role-relative: they resolve to the role's own workspace.
-      if (nav === 'DASHBOARD') assert.equal(back, roleDashboardRoute(role));
-      else if (nav === 'SPK_ORDERS') assert.equal(back, role === 'OPERATIONS_MANAGER' ? 'operationsTasks' : 'engineeringTasks');
-      else assert.equal(back, route.id, `${route.id} via ${nav} for ${role}`);
-    }
-  }
-});
-
-test('workspace routes are exactly the ones a shell renders itself; page routes have no classic tab except the simulator', () => {
-  for (const route of ROUTES) {
-    if (route.kind === 'workspace') assert.ok(navForRoute(route.id), `${route.id} workspace without a shell view`);
-  }
-  assert.equal(classicTabForRoute('dashboard'), 'MAP');
-  assert.equal(classicTabForRoute('engineSimulation'), 'SIMULATOR');
-  assert.equal(classicTabForRoute('policy'), 'DASHBOARD');
-  assert.equal(classicTabForRoute('reports'), null);
-  assert.equal(routeForClassicTab('MAP', 'FIELD_ENGINEER'), 'dashboard');
-  assert.equal(routeForClassicTab('SIMULATOR', 'POLICY_MAKER'), 'engineSimulation');
-  assert.equal(routeForClassicTab('DASHBOARD', 'OPERATIONS_MANAGER'), 'operations');
-  assert.equal(getRoute('operations').path, '/operations/');
+test('only login, public tracking and the evidence page are reachable without an account', () => {
+  assert.deepEqual(ROUTES.filter((r) => r.access === 'PUBLIC').map((r) => r.id).sort(), ['evidence', 'login', 'track']);
 });

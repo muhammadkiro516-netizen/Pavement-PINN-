@@ -1,180 +1,97 @@
 import React, { useEffect, useState } from 'react';
-import { Route as RouteIcon } from 'lucide-react';
-import { PageOverlay } from '../../components/ui/PageOverlay';
-import { usePageContext } from '../../app/pageContext';
-import { Link } from '../../app/router';
-import { buildPath } from '../../app/routeConfig';
-import { RoadConditionCategory } from '../../types';
+import { ArrowLeft, Route as RouteIcon } from 'lucide-react';
+import { Empty, Pill, SnapCard, SnapPage } from '../../components/ui/snap';
+import { usePageHost } from '../../app/pageContext';
 import { useAppState } from '../../app/providers/AppStateProvider';
-import type { EngineeringAssessment } from '../../domain/intelligence/assessment';
-import type { StructuredExplanation } from '../../domain/intelligence/explain';
-import type { StoryEntry } from '../../domain/intelligence/roadStory';
-import { RoadStoryTimeline, SegmentRiskCard, WhatIfPanel } from '../../features/road-intelligence/SegmentInsight';
+import { useSession } from '../../app/providers/SessionProvider';
+import type { EngineeringAssessment, RiskLevel } from '../../domain/intelligence/assessment';
 import { StructuralAssessmentPanel } from '../../features/road-intelligence/StructuralAssessmentPanel';
+import { StatusPill } from '../lean/CitizenPages';
 
-const CONDITION_LABEL: Record<RoadConditionCategory, string> = {
-  GOOD: 'Baik',
-  MODERATE: 'Sedang',
-  LIGHT_DAMAGE: 'Rusak Ringan',
-  HEAVY_DAMAGE: 'Rusak Berat'
+const RISK: Record<RiskLevel, { label: string; tone: 'red' | 'yellow' | 'blue' | 'green' }> = {
+  HIGH: { label: 'Perlu segera ditangani', tone: 'red' },
+  WATCH: { label: 'Perlu diawasi', tone: 'yellow' },
+  MODERATE: { label: 'Ada laporan kerusakan', tone: 'blue' },
+  GOOD: { label: 'Belum ada laporan', tone: 'green' }
 };
 
-const cardClass = 'bg-surface border border-white/10 rounded-2xl p-5 space-y-3';
-const primaryButton = 'px-4 py-2 rounded-xl bg-amber-400 text-slate-950 font-semibold text-xs cursor-pointer';
-const secondaryLink = 'inline-block px-4 py-2 rounded-xl bg-white/5 border border-white/15 text-slate-200 font-bold text-xs';
-
-const Fact: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div className="bg-elevated p-3 rounded-2xl border border-white/10">
-    <p className="text-xs font-bold text-slate-400">{label}</p>
-    <p className="text-sm font-semibold text-white">{value}</p>
-  </div>
-);
-
 /**
- * Route: /roads/:roadId/ — public-safe road segment detail.
- *
- * Public-safe facts, then the segment insight: estimated risk with reasons, confidence and
- * provenance (rule-based, labelled), the Road Story and a What-If simulation. WIM vehicle
- * records (licence plates, per-truck weights) are NOT shown here.
+ * Route /ruas/:roadId/ — one road: its risk from real reports and inspections, the PINN
+ * structural assessment (field officers), and the reports on it.
  */
 export const RoadDetailPage: React.FC<{ params: Record<string, string> }> = ({ params }) => {
-  const { closePage, roadSegments, communityReports, onSelectSegment, onLaunchSimulation, setActiveNav, isFieldEngineer } = usePageContext();
-  const segment = roadSegments.find((item) => item.id === params.roadId);
-  const { workflow } = useAppState();
-  const [insight, setInsight] = useState<{ assessment: EngineeringAssessment; explanation: StructuredExplanation } | null>(null);
-  const [story, setStory] = useState<{ story: StoryEntry[]; note: string } | null>(null);
-  const [insightError, setInsightError] = useState<string | null>(null);
-  const segmentId = segment?.id;
-
-  const loadStory = () => {
-    if (!segmentId) return;
-    workflow.gateway.story(segmentId).then(setStory).catch((e) => setInsightError((e as Error).message));
-  };
+  const { closePage } = usePageHost();
+  const { currentAccount } = useSession();
+  const { roadSegments, workflow } = useAppState();
+  const segment = roadSegments.find((s) => s.id === params.roadId);
+  const [assessment, setAssessment] = useState<EngineeringAssessment | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!segmentId) return;
+    if (!segment) return;
     let cancelled = false;
-    setInsight(null);
-    setStory(null);
-    setInsightError(null);
     workflow.gateway
-      .assessment(segmentId)
-      .then((r) => !cancelled && setInsight(r))
-      .catch((e) => !cancelled && setInsightError((e as Error).message));
-    workflow.gateway
-      .story(segmentId)
-      .then((r) => !cancelled && setStory(r))
-      .catch(() => undefined);
+      .assessment(segment.id)
+      .then((r) => !cancelled && setAssessment(r.assessment))
+      .catch((e) => !cancelled && setError((e as Error).message));
     return () => {
       cancelled = true;
     };
-    // Reload when the workflow records change (e.g. a new inspection on this segment).
-  }, [segmentId, workflow.gateway, workflow.views]);
+  }, [segment, workflow.gateway, workflow.views]);
+
+  const back = (
+    <button type="button" onClick={closePage} className="cursor-pointer rounded-full bg-white/10 p-2.5" aria-label="Kembali">
+      <ArrowLeft className="h-5 w-5" />
+    </button>
+  );
 
   if (!segment) {
     return (
-      <PageOverlay icon={<RouteIcon className="w-6 h-6" />} title="Ruas jalan tidak ditemukan" subtitle={`ID: ${params.roadId}`} onBack={closePage}>
-        <div className={cardClass}>
-          <p className="text-sm text-slate-300">Tidak ada ruas jalan dengan ID tersebut. Pilih salah satu ruas yang tersedia:</p>
-          <div className="flex flex-wrap gap-2">
-            {roadSegments.map((item) => (
-              <Link key={item.id} to={buildPath('roadDetail', { roadId: item.id })} className={secondaryLink}>
-                {item.name}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </PageOverlay>
+      <SnapPage title="Ruas tidak ditemukan" action={back}>
+        <Empty icon={<RouteIcon className="h-6 w-6" />} title="Ruas tidak dikenal" text={`Tidak ada ruas dengan ID ${params.roadId}.`} />
+      </SnapPage>
     );
   }
 
-  const reports = communityReports.filter((report) => report.segmentId === segment.id);
+  const cases = Object.values(workflow.views).filter((v) => v.case.segmentId === segment.id);
+  const risk = assessment ? RISK[assessment.risk] : null;
 
   return (
-    <PageOverlay icon={<RouteIcon className="w-6 h-6" />} title={segment.name} subtitle={`${segment.corridor} — ${segment.province}`} onBack={closePage}>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Fact label="PCI saat ini" value={`${segment.currentPci} / 100`} />
-        <Fact label="Kondisi" value={CONDITION_LABEL[segment.conditionCategory]} />
-        <Fact label="KM Post" value={segment.kmPost} />
-        <Fact label="Panjang ruas" value={`${segment.lengthKm} km`} />
-        <Fact label="Survei terakhir" value={segment.lastSurveyDate} />
-        <Fact label="LHR" value={segment.dailyTrafficVolumeLhr.toLocaleString('id-ID')} />
-        <Fact label="Stasiun WIM" value={segment.hasWimStation ? segment.wimStationName || 'Ada' : 'Tidak ada'} />
-        <Fact label="Laporan warga" value={reports.length} />
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => {
-            onSelectSegment(segment);
-            setActiveNav('MAP');
-          }}
-          className={primaryButton}
-        >
-          Lihat di peta
-        </button>
-        <button onClick={() => onLaunchSimulation(segment)} className={`${secondaryLink} cursor-pointer`}>
-          Simulasi PINN untuk ruas ini
-        </button>
-        <Link to={buildPath('reports')} className={secondaryLink}>
-          Semua laporan
-        </Link>
-      </div>
-
-      {segment.pilot && (
-        <p className="text-xs text-slate-400">
-          Ruas pilot Karawang. Geometri ILUSTRATIF; atribut PCI/CBR/lalu lintas SINTETIS (bukan pengukuran lapangan).
-        </p>
-      )}
-
-      {insightError && (
-        <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
-          Analisis ruas tidak tersedia: {insightError}
-        </p>
-      )}
-      {!insight && !insightError && <p className="text-xs text-slate-400">Memuat analisis ruas…</p>}
-      {insight && <SegmentRiskCard assessment={insight.assessment} explanation={insight.explanation} />}
-      {story && <RoadStoryTimeline story={story.story} note={story.note} />}
-      {insight && !isFieldEngineer && (
-        <p className="rounded-2xl border border-white/10 bg-surface p-4 text-xs text-slate-400">
-          What-If (simulasi skenario) tersedia untuk Field Engineer. Hasil simulasi yang sudah dijalankan tampil di Road Story dengan label SIMULATED.
-        </p>
-      )}
-      {insight && isFieldEngineer && (
-        <StructuralAssessmentPanel segmentId={segment.id} baseline={insight.assessment.inputs} onRun={(body) => workflow.gateway.engineAssess(body)} />
-      )}
-      {insight && isFieldEngineer && (
-        <WhatIfPanel
-          baseline={insight.assessment.inputs}
-          onRun={async (scenario) => {
-            const result = await workflow.gateway.simulate(segment.id, scenario);
-            loadStory();
-            return result;
-          }}
-        />
-      )}
-
-      <div className={cardClass}>
-        <h3 className="text-sm font-semibold text-white">Laporan warga pada ruas ini</h3>
-        {reports.length === 0 ? (
-          <p className="text-xs text-slate-400">Belum ada laporan untuk ruas ini.</p>
+    <SnapPage title={segment.name} subtitle={`${segment.corridor} · ${segment.province} · ${segment.lengthKm} km`} action={back}>
+      <SnapCard>
+        <p className="text-xs font-bold text-white/50">Kondisi menurut laporan & inspeksi</p>
+        {risk ? (
+          <>
+            <div className="mt-2"><Pill tone={risk.tone}>{risk.label}</Pill></div>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-white/80">
+              {assessment!.riskReasons.map((r) => <li key={r}>{r}</li>)}
+            </ul>
+          </>
         ) : (
-          <div className="space-y-2">
-            {reports.map((report) => (
-              <div key={report.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-t border-white/5 pt-2">
-                <div>
-                  <p className="text-xs font-bold text-white">{report.damageTypeLabel}</p>
-                  <p className="text-xs text-slate-400">{report.timestamp}</p>
-                </div>
-                <div className="flex items-center gap-2 text-xs font-mono">
-                  <span className="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">{report.severity}</span>
-                  <span className="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-cyan-300">{report.status}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <p className="mt-2 text-sm text-white/60">{error ? `Belum dapat dimuat: ${error}` : 'Memuat…'}</p>
         )}
-      </div>
-    </PageOverlay>
+      </SnapCard>
+
+      {assessment && currentAccount.role === 'FIELD_ENGINEER' && (
+        <StructuralAssessmentPanel segmentId={segment.id} baseline={assessment.inputs} onRun={(body) => workflow.gateway.engineAssess(body)} />
+      )}
+
+      <h2 className="pt-2 text-lg font-extrabold">Laporan di ruas ini</h2>
+      {cases.length === 0 ? (
+        <SnapCard><p className="text-sm text-white/60">Belum ada laporan.</p></SnapCard>
+      ) : (
+        cases.map((v) => (
+          <SnapCard key={v.case.id}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-extrabold">{v.case.report.damageTypeLabel}</p>
+                <p className="text-xs text-white/50">{v.case.id}</p>
+              </div>
+              <StatusPill state={v.case.state} />
+            </div>
+          </SnapCard>
+        ))
+      )}
+    </SnapPage>
   );
 };

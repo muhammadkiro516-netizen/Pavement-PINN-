@@ -101,9 +101,7 @@ test('density classification of factory reports follows the existing rules; sour
 
 test('every report creation path goes through the factory', () => {
   const paths = [
-    'src/app/layouts/ModernAppLayout.tsx',
     'src/components/maps/LeafletMap.tsx',
-    'src/features/community-reports/CommunityReportsDashboard.tsx',
     'src/features/community-reports/ReportRoadIssueCard.tsx'
   ];
   for (const file of paths) {

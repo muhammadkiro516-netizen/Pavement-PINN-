@@ -41,7 +41,7 @@ test('risk map lists the pilot corridor first with honest status labels', async 
   assert.deepEqual(r.body.items.slice(0, 4).map((i: any) => i.segmentId), ['KRW-001', 'KRW-002', 'KRW-003', 'KRW-004']);
   for (const i of r.body.items) {
     assert.ok(['HIGH', 'WATCH', 'MODERATE', 'GOOD'].includes(i.risk));
-    assert.equal(i.engine, 'RULE_BASED');
+    assert.equal(i.engine, 'EVIDENCE');
     assert.equal(i.validationStatus, 'VALIDATION_REQUIRED');
   }
   assert.equal(r.body.items[0].geometryStatus, 'ILLUSTRATIVE');
@@ -52,14 +52,14 @@ test('segment detail hides WIM vehicle records and returns the labelled estimate
   assert.equal(r.status, 200);
   assert.equal(r.body.segment.wimDetails, undefined);
   assert.equal(r.body.segment.activeWimStatus, undefined);
-  assert.equal(r.body.estimate.engine, 'RULE_BASED');
+  assert.equal(r.body.estimate.engine, 'EVIDENCE');
   assert.equal((await call('GET', '/api/road-segments/NOPE')).status, 404);
 });
 
 test('assessment endpoint returns provenance and a deterministic explanation', async () => {
   const r = await call('GET', '/api/road-segments/KRW-001/assessment');
   assert.equal(r.status, 200);
-  assert.equal(r.body.assessment.engine, 'RULE_BASED');
+  assert.equal(r.body.assessment.engine, 'EVIDENCE');
   assert.equal(r.body.assessment.traffic.wim.status, 'WIM_NOT_AVAILABLE');
   assert.equal(r.body.explanation.source, 'DETERMINISTIC_RULES');
   assert.equal((await call('GET', '/api/road-segments/NOPE/assessment')).status, 404);
@@ -77,30 +77,11 @@ test('provenance endpoint describes segments, assessments and reports', async ()
   assert.equal((await call('GET', '/api/provenance/unicorn/x')).status, 400);
 });
 
-test('What-If: engineers only, 422 outside the validated range, stored SIMULATION readable by staff', async () => {
-  assert.equal((await call('POST', '/api/simulations', { segmentId: 'KRW-002', scenario: { asphaltThicknessCm: 14 } })).status, 401);
-  const citizen = await login('USR-004');
-  assert.equal((await call('POST', '/api/simulations', { segmentId: 'KRW-002', scenario: { asphaltThicknessCm: 14 } }, citizen)).status, 403);
-
+test('What-If is retired with the formula engine: 410 pointing to the PINN assessment', async () => {
   const eng = await login('USR-006');
   const r = await call('POST', '/api/simulations', { segmentId: 'KRW-002', scenario: { asphaltThicknessCm: 14 } }, eng);
-  assert.equal(r.status, 201);
-  assert.equal(r.body.result.label, 'SIMULATION');
-  assert.equal(r.body.result.changed[0].parameter, 'asphaltThicknessCm');
-  assert.equal(r.body.persisted, true);
-
-  const tooThick = await call('POST', '/api/simulations', { segmentId: 'KRW-002', scenario: { asphaltThicknessCm: 40 } }, eng);
-  assert.equal(tooThick.status, 422);
-  assert.match(tooThick.body.error.message, /Outside validated range/);
-  assert.equal((await call('POST', '/api/simulations', { segmentId: 'KRW-002', scenario: { asphaltThicknessCm: 'tebal' } }, eng)).status, 400);
-  assert.equal((await call('POST', '/api/simulations', { segmentId: 'NOPE', scenario: {} }, eng)).status, 400);
-
-  const ops = await login('USR-008');
-  const read = await call('GET', `/api/simulations/${r.body.simulationId}`, undefined, ops);
-  assert.equal(read.status, 200);
-  assert.equal(read.body.simulation.requestedBy.id, 'USR-006');
-  assert.equal(read.body.simulation.dataStatus, 'SIMULATED');
-  assert.equal((await call('GET', `/api/simulations/${r.body.simulationId}`, undefined, citizen)).status, 403);
+  assert.equal(r.status, 410);
+  assert.match(r.body.error.message, /engine\/assess/);
 });
 
 test('Road Story includes PREDICTED and SIMULATED entries, labelled', async () => {
@@ -109,7 +90,6 @@ test('Road Story includes PREDICTED and SIMULATED entries, labelled', async () =
   assert.equal(r.body.audience, 'PUBLIC');
   const kinds = new Set(r.body.story.map((e: any) => e.kind));
   assert.ok(kinds.has('PREDICTED'));
-  assert.ok(kinds.has('SIMULATED'), 'the What-If run from the previous test appears');
 });
 
 test('spec aliases: POST /api/reports accepts anonymous submissions and flags OUT_OF_SCOPE locations', async () => {

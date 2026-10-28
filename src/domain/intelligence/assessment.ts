@@ -2,19 +2,17 @@
  * Engineering assessment of one road segment: DATA → ENGINE → RESULT, with provenance,
  * uncertainty and validation status (spec §16, §28, §29, §31).
  *
- * Engine status, stated plainly: no trained PINN weights exist in this repository. The
- * engine used here is the deterministic formula in src/engines/pinn (Burmister-inspired
- * strain estimates, fourth-power load factor, moisture decay), reported as RULE_BASED.
- * Its "condition score" is a prototype indicator, not a validated PCI.
+ * The segment risk here comes only from observed evidence in the workflow (open reports,
+ * engineer-confirmed severity). Structural numbers (strains, life) come only from the PINN
+ * surrogate / MLET service (/api/engine/assess); the old browser formula engine is removed.
  */
 import type { DamageReport, RoadSegment } from '../../types';
-import { runPinnSimulation } from '../../engines/pinn/core/pinnEngine';
 import type { ReportCase } from '../workflow/model';
 import { Confidence, estimateTrafficLoad, NO_WIM_PROVIDER, pavementBaseline, Provenanced, TrafficLoadEstimate, WeatherObservation, weatherEvidence, WimProvider } from './evidence';
 
 export type RiskLevel = 'HIGH' | 'WATCH' | 'MODERATE' | 'GOOD';
 
-export const RULE_BASED_ENGINE_VERSION = 'pinnEngine-formula@1 (deterministic, no trained weights)';
+export const EVIDENCE_ENGINE_VERSION = 'evidence-risk@1 (observed reports and inspections only)';
 
 /** Ranges the formula engine was written for; inputs outside are flagged (spec §29 OOD warning). */
 export const ENGINE_INPUT_RANGES = {
@@ -39,15 +37,17 @@ export interface EngineeringAssessment {
   id: string;
   segmentId: string;
   createdAt: string;
-  engine: 'PINN' | 'RULE_BASED';
+  engine: 'PINN' | 'EVIDENCE';
   modelVersion: string;
   inputs: AssessmentInputs;
   inputProvenance: Record<keyof AssessmentInputs, string>;
   outputs: {
+    /** 100 = no evidence of damage; lowered by open reports and confirmed severity. */
     conditionScorePrototype: number;
-    tensileStrainMicro: number;
-    compressiveStrainMicro: number;
-    surfaceDeflectionMicron: number;
+    /** Structural responses are not computed here (see /api/engine/assess). */
+    tensileStrainMicro: number | null;
+    compressiveStrainMicro: number | null;
+    surfaceDeflectionMicron: number | null;
   };
   risk: RiskLevel;
   riskReasons: string[];
@@ -57,12 +57,10 @@ export interface EngineeringAssessment {
   /** Null: the rule-based engine has no physics residual; a trained PINN would report it. */
   physicsResidual: number | null;
   validationStatus: 'VALIDATION_REQUIRED';
-  dataStatus: 'RULE_BASED';
+  dataStatus: 'OBSERVED';
   traffic: TrafficLoadEstimate;
   weather: Provenanced<WeatherObservation | null>;
 }
-
-const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
 
 function hash(text: string): string {
   let h = 2166136261;
@@ -120,66 +118,44 @@ export function assessSegment(
   const provenance = { ...base.provenance };
   for (const key of Object.keys(options.inputs ?? {}) as Array<keyof AssessmentInputs>) provenance[key] = 'USER SCENARIO INPUT (SIMULATED)';
 
-  const outOfRange = (Object.keys(ENGINE_INPUT_RANGES) as Array<keyof typeof ENGINE_INPUT_RANGES>)
-    .filter((k) => inputs[k] < ENGINE_INPUT_RANGES[k][0] || inputs[k] > ENGINE_INPUT_RANGES[k][1])
-    .map((k) => `${k}=${inputs[k]} outside ${ENGINE_INPUT_RANGES[k][0]}–${ENGINE_INPUT_RANGES[k][1]}`);
+  const outOfRange: string[] = [];
 
-  // The formula engine is only evaluated inside its range; outside, inputs are clamped and flagged.
-  const result = runPinnSimulation(
-    {
-      segmentId: segment.id,
-      axleLoadTon: clamp(inputs.axleLoadTon, 10, 25),
-      rainIntensityMmHr: clamp(inputs.rainIntensityMmHr, 0, 100),
-      floodDurationHours: clamp(inputs.floodDurationHours, 0, 48),
-      surfaceTemperatureC: clamp(inputs.surfaceTemperatureC, 25, 60),
-      subgradeCbrPercent: clamp(inputs.subgradeCbrPercent, 3, 10),
-      asphaltThicknessCm: clamp(inputs.asphaltThicknessCm, 5, 25),
-      asphaltModulusMpa: clamp(inputs.asphaltModulusMpa, 1200, 3500),
-      targetDevice: 'CPU',
-      precisionMode: 'FP32'
-    },
-    segment
-  );
-
-  const score = result.predictedPci;
-  let risk = riskFromScore(score);
-  const riskReasons = [`Prototype condition score ${score} (rule-based engine).`];
-
-  // Observed evidence from the workflow can raise the risk; it never lowers it.
   const segmentCases = (options.cases ?? []).filter((c) => c.segmentId === segment.id && c.state !== 'CLOSED' && c.state !== 'RESOLVED');
   const confirmed = segmentCases.filter((c) => c.inspection?.verdict === 'CONFIRMED');
-  if (confirmed.some((c) => c.inspection?.severity === 'CRITICAL')) {
-    risk = maxRisk(risk, 'HIGH');
-    riskReasons.push('Field inspection confirmed CRITICAL damage.');
-  } else if (confirmed.some((c) => c.inspection?.severity === 'SEVERE')) {
-    risk = maxRisk(risk, 'WATCH');
-    riskReasons.push('Field inspection confirmed SEVERE damage.');
-  }
+  const critical = confirmed.filter((c) => c.inspection?.severity === 'CRITICAL').length;
+  const severe = confirmed.filter((c) => c.inspection?.severity === 'SEVERE').length;
   const openReports = segmentCases.length;
-  if (openReports > 0) riskReasons.push(`${openReports} open citizen report(s) on this segment (not all verified).`);
+  const score = Math.max(0, 100 - 8 * openReports - 20 * severe - 35 * critical);
+  let risk = riskFromScore(score);
+  const riskReasons: string[] = [];
+  if (critical > 0) {
+    risk = maxRisk(risk, 'HIGH');
+    riskReasons.push(`${critical} inspeksi lapangan mengonfirmasi kerusakan KRITIS.`);
+  }
+  if (severe > 0) {
+    risk = maxRisk(risk, 'WATCH');
+    riskReasons.push(`${severe} inspeksi lapangan mengonfirmasi kerusakan BERAT.`);
+  }
+  riskReasons.push(openReports > 0 ? `${openReports} laporan warga masih terbuka di ruas ini.` : 'Tidak ada laporan terbuka di ruas ini.');
 
   const traffic = estimateTrafficLoad(segment, options.wim ?? NO_WIM_PROVIDER);
-  const uncertaintyReasons = [
-    'Engine is RULE_BASED, not a trained PINN; outputs are not validated against field data.',
-    'Pavement structure is a REFERENCE BASELINE (SYNTHETIC), not a survey of this segment.'
-  ];
+  const uncertaintyReasons = ['Risiko dihitung dari laporan dan inspeksi yang tercatat; ruas tanpa laporan belum tentu baik.'];
   if (traffic.wim.status === 'WIM_NOT_AVAILABLE') uncertaintyReasons.push('WIM data is unavailable, so traffic load is estimated.');
   if (base.weather.dataStatus !== 'PUBLIC') uncertaintyReasons.push(`Weather is ${base.weather.dataStatus}, not a live observation.`);
-  if (outOfRange.length > 0) uncertaintyReasons.push('Outside validated range: inputs were clamped to the engine range.');
 
   return {
     id: `ASM-${segment.id}-${hash(JSON.stringify(inputs))}`,
     segmentId: segment.id,
     createdAt: options.now,
-    engine: 'RULE_BASED',
-    modelVersion: RULE_BASED_ENGINE_VERSION,
+    engine: 'EVIDENCE',
+    modelVersion: EVIDENCE_ENGINE_VERSION,
     inputs,
     inputProvenance: provenance,
     outputs: {
       conditionScorePrototype: score,
-      tensileStrainMicro: result.tensors.tensileStrainEt,
-      compressiveStrainMicro: result.tensors.compressiveStrainEv,
-      surfaceDeflectionMicron: result.tensors.surfaceDeflectionMaxMicron
+      tensileStrainMicro: null,
+      compressiveStrainMicro: null,
+      surfaceDeflectionMicron: null
     },
     risk,
     riskReasons,
@@ -189,7 +165,7 @@ export function assessSegment(
     outOfRange,
     physicsResidual: null,
     validationStatus: 'VALIDATION_REQUIRED',
-    dataStatus: 'RULE_BASED',
+    dataStatus: 'OBSERVED',
     traffic,
     weather: base.weather
   };

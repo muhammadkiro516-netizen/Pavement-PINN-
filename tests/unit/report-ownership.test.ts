@@ -124,9 +124,7 @@ test('content-edit policy does not block Field Engineer verification through the
 test('every edit gate and save handler uses canEditReport; no name or role-only gates remain', () => {
   const files = [
     'src/features/community-reports/ReportDetailBottomSheet.tsx',
-    'src/features/community-reports/CommunityReportsDashboard.tsx',
     'src/features/community-reports/ReportDetailModal.tsx',
-    'src/app/layouts/ModernAppLayout.tsx'
   ];
   for (const file of files) {
     const source = readFileSync(file, 'utf8');

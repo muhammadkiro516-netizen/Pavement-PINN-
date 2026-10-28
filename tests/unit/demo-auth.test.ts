@@ -169,11 +169,12 @@ test('login form messages: required fields, generic failure, rate limit, disable
 
 test('route guards: signed-out visitors are sent to login, other roles are refused', () => {
   const anonymous = { role: 'PUBLIC_VIEWER' as UserRole };
-  assert.equal(resolveRouteAccess(getRoute('engineFwd'), anonymous), 'LOGIN_REQUIRED');
-  assert.equal(resolveRouteAccess(getRoute('policy'), anonymous), 'LOGIN_REQUIRED');
-  assert.equal(resolveRouteAccess(getRoute('dashboard'), anonymous), 'ALLOW');
+  // Everything needs an account except login, public tracking and the evidence page.
+  assert.equal(resolveRouteAccess(getRoute('map'), anonymous), 'LOGIN_REQUIRED');
+  assert.equal(resolveRouteAccess(getRoute('tasks'), anonymous), 'LOGIN_REQUIRED');
   assert.equal(resolveRouteAccess(getRoute('login'), anonymous), 'ALLOW');
-  const engineer = { role: 'FIELD_ENGINEER' as UserRole, layoutStyle: 'MODERN_APP' as const };
-  assert.equal(resolveRouteAccess(getRoute('policy'), engineer), 'FORBIDDEN');
-  assert.equal(canOpenRoute('engineFwd', engineer), true);
+  assert.equal(resolveRouteAccess(getRoute('evidence'), anonymous), 'ALLOW');
+  const engineer = { role: 'FIELD_ENGINEER' as UserRole };
+  assert.equal(resolveRouteAccess(getRoute('team'), engineer), 'FORBIDDEN');
+  assert.equal(canOpenRoute('tasks', engineer), true);
 });

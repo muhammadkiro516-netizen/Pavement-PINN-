@@ -8,6 +8,7 @@
 import React, { useState } from 'react';
 import type { AssessmentInputs } from '../../domain/intelligence/assessment';
 import type { EngineAssessRequest, EngineAssessResult, MonteCarloCondition } from '../../types';
+import { PinnDecisionCard } from './PinnDecisionCard';
 
 const card = 'rounded-2xl border border-white/10 bg-surface p-4 space-y-3';
 const tag = 'inline-block rounded border px-2 py-1 text-xs font-bold tracking-wide';
@@ -211,6 +212,8 @@ export const StructuralAssessmentPanel: React.FC<{
         </button>
       </div>
       {error && <p role="alert" className="text-xs text-rose-200">Penilaian gagal: {error}</p>}
+      {/* Plain-language decisions first; the technical numbers follow for the engineer. */}
+      <PinnDecisionCard base={buildRequest(segmentId, values, criterion)} onRun={onRun} />
       {result && (
         <div className="space-y-3" role="status">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

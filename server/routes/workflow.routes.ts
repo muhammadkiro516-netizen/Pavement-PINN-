@@ -10,7 +10,7 @@ import type { ServiceResult } from "../../src/domain/workflow/service";
 import type { ReportDraft } from "../../src/domain/reports/reportFactory";
 import { hashClaimToken, newClaimToken } from "../auth/sessionTokens";
 import { rateLimit } from "../middleware/rateLimit";
-import { checkPhotoReference } from "../services/photoValidation";
+import { checkPhotoReference, stripPhotoMetadata } from "../services/photoValidation";
 import { attachCvAnalysis } from "../services/cvAttach";
 import type { WorkflowRuntime } from "../services/workflowRuntime";
 import { actorFrom, clearSessionCookie, credentialFrom, sessionFrom, setSessionCookie } from "../auth/actor";
@@ -263,6 +263,8 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
       if (attached.ok === false) return sendError(res, "VALIDATION", (attached as { message: string }).message);
       verifiedCv = attached.assessment;
     }
+    // Privacy: camera metadata (EXIF GPS, device) is removed before storage, after the CV binding.
+    if (typeof draft.photoUrl === "string") draft.photoUrl = stripPhotoMetadata(draft.photoUrl);
     const claim = actor.kind === "ANONYMOUS" ? newClaimToken() : null;
     const result = await service.submitReport(draft, actor, claim ? claim.hash : null, verifiedCv);
     if (result.ok && verifiedCv) await runtime.cv.bind(verifiedCv.analysisId, result.value.id);
@@ -290,6 +292,7 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
     if (command.action === "COMPLETE_WORK_ORDER") {
       const photo = checkPhotoReference(command.completionPhotoUrl);
       if (photo.ok === false) return sendError(res, "VALIDATION", `Repair photo: ${photo.message}`);
+      command.completionPhotoUrl = stripPhotoMetadata(command.completionPhotoUrl as string);
     }
     if (command.action === "SUBMIT_INSPECTION" && command.evidencePhotoUrl) {
       // Same byte-level check as the citizen photo: real JPEG/PNG/WebP, at most 5 MB.

@@ -10,7 +10,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { runPinnSimulation } from '../../src/engines/pinn/core/pinnEngine';
 import { INDONESIAN_ROAD_SEGMENTS, ALL_BINA_MARGA_WIM_STATIONS } from '../../src/data/reference/indonesianRoads';
 import { detectLocalDeviceProfile } from '../../src/runtime/intel-hardware/deviceDetector';
 import { PDF_DISCLAIMER } from '../../src/services/reporting/pdfGenerator';
@@ -83,28 +82,6 @@ test('browser never claims an NPU or an Intel device (F-12)', () => {
 test('PDF disclaimer states "bukan dokumen resmi" and names no agency (F-19)', () => {
   assert.match(PDF_DISCLAIMER, /BUKAN DOKUMEN RESMI/);
   assert.doesNotMatch(PDF_DISCLAIMER, /PUPR|Kemenhub|BMKG|Bina Marga|Intel/);
-});
-
-test('identical input gives an identical payload (AGENTS rule 6)', () => {
-  const segment = INDONESIAN_ROAD_SEGMENTS[0];
-  const params: SimulationParams = {
-    segmentId: segment.id,
-    axleLoadTon: 14,
-    rainIntensityMmHr: 30,
-    floodDurationHours: 4,
-    subgradeCbrPercent: 6,
-    asphaltThicknessCm: 10,
-    asphaltModulusMpa: 2500,
-    surfaceTemperatureC: 32,
-    targetDevice: 'NPU',
-    precisionMode: 'INT8_NNCF'
-  };
-  const strip = ({ id: _id, timestamp: _t, ...rest }: ReturnType<typeof runPinnSimulation>) => rest;
-  const a = strip(runPinnSimulation(params, segment));
-  const b = strip(runPinnSimulation(params, segment));
-  assert.deepEqual(a, b);
-  assert.equal(a.telemetry.measurementStatus, 'NOT_MEASURED');
-  assert.equal(a.telemetry.inferenceLatencyMs, null);
 });
 
 // ---- Analysis Workspace (handoff §1): numbers on screen come from runs, never from JSX ----

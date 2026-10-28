@@ -11,7 +11,7 @@ export const API_PATHS = {
   health: '/api/health',
   roads: '/api/roads',
   simulate: '/api/simulate',
-  generateNarrative: '/api/generate-narrative'
+
 } as const;
 
 /**
