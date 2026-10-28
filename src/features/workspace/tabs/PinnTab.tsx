@@ -12,7 +12,9 @@ import { CorrectionDialog, Modal } from '../components/dialogs';
 import { structuralMayUseGeometry } from '../../../domain/workspace/rerun';
 import { VehiclePanel } from '../components/VehiclePanel';
 import type { VehicleScenario } from '../api';
-import type { FieldGrid, StructuralRun } from '../../../domain/workspace/types';
+import type { FieldGrid, Layer, StructuralRun } from '../../../domain/workspace/types';
+import { PinnDecisionCard } from '../../road-intelligence/PinnDecisionCard';
+import type { EngineAssessRequest } from '../../../types/engine';
 
 const Pavement3D = React.lazy(() => import('../components/Pavement3D'));
 
@@ -26,6 +28,22 @@ function nearest(life: NonNullable<StructuralRun['lifeIndexYr']>, v: number): st
   for (let i = 0; i < e.length - 1; i++) if (v >= e[i]) k = i;
   return ((e[k] + e[k + 1]) / 2).toFixed(1);
 }
+/**
+ * Request for the decision engine from the workspace layers. Needs every bound layer measured;
+ * subgrade CBR from E ≈ 10·CBR MPa (Heukelom-Klomp), shown as an assumption by the engine card.
+ */
+function decideBase(layers: Layer[]): EngineAssessRequest | null {
+  const bound = layers.filter((l) => l.name !== 'Subgrade');
+  const sub = layers.find((l) => l.name === 'Subgrade');
+  if (!sub?.modulusMPa.value || bound.some((l) => !l.thicknessMm.value || !l.modulusMPa.value)) return null;
+  return {
+    segment_id: 'workspace',
+    layers: bound.map((l) => ({ h_mm: l.thicknessMm.value!, E_mpa: l.modulusMPa.value!, nu: l.poisson.value ?? 0.35, source: l.source })),
+    subgrade: { cbr: Math.max(1, Math.round(sub.modulusMPa.value / 10)) },
+    criterion: 'AI'
+  };
+}
+
 const VAR_LABEL: Record<Variable, string> = { eps_xx: 'Strain εxx', eps_zz: 'Strain εzz', sigma_zz: 'Stress σzz' };
 
 function currentRun(runs: StructuralRun[], objectId: string | undefined): StructuralRun | null {
@@ -110,8 +128,6 @@ export const PinnMain: React.FC = () => {
   const t = useWsT();
   const { workspace: w, activeObject: o, isOpsManager } = useWorkspace();
   const [variable, setVariable] = useState<Variable>('eps_xx');
-  const [confirm, setConfirm] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
   const [scenario, setScenario] = useState<VehicleScenario | null>(null);
   if (!w) return null;
   const run = currentRun(w.structuralRuns, o?.objectId);
@@ -154,15 +170,13 @@ export const PinnMain: React.FC = () => {
           </div>
           <div className="mt-2 grid gap-2 text-[12px] md:grid-cols-3">
             <div>Indeks Umur P10/P50/P90: {run.lifeIndexYr ? `${run.lifeIndexYr.p10.toFixed(1)} / ${run.lifeIndexYr.p50.toFixed(1)} / ${run.lifeIndexYr.p90.toFixed(1)} th (${run.lifeIndexYr.criterion})` : <span className="italic text-[#8B9BB0]">belum dihitung — data lalu lintas belum diisi</span>}</div>
-            <div>Opsi perbaikan: <span className="italic text-[#8B9BB0]">belum tersedia (endpoint opsi belum ada; harga HSPK belum ada)</span></div>
+            <div>Opsi perbaikan: lihat perbandingan di bawah (umur per opsi; biaya HSPK belum dimasukkan)</div>
             <div className="flex flex-wrap gap-1">{assumed.map((a) => <StatusBadge key={a} tone="amber">{a}</StatusBadge>)}</div>
           </div>
-          <div className="mt-2 flex items-center gap-2">
-            <ActionButton testId="use-for-decision" onClick={() => setConfirm(true)}>Gunakan untuk keputusan</ActionButton>
-            {confirmed && <span className="text-[11px] text-[#F5C451]">Dikonfirmasi dengan input asumsi — catat sebagai skenario, bukan hasil tervalidasi.</span>}
-          </div>
+          <p className="mt-2 text-[11px] text-[#8B9BB0]">Keputusan penanganan dicatat lewat rekomendasi petugas dan persetujuan Koordinator di Antrian, bukan di halaman ini.</p>
         </div>
       )}
+      {decideBase(w.layers) && <PinnDecisionCard base={decideBase(w.layers)!} />}
       <div className="flex flex-wrap items-center gap-2">
         {(['eps_xx', 'eps_zz', 'sigma_zz'] as Variable[]).map((v) => (
           <button key={v} type="button" onClick={() => setVariable(v)} className={`rounded-md px-2.5 py-1 text-[12px] ${variable === v ? 'bg-[#1D4573] text-white' : 'bg-[#16202C] text-[#C9D4E3]'}`}>{VAR_LABEL[v]}</button>
@@ -216,16 +230,6 @@ export const PinnMain: React.FC = () => {
       ) : (
         <UnavailableCard reason={`Grid ${VAR_LABEL[variable]} tidak dikembalikan oleh run ini.`} />
       )}
-      {confirm && (
-        <Modal title={t('assumedConfirmTitle')} onClose={() => setConfirm(false)}>
-          <p className="text-[13px] text-[#C9D4E3]">{t('assumedConfirmBody')}</p>
-          <ul className="mt-2 list-disc pl-5 text-[12px] text-[#F5C451]" data-testid="assumed-list">{assumed.map((a) => <li key={a}>{a}</li>)}</ul>
-          <div className="mt-3 flex justify-end gap-2">
-            <button type="button" onClick={() => setConfirm(false)} className="rounded-lg border border-[#273244] px-3 py-1.5 text-[12px]">{t('cancel')}</button>
-            <button type="button" onClick={() => { setConfirmed(true); setConfirm(false); }} className="rounded-lg bg-[#E8B52B] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14]">{t('assumedConfirm')}</button>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 };
@@ -253,7 +257,7 @@ export const PinnPanel: React.FC = () => {
       <Row label="ESAL">{run ? <StatusBadge tone={SOURCE_TONE[run.load.esalSource]}>{run.load.esalSource}</StatusBadge> : '—'}</Row>
       <Row label="Interface">terikat penuh</Row>
       <Row label="Geometri kerusakan">{structuralMayUseGeometry(w.stageRuns) ? 'dipakai (T5/T6 lulus)' : <span className="italic text-[#8B9BB0]">tidak dipakai — T5/T6 belum lulus</span>}</Row>
-      <Row label="Surrogate PI-NN">RENCANA (tidak dipakai)</Row>
+      <Row label="Surrogate PI-NN">dipakai untuk umur P10–P90 di kartu keputusan (OpenVINO)</Row>
       <SectionTitle>{t('validationStatus')}</SectionTitle>
       <StatusBadge tone="violet">{run?.scenarioLabel === 'validated' ? 'Tervalidasi' : t('simulatedScenario')}</StatusBadge>
       {run?.assumptions.length ? <ul className="mt-2 list-disc pl-4 text-[11px] text-[#9AA8BC]">{run.assumptions.map((a) => <li key={a}>{a}</li>)}</ul> : null}
@@ -261,7 +265,6 @@ export const PinnPanel: React.FC = () => {
       <div className="flex flex-wrap gap-2">
         <ActionButton locked={locked} onClick={() => setDialog('load')}>Ubah beban</ActionButton>
         <ActionButton locked={locked} onClick={() => setTab('structure')}>Ubah material</ActionButton>
-        <ActionButton locked="Belum tersedia: endpoint opsi perbaikan belum ada">Bandingkan opsi overlay</ActionButton>
         <ActionButton primary locked={locked} testId="rerun-t7" onClick={() => setDialog('rerun')}>Jalankan ulang</ActionButton>
       </div>
       {dialog === 'load' && (

@@ -9,6 +9,7 @@ import { workspaceKpi } from '../../../domain/workspace/metrics';
 import { latestRuns } from '../../../domain/workspace/rerun';
 import { STAGE_IDS, TAB_FOR_STAGE } from '../../../domain/workspace/types';
 import { classLabel } from '../labels';
+import { WorkspaceNavContext } from '../WorkspaceNav';
 
 const STAGE_NAME: Record<string, string> = { T0: 'Foto', T1: '3D', T2: 'Grid', T3: 'Deteksi', T4: 'Permukaan', T5: 'Ukur', T6: 'Validasi', T7: 'Struktur', T8: 'Final' };
 
@@ -58,6 +59,7 @@ export const OverviewMain: React.FC = () => {
 
 export const OverviewPanel: React.FC = () => {
   const t = useWsT();
+  const { openQueue } = React.useContext(WorkspaceNavContext);
   const { workspace: w, activeObject, setActiveObject, isOpsManager, isFieldEngineer, run, reportId, setTab } = useWorkspace();
   const [assign, setAssign] = useState(false);
   const [reason, setReason] = useState('');
@@ -91,12 +93,14 @@ export const OverviewPanel: React.FC = () => {
       <SectionTitle>{isOpsManager ? t('omActions') : t('feActions')}</SectionTitle>
       <div className="flex flex-wrap gap-2">
         <ActionButton onClick={() => setTab('camera')}>Tinjau objek</ActionButton>
-        {(isOpsManager || isFieldEngineer) && <ActionButton onClick={() => setAssign(true)}>{isOpsManager ? 'Tugaskan inspeksi' : t('requestPhotos')}</ActionButton>}
+        {/* Assigning an engineer is a workflow decision (REQUEST_INSPECTION in Antrian); here we only log a photo request. */}
+        {isOpsManager && openQueue && <ActionButton primary onClick={openQueue}>Tugaskan inspeksi (Antrian)</ActionButton>}
+        {(isOpsManager || isFieldEngineer) && <ActionButton onClick={() => setAssign(true)}>{t('requestPhotos')}</ActionButton>}
       </div>
       <div className="mt-3"><VersionActions /></div>
       {assign && (
-        <Modal title={isOpsManager ? 'Tugaskan inspeksi / sekuens foto' : t('requestPhotos')} onClose={() => setAssign(false)}>
-          <p className="text-[12px] text-[#9AA8BC]">Objek: {activeObject?.objectId ?? '—'}. Instruksi slot: konteks, nadir, sekuens memutar 15–30 foto overlap 60–80 %, penanda skala sebidang.</p>
+        <Modal title={t('requestPhotos')} onClose={() => setAssign(false)}>
+          <p className="text-[12px] text-[#9AA8BC]">Permintaan dicatat di riwayat audit laporan. Objek: {activeObject?.objectId ?? '—'}. Instruksi slot: konteks, nadir, sekuens memutar 15–30 foto overlap 60–80 %, penanda skala sebidang.</p>
           <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder={t('reasonRequired')} className="mt-2 w-full rounded-lg border border-[#273244] bg-[#0A0F14] p-2 text-[13px] text-white" />
           <div className="mt-3 flex justify-end">
             <button type="button" disabled={reason.trim().length < 5} onClick={async () => { await run((g) => g.requestPhotos(reportId, { objectId: activeObject?.objectId, slots: ['konteks', 'nadir', 'sekuens memutar', 'penanda skala'], reason })); setAssign(false); setReason(''); }} className="rounded-lg bg-[#E8B52B] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:opacity-40">OK</button>

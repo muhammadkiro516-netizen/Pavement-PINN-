@@ -65,7 +65,11 @@ export const StructureMain: React.FC = () => {
               </span>
             </li>
           ))}
-          <li className="pt-1 text-[11px] text-[#6B7A90]">Lubang dipotong dari grid kedalaman tersimpan (vertikal ×2). Bidang biru = penampang A–A'. Putar/geser/zoom dengan mouse.</li>
+          <li className="pt-1 text-[11px] text-[#6B7A90]">
+            {surface
+              ? "Lubang dipotong dari grid kedalaman tersimpan (vertikal ×2). Bidang biru = penampang A–A'. Putar/geser/zoom dengan mouse."
+              : 'Belum ada geometri lubang: perlu sekuens foto 3D. Tebal lapis yang belum diisi digambar sebagai pita visual tanpa arti ukuran.'}
+          </li>
         </ul>
       </div>
       <svg viewBox={`0 0 700 ${H + 30}`} className="w-full rounded-xl bg-[#0B121A]" data-testid="layer-section">
@@ -136,8 +140,7 @@ export const StructurePanel: React.FC = () => {
       <StatusBadge tone={measured === w.layers.length ? 'green' : measured ? 'amber' : 'red'}>{measured} dari {w.layers.length} lapis terukur</StatusBadge>
       <SectionTitle>{isOpsManager ? t('omActions') : t('feActions')}</SectionTitle>
       <div className="flex flex-wrap gap-2">
-        <ActionButton primary locked={locked} testId="fill-core" onClick={() => setOpen(true)}>Isi data core/DCP</ActionButton>
-        <ActionButton locked={locked} onClick={() => setOpen(true)}>Unggah as-built</ActionButton>
+        <ActionButton primary locked={locked} testId="fill-core" onClick={() => setOpen(true)}>Isi data core/DCP/as-built</ActionButton>
       </div>
       {open && (
         <Modal title="Isi data lapisan (core/DCP/FWD/as-built)" onClose={() => setOpen(false)}>

@@ -263,7 +263,7 @@ const ActionForm: React.FC<{
         return onSubmit({ action, reason, agencyId, agencyName: '', level: 'KABUPATEN' });
       case 'MARK_HAZARD':
         if (!evidence) return setEvidenceError('Foto rambu di lokasi wajib dilampirkan.');
-        return onSubmit({ action, reason, photoUrl: evidence, note: notes } as WorkflowCommand);
+        return onSubmit({ action, reason, photoUrl: evidence, note: notes });
       default:
         return onSubmit({ action, reason } as WorkflowCommand);
     }

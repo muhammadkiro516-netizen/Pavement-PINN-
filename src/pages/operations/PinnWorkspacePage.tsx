@@ -11,7 +11,7 @@ export const PinnWorkspacePage: React.FC<{ params: Record<string, string> }> = (
   return (
     <div className="h-full w-full overflow-hidden">
       <WorkspaceProvider reportId={params.reportId} deps={deps}>
-        <AnalysisWorkspace onBack={() => navigateTo('analysis')} />
+        <AnalysisWorkspace onBack={() => navigateTo('analysis')} onOpenQueue={() => navigateTo('queue')} />
       </WorkspaceProvider>
     </div>
   );

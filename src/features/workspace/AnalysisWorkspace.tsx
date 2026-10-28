@@ -13,6 +13,7 @@ import { classLabel } from './labels';
 import { StatusBadge, STAGE_TONE, UnavailableCard } from './components/shared';
 import { Drawer, type DrawerTab } from './Drawer';
 import { OverviewMain, OverviewPanel } from './tabs/OverviewTab';
+import { WorkspaceNavContext } from './WorkspaceNav';
 import { CameraMain, CameraPanel } from './tabs/CameraTab';
 import { StructureMain, StructurePanel } from './tabs/StructureTab';
 import { PinnMain, PinnPanel } from './tabs/PinnTab';
@@ -30,7 +31,7 @@ const TABS: Array<{ id: WorkspaceTab; label: WsKey; sub: WsKey; drawer: DrawerTa
   { id: 'validation', label: 'tabValidation', sub: 'tabValidationSub', drawer: 'corrections' }
 ];
 
-export const AnalysisWorkspace: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
+export const AnalysisWorkspace: React.FC<{ onBack?: () => void; onOpenQueue?: () => void }> = ({ onBack, onOpenQueue }) => {
   const t = useWsT();
   const ws = useWorkspace();
   const [panelOpen, setPanelOpen] = useState(false);
@@ -74,6 +75,7 @@ export const AnalysisWorkspace: React.FC<{ onBack?: () => void }> = ({ onBack })
   };
 
   return (
+    <WorkspaceNavContext.Provider value={{ openQueue: onOpenQueue }}>
     <div className="flex h-full min-h-0 flex-col bg-[#0A0F14] text-[#E6EDF3]" data-testid="analysis-workspace">
       {/* Header */}
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[#1A2430] px-4 py-2.5">
@@ -154,6 +156,7 @@ export const AnalysisWorkspace: React.FC<{ onBack?: () => void }> = ({ onBack })
         </section>
       </div>
     </div>
+    </WorkspaceNavContext.Provider>
   );
 };
 

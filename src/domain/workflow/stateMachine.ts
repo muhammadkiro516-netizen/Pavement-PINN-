@@ -96,7 +96,7 @@ export type WorkflowCommand =
   | { action: 'RECOMMEND_ACTION'; treatment: string; urgency: 'ROUTINE' | 'PRIORITY' | 'URGENT'; rationale: string; assessmentId: string | null; assessment?: AssessmentSnapshot | null }
   | { action: 'START_WORK'; reason: string; contractorNote: string; contractor?: string; contractValueIdr?: number | null; targetDate?: string | null; supervisor?: string }
   | { action: 'TRANSFER_AUTHORITY'; reason: string; agencyId: string; agencyName: string; level: CaseAuthority['level'] }
-  | { action: 'MARK_HAZARD'; photoUrl: string; note: string };
+  | { action: 'MARK_HAZARD'; reason: string; photoUrl: string; note: string };
 
 export interface CommandContext {
   actor: Actor;
