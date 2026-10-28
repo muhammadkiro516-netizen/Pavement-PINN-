@@ -13,6 +13,7 @@ import { buildPath, matchRoute } from './routeConfig';
 import { ServerVersionBanner } from '../components/ui/ServerVersionBanner';
 import { canOpenRoute, homeRouteFor, landingRouteAfterLogin, loginPathFor, resolveRouteAccess } from './guards/routeAccess';
 import { CameraLauncherContext } from './cameraLauncher';
+import { LogoMark } from '../components/ui/brand';
 import { ReportRoadIssueCard } from '../features/community-reports/ReportRoadIssueCard';
 import { readDeviceCredential, signInCitizenDevice } from '../features/authentication/deviceAccount';
 import { accountFromProfile } from './providers/SessionProvider';
@@ -130,6 +131,37 @@ function AppShell() {
   );
 }
 
+/** Opening animation (about 2 s) shown each time the site is opened. */
+function Splash() {
+  const [phase, setPhase] = useState<'in' | 'out' | 'gone'>('in');
+  useEffect(() => {
+    const a = window.setTimeout(() => setPhase('out'), 1700);
+    const b = window.setTimeout(() => setPhase('gone'), 2100);
+    return () => {
+      window.clearTimeout(a);
+      window.clearTimeout(b);
+    };
+  }, []);
+  if (phase === 'gone') return null;
+  return (
+    <div
+      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-br from-[#0E1B2C] via-[#1463FF] to-[#FF7A1A] transition-opacity duration-400 ${phase === 'out' ? 'opacity-0' : 'opacity-100'}`}
+      aria-hidden="true"
+    >
+      <div className="pp-pop">
+        <LogoMark size={104} />
+      </div>
+      <p className="pp-rise mt-5 text-3xl font-extrabold tracking-tight text-[#FFFFFF]" style={{ animationDelay: '250ms' }}>
+        Pavement<span className="text-[#FFE14D]">PINN</span>
+      </p>
+      <p className="pp-rise mt-2 text-sm font-semibold text-[#FFFFFF]/80" style={{ animationDelay: '450ms' }}>Potret jalan rusak. Kami kawal sampai beres.</p>
+      <div className="mt-8 h-1 w-40 overflow-hidden rounded-full bg-[#FFFFFF]/25">
+        <div className="h-full rounded-full bg-[#FFFFFF]" style={{ animation: 'pp-load 1.7s ease-out forwards' }} />
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <RouterProvider>
@@ -142,6 +174,7 @@ export default function App() {
                 <div className="relative min-h-0 flex-1 overflow-hidden">
                   <AppShell />
                 </div>
+                <Splash />
               </div>
             </AppErrorBoundary>
           </GlobalModalsProvider>

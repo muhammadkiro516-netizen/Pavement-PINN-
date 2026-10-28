@@ -1492,3 +1492,4 @@ html, body, #root {
 @media (prefers-reduced-motion: reduce) {
   .pp-marquee, .pp-dash, .pp-drift, .pp-radar, .pp-bulb { animation: none; }
 }
+@keyframes pp-load { from { width: 0%; } to { width: 100%; } }

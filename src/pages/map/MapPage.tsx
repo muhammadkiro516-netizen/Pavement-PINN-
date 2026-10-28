@@ -28,6 +28,8 @@ export const MapPage: React.FC = () => {
   const [reviews, setReviews] = useState<Record<string, ReportReview[]>>({});
   const [userLocation, setUserLocation] = useState<{ coordinates: [number, number]; accuracyM: number } | null>(() => lastDeviceFix());
   const [locating, setLocating] = useState(false);
+  const [filter, setFilter] = useState<'ALL' | 'CRITICAL' | 'MODERATE' | 'MINOR'>('ALL');
+  const openCount = app.communityReports.filter((r) => r.status !== 'REPAIRED' && r.status !== 'CLOSED').length;
   const locate = () => {
     setLocating(true);
     void requestDeviceLocation().then((fix) => {
@@ -68,12 +70,40 @@ export const MapPage: React.FC = () => {
         isTabActive
         bottomInsetPx={96}
         userLocation={userLocation}
+        baseMapStyle="DARK"
+        theme="dark"
+        showDensity
+        activeFilter={filter}
       />
+      {/* Snap-Map-style overlays: avatar, place title, filter chips */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 bg-gradient-to-b from-[#000000]/70 to-transparent px-4 pb-10 pt-[max(14px,env(safe-area-inset-top))]">
+        <div className="flex items-start justify-between">
+          <button type="button" onClick={() => navigateTo('profile')} className="pointer-events-auto flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#FFE14D] text-lg font-extrabold text-[#000000] ring-4 ring-[#000000]/30">
+            {currentAccount.name.slice(0, 1).toUpperCase()}
+          </button>
+          <div className="text-right">
+            <p className="text-[26px] font-extrabold leading-tight text-[#FFFFFF] drop-shadow">Sekitar Anda</p>
+            <p className="text-sm font-semibold text-[#FFFFFF]/80">{openCount} jalan rusak dilaporkan</p>
+          </div>
+        </div>
+        <div className="pointer-events-auto mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+          {([['ALL', 'Semua'], ['CRITICAL', 'Kritis'], ['MODERATE', 'Sedang'], ['MINOR', 'Ringan']] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setFilter(key)}
+              className={`shrink-0 cursor-pointer rounded-full px-4 py-2.5 text-sm font-bold backdrop-blur ${filter === key ? 'bg-[#FFFFFF] text-[#000000]' : 'bg-[#1C1C1E]/85 text-[#FFFFFF]'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       <button
         type="button"
         onClick={locate}
         aria-label="Ke lokasi saya"
-        className="absolute bottom-28 right-4 z-30 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-[#E3E8EF] bg-[#FFFFFF] text-[#1463FF] shadow-[0_10px_30px_-10px_rgba(14,27,44,0.4)] transition hover:scale-105"
+        className="absolute bottom-28 right-4 z-30 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#1C1C1E] text-[#FFFFFF] shadow-[0_10px_30px_-10px_rgba(14,27,44,0.4)] transition hover:scale-105"
       >
         {locating ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Glyph name="pin" />}
       </button>
