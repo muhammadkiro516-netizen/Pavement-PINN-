@@ -14,6 +14,7 @@ import { StatusBadge, STAGE_TONE, UnavailableCard } from './components/shared';
 import { Drawer, type DrawerTab } from './Drawer';
 import { OverviewMain, OverviewPanel } from './tabs/OverviewTab';
 import { WorkspaceNavContext } from './WorkspaceNav';
+import { SHOW_3D } from './showAdvanced';
 import { CameraMain, CameraPanel } from './tabs/CameraTab';
 import { StructureMain, StructurePanel } from './tabs/StructureTab';
 import { PinnMain, PinnPanel } from './tabs/PinnTab';
@@ -22,7 +23,7 @@ import { DamagePanel } from './tabs/DamagePanel';
 
 const DamageMain = React.lazy(() => import('./tabs/DamageTab'));
 
-const TABS: Array<{ id: WorkspaceTab; label: WsKey; sub: WsKey; drawer: DrawerTab }> = [
+const ALL_TABS: Array<{ id: WorkspaceTab; label: WsKey; sub: WsKey; drawer: DrawerTab }> = [
   { id: 'overview', label: 'tabOverview', sub: 'tabOverviewSub', drawer: 'timeline' },
   { id: 'camera', label: 'tabCamera', sub: 'tabCameraSub', drawer: 'photos' },
   { id: '3d', label: 'tab3d', sub: 'tab3dSub', drawer: 'measurements' },
@@ -30,6 +31,7 @@ const TABS: Array<{ id: WorkspaceTab; label: WsKey; sub: WsKey; drawer: DrawerTa
   { id: 'pinn', label: 'tabPinn', sub: 'tabPinnSub', drawer: 'simlog' },
   { id: 'validation', label: 'tabValidation', sub: 'tabValidationSub', drawer: 'corrections' }
 ];
+const TABS = SHOW_3D ? ALL_TABS : ALL_TABS.filter((x) => x.id !== '3d' && x.id !== 'validation');
 
 export const AnalysisWorkspace: React.FC<{ onBack?: () => void; onOpenQueue?: () => void }> = ({ onBack, onOpenQueue }) => {
   const t = useWsT();
@@ -105,7 +107,7 @@ export const AnalysisWorkspace: React.FC<{ onBack?: () => void; onOpenQueue?: ()
       </header>
 
       {/* Tabs */}
-      <div role="tablist" className="grid grid-cols-3 gap-2 border-b border-[#1A2430] px-4 py-2.5 md:grid-cols-6">
+      <div role="tablist" className="grid grid-cols-2 gap-2 border-b border-[#1A2430] px-4 py-2.5 md:grid-cols-4">
         {TABS.map((x) => {
           const active = x.id === tab.id;
           return (

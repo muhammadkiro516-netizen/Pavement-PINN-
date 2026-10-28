@@ -9,6 +9,7 @@ import { workspaceKpi } from '../../../domain/workspace/metrics';
 import { latestRuns } from '../../../domain/workspace/rerun';
 import { STAGE_IDS, TAB_FOR_STAGE } from '../../../domain/workspace/types';
 import { classLabel } from '../labels';
+import { SHOW_3D } from '../showAdvanced';
 import { WorkspaceNavContext } from '../WorkspaceNav';
 
 const STAGE_NAME: Record<string, string> = { T0: 'Foto', T1: '3D', T2: 'Grid', T3: 'Deteksi', T4: 'Permukaan', T5: 'Ukur', T6: 'Validasi', T7: 'Struktur', T8: 'Final' };
@@ -30,14 +31,15 @@ export const OverviewMain: React.FC = () => {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Kpi testId="kpi-detected" label={t('kpiDetected')} value={k.detected === null ? null : String(k.detected)} empty={t('detectionNotRun')} />
-        <Kpi testId="kpi-scaled" label={t('kpiScaled')} value={k.scaled3d ? `${k.scaled3d.scaled}/${k.scaled3d.total}` : null} empty={t('no3d')} />
+        {SHOW_3D && <Kpi testId="kpi-scaled" label={t('kpiScaled')} value={k.scaled3d ? `${k.scaled3d.scaled}/${k.scaled3d.total}` : null} empty={t('no3d')} />}
         <Kpi testId="kpi-review" label={t('kpiReview')} value={String(k.needsReview)} empty="" />
-        <Kpi testId="kpi-validated" label={t('kpiValidated')} value={k.validated === null ? null : `${k.validated}/${w.objects.length}`} empty={t('validationUnavailable')} />
+        {SHOW_3D && <Kpi testId="kpi-validated" label={t('kpiValidated')} value={k.validated === null ? null : `${k.validated}/${w.objects.length}`} empty={t('validationUnavailable')} />}
       </div>
       {w.demo && <p className="text-[11px] text-[#C7B3FF]">DATA CONTOH — dikecualikan dari KPI portofolio.</p>}
       <MiniMap objects={w.objects} activeId={activeObject?.objectId ?? null} onSelect={setActiveObject} />
       <p className="text-[11px] text-[#8B9BB0]">Titik objek berwarna keparahan; abu-abu = keparahan belum dinilai.</p>
-      <div>
+      {!SHOW_3D && <SimpleProgress latest={latest} />}
+      {SHOW_3D && <div>
         <SectionTitle>Progres pipeline</SectionTitle>
         <div className="grid grid-cols-4 gap-2 md:grid-cols-8" data-testid="pipeline-strip">
           {STAGE_IDS.slice(0, 8).map((s) => {
@@ -52,6 +54,28 @@ export const OverviewMain: React.FC = () => {
             );
           })}
         </div>
+      </div>}
+    </div>
+  );
+};
+
+/** Three steps a person acts on: AI result confirmed, structure analysed, handling proposal. */
+const SimpleProgress: React.FC<{ latest: ReturnType<typeof latestRuns> }> = ({ latest }) => {
+  const steps: Array<[string, string, boolean]> = [
+    ['Konfirmasi', latest.T3_detect?.status === 'completed' ? 'deteksi AI tersedia' : 'menunggu deteksi', latest.T3_detect?.status === 'completed'],
+    ['Struktur', latest.T7_structural?.status === 'completed' ? 'MLET selesai' : 'isi data lapisan', latest.T7_structural?.status === 'completed'],
+    ['Usulan', 'belum dibuat', false]
+  ];
+  return (
+    <div>
+      <SectionTitle>Progres</SectionTitle>
+      <div className="grid grid-cols-3 gap-2" data-testid="pipeline-strip">
+        {steps.map(([name, note, done]) => (
+          <div key={name} className={`rounded-lg px-2 py-2 text-center text-[12px] ${done ? 'bg-[#123524] text-[#6EE7A8]' : 'bg-[#1A2230] text-[#9AA8BC]'}`}>
+            <div className="font-semibold">{name}</div>
+            <div className="text-[11px] opacity-90">{note}</div>
+          </div>
+        ))}
       </div>
     </div>
   );

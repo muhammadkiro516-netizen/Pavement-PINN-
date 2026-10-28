@@ -1,33 +1,25 @@
-# Progress
+# PROGRESS — PAVEMENT-PINN v4 (rujuk SPEC.md per ID)
 
-Read at the start of every session together with docs/DECISION_LOG.md,
-docs/REQUIREMENT_TRACEABILITY.md and docs/GAP_REGISTER.md, then `git status`.
+Branch `v4` (dari `lean-real` 3165218). Tes dasar: 327 Node + 51 pytest.
+Riwayat lama: `git show 3165218:PROGRESS.md`. Sengaja tidak di-commit: `docs/POST_STRUCTURE_AUDIT.md`, `docs/CLAUDE_PROJECT_STATUS_HANDOFF.md`.
 
-## 2026-10-14 — branch `feature/m1-report-ownership` (local commits, not pushed)
+## Status fase
+| Fase | Status |
+|---|---|
+| F0 | sebagian: tab 3D/Validation + pipeline T0–T8 disembunyikan (flag `VITE_SHOW_3D=1`), PROGRESS.md; **tunnel HTTPS belum hidup** (lihat Blocker) |
+| F1–F9 | belum |
 
-| Phase | Status | Commit(s) | Notes |
-|---|---|---|---|
-| Checkpoint | DONE | 498c829 | Snapshot of post-restructure hardening, maps, provenance |
-| M1a factory + ownership | DONE | 151b301 | `createSessionReport`, `canEditReport` by account id |
-| P1 domain workflow | DONE | 7b24b09 | State machine, screening, audit, public projection |
-| P2 API + persistence | DONE | 6996a27, 3d51f40 | Signed sessions, workflow/intelligence/provenance endpoints, file store, Supabase migration (not applied) |
-| M1b anonymous identity, M1c audit gating, P3 role UIs, P4 engines | DONE | 11b9b45, 61ddc90 (queue fix) | Shared workflow panel and queues; ESAL, traffic/WIM, weather, baseline, assessment, explanation |
-| P5 Road Story, What-If, map link | DONE | 246e50d | `/roads/:id/` insight |
-| P6 UI tokens, motion, CI | DONE | dfb7487 | Tokens, focus ring, reduced motion, `.github/workflows/ci.yml` |
-| P7 verification | DONE | — | 209 tests; browser golden path; production bundle smoke test |
-| P8 docs | DONE | (this commit) | DECISION_LOG, SOURCE_INVENTORY, REQUIREMENT_TRACEABILITY, GAP_REGISTER, DATA_ACQUISITION_PLAN, AI, DEPLOYMENT, FINAL_AUDIT, WORKFLOW_API, WORKFLOW_STATE_MACHINE |
+## Keputusan (yang tidak dijawab spec)
+- F0: Overview diringkas menjadi 3 langkah **Konfirmasi (T3) → Struktur (T7) → Usulan**. Spec menyebut "Ruas"; halaman Ruas baru dibangun di F1, jadi langkah ke-2 sementara menampilkan T7.
+- F0: kode 3D/Validation tidak dihapus, hanya disembunyikan (e2e lama perlu `VITE_SHOW_3D=1`).
+- Trailer commit: `Assisted-by: Claude Code` (§0.9).
 
-## Next tasks (in order)
+## Blocker (perlu manusia)
+- **Tunnel HTTPS:** `cloudflared` sudah diunduh ke `~/bin/cloudflared.exe` (v2026.10.5), tetapi membuka tunnel publik ke laptop ditolak oleh pengaman otomatis agent. Pengguna menjalankan sendiri:
+  `~/bin/cloudflared.exe tunnel --no-autoupdate --url http://localhost:3100`
+  atau mengizinkan agent menjalankannya.
+- §7: VM Xeon / Intel AI PC Cloud / laptop Core Ultra, foto uji lokal, data proyek, wawancara, SUS.
 
-1. Decide whether to remove or recompute the illustrative figures in legacy screens (now labelled, G-SW-04).
-2. Playwright suite for the golden path (G-SW-02).
-3. Exclude CLOSED-as-invalid reports from the density heatmap if the product owner agrees (G-SW-05).
-4. With credentials: Supabase store + Auth + Storage (G-SB-01..03).
-5. With Python and data: CV fine-tuning on local photos, PINN training and ablation,
-   OpenVINO CPU benchmark (G-03, G-04, G-05).
-6. Digitise corridor geometry from OSM (G-01).
-
-## Not committed on purpose
-
-`docs/POST_STRUCTURE_AUDIT.md` stays untracked (it locates exposed tokens in sibling
-repositories; owner decision).
+## Langkah berikutnya
+1. Hidupkan tunnel dan cetak URL.
+2. F1 (M2): field perbaikan wajib di COMPLETE_WORK_ORDER (metode, material, tebal, luas, pemadat, kategori, nilai), halaman Ruas + umur perbaikan nyata, konfirmasi 1-3-6 bulan, masa pemeliharaan, `measurements/recurrence.json`.
