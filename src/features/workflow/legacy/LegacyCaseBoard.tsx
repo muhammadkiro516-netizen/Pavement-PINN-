@@ -5,6 +5,7 @@
  * (stateMachine.ts), so the old look keeps the new rules: identity-based assignment,
  * server RBAC, evidence photos, M.O verification and the audited history.
  */
+import { byPriority, priorityOf } from '../../../domain/workflow/priority';
 import React, { createContext, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, ClipboardCheck, ClipboardList, Eye, HardHat, Layers, MapPin, Navigation, RefreshCw, RotateCcw, ShieldCheck, Camera, X, Inbox, History } from 'lucide-react';
 import type { ReportCase, WorkflowAction, WorkflowState } from '../../../domain/workflow/model';
@@ -125,7 +126,7 @@ export const LegacyCaseBoard: React.FC<LegacyCaseBoardProps> = ({ role, views, m
         {
           title: meta?.label ?? '',
           hint: meta?.operationalMeaning ?? '',
-          items: filtered.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+          items: filtered.sort((a, b) => byPriority(a, b))
         }
       ].filter((g) => g.items.length > 0);
     }
@@ -134,7 +135,7 @@ export const LegacyCaseBoard: React.FC<LegacyCaseBoardProps> = ({ role, views, m
       const meta = CANONICAL_STATUS_META[key];
       const items = filtered
         .filter((c) => canonicalStatusOf(c) === key)
-        .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+        .sort((a, b) => byPriority(a, b));
       return {
         title: meta.label,
         hint: meta.operationalMeaning,
@@ -351,6 +352,7 @@ const CaseCard: React.FC<{
   onFastAccept?: () => Promise<void>;
 }> = ({ c, role, actions, onDialog, onShowOnMap, onOpenAnalysis, onStartNavigation, onFastAccept, highlight }) => {
   const r = c.report;
+  const priority = priorityOf(c);
   const statusKey = canonicalStatusOf(c);
   const statusMeta = CANONICAL_STATUS_META[statusKey];
   const lastReview = c.inspectionReviews?.at(-1);
@@ -507,6 +509,12 @@ const CaseCard: React.FC<{
 
         {/* DETAILS COLUMN (MIDDLE) */}
         <div className="min-w-0 flex-1 space-y-1.5">
+          {role === 'OPS' && !done && (
+            <p className="text-[12px] text-ink-2" title="Skor prioritas AI: kerusakan + dukungan warga + lama menunggu. Koordinator tetap bebas memutuskan.">
+              <span className="mr-1.5 rounded-full bg-[#FFE14D] px-2 py-0.5 text-[11px] font-extrabold text-black">Prioritas {priority.score}</span>
+              {priority.reasons.join(' · ')}
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-1.5">
             <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${statusMeta.badgeClass}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dotColor}`} /> {statusMeta.label}

@@ -1,7 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { RuntimeIdentity } from "../../src/types";
 import { codeVersion } from "./codeVersion";
 
@@ -10,7 +9,7 @@ import { codeVersion } from "./codeVersion";
  * same runtime (same runtimeId, same data store) or different ones. Paths are reported as
  * hashes (rootId, storeId) plus a repo-relative location — never secrets or credentials.
  */
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+import { REPO_ROOT } from "./repoRoot";
 const RUNTIME_ID = randomUUID();
 const STARTED_AT = new Date().toISOString();
 

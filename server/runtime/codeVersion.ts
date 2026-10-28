@@ -2,7 +2,6 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 /**
  * Which code this server process runs. Node does not reload server code, so a process
@@ -14,8 +13,7 @@ import { fileURLToPath } from "node:url";
  * git: committing code the process already runs does not make it stale, and an edit that is
  * not committed yet does.
  */
-const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(MODULE_DIR, "../..");
+import { REPO_ROOT } from "./repoRoot";
 /** Loaded by the server process: server code and the domain rules it imports. */
 export const WATCHED_DIRS = ["server", "src/domain"];
 

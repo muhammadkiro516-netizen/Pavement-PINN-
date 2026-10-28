@@ -239,7 +239,10 @@ export class WorkspaceService {
         return block("Menunggu point cloud dari T1");
       case "T3_detect": {
         const fe = ws.corrections.some((c) => ["class", "mask", "merge", "split"].includes(c.kind));
-        return fe ? done(ws, "koreksi F.E") : { workspace: ws, patch: { status: "needs_review", reason: "Model deteksi belum tersedia" } };
+        if (fe) return done(ws, "koreksi F.E");
+        // The OpenVINO detector's result for the report photo (server-verified at submission).
+        const model = ws.objects.find((o) => o.class.modelVersion)?.class.modelVersion;
+        return model ? done(ws, model) : { workspace: ws, patch: { status: "needs_review", reason: "Foto belum dianalisis model; petugas menentukan kelas" } };
       }
       case "T4_surface":
       case "T5_quantify":

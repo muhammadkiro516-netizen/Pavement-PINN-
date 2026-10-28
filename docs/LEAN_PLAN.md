@@ -80,3 +80,26 @@ backup. GitHub Pages static deploy is retired.
 4. Repair verification (3 layers); statistics (field accuracy, time to fix).
 5. NNCF INT8 detector, benchmark, Evidence page. Stretch: segment survey.
 6. Tunnel, real users, interview deck. Disclose all GenAI tools used in development.
+
+## Status (2026-10-28, branch `lean-real`)
+
+Done and tested:
+- Real accounts (register, staff by Koordinator, scrypt), no demo data in the product server.
+- Verified OpenVINO CV result drives screening; low confidence goes to human review.
+- Lean shell, 3 roles x 5 tabs, Snapchat-style UI kit; legacy screens, RULE_BASED engine,
+  What-If, Gemini and Pages deploy removed. Segment risk from observed evidence only.
+- PINN decision card (surface/structural, ODOL factor, wet season, repair options).
+- Explainable queue priority (Loop 3); field accuracy from engineer reviews (Loop 2) in Statistik.
+- EXIF/XMP/PNG-text stripping before storage. Live /api/system-health.
+- Python runtime: pytest 44/44; real-inference workspace tests run (none skipped).
+- NNCF INT8 detector + benchmark -> /bukti. Measured on an AMD Ryzen 7 5800HS laptop:
+  numbers are OpenVINO evidence, NOT Intel-hardware evidence.
+- scripts/go-live.ps1 (free Cloudflare quick tunnel), README, CITATIONS, GENAI_DISCLOSURE.
+
+Not done (next, in order):
+1. Run `inference/scripts/benchmark.py` on an Intel machine (any Intel Core; Core Ultra for NPU)
+   and commit the measurements file; that is the Intel-hardware evidence.
+2. Citizen "Sudah benar diperbaiki? Ya/Belum" after RESOLVED (reopen on "Belum").
+3. Hazard sign (UU 22/2009 Pasal 24 ayat 2) on the map; authority routing per corridor.
+4. Accuracy on a labelled public set (e.g. RDD2022 subset) -> summary.json `accuracy`.
+5. Segment survey (video + GPS, per-100 m condition) and OpenVINO GenAI summaries: stretch.
