@@ -4,7 +4,7 @@
  * photo report for citizens and field officers.
  */
 import React from 'react';
-import { BarChart3, Bell, Camera, ClipboardList, FileText, Inbox, Map as MapIcon, Microscope, User, Users } from 'lucide-react';
+import { Glyph } from '../../components/ui/brand';
 import type { UserRole } from '../../types';
 import type { RouteId } from '../routeConfig';
 
@@ -14,30 +14,29 @@ interface Tab {
   icon: React.ReactNode;
 }
 
-const icon = 'h-[22px] w-[22px]';
-const CAMERA: Tab = { id: 'camera', label: 'Lapor', icon: <Camera className="h-7 w-7" /> };
+const CAMERA: Tab = { id: 'camera', label: 'Lapor', icon: <Glyph name="camera" size={28} strokeWidth={2.1} /> };
 
 export const TABS_BY_ROLE: Partial<Record<UserRole, Tab[]>> = {
   PUBLIC_REPORTER: [
-    { id: 'map', label: 'Peta', icon: <MapIcon className={icon} /> },
-    { id: 'myReports', label: 'Laporanku', icon: <FileText className={icon} /> },
+    { id: 'map', label: 'Peta', icon: <Glyph name="map" /> },
+    { id: 'myReports', label: 'Laporanku', icon: <Glyph name="list" /> },
     CAMERA,
-    { id: 'notifications', label: 'Notifikasi', icon: <Bell className={icon} /> },
-    { id: 'profile', label: 'Profil', icon: <User className={icon} /> }
+    { id: 'notifications', label: 'Notifikasi', icon: <Glyph name="bell" /> },
+    { id: 'profile', label: 'Profil', icon: <Glyph name="user" /> }
   ],
   FIELD_ENGINEER: [
-    { id: 'map', label: 'Peta', icon: <MapIcon className={icon} /> },
-    { id: 'tasks', label: 'Tugas', icon: <ClipboardList className={icon} /> },
+    { id: 'map', label: 'Peta', icon: <Glyph name="map" /> },
+    { id: 'tasks', label: 'Tugas', icon: <Glyph name="list" /> },
     CAMERA,
-    { id: 'analysis', label: 'Analisis', icon: <Microscope className={icon} /> },
-    { id: 'profile', label: 'Profil', icon: <User className={icon} /> }
+    { id: 'analysis', label: 'Analisis', icon: <Glyph name="layers" /> },
+    { id: 'profile', label: 'Profil', icon: <Glyph name="user" /> }
   ],
   OPERATIONS_MANAGER: [
-    { id: 'map', label: 'Peta', icon: <MapIcon className={icon} /> },
-    { id: 'queue', label: 'Antrian', icon: <Inbox className={icon} /> },
-    { id: 'stats', label: 'Statistik', icon: <BarChart3 className={icon} /> },
-    { id: 'team', label: 'Tim', icon: <Users className={icon} /> },
-    { id: 'profile', label: 'Profil', icon: <User className={icon} /> }
+    { id: 'map', label: 'Peta', icon: <Glyph name="map" /> },
+    { id: 'queue', label: 'Antrian', icon: <Glyph name="inbox" /> },
+    { id: 'stats', label: 'Statistik', icon: <Glyph name="chart" /> },
+    { id: 'team', label: 'Tim', icon: <Glyph name="team" /> },
+    { id: 'profile', label: 'Profil', icon: <Glyph name="user" /> }
   ]
 };
 
@@ -59,13 +58,13 @@ export const LeanShell: React.FC<{
   const tabs = TABS_BY_ROLE[role] ?? [];
   const lit = tabOf(activeRoute);
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[#0B0B0C] text-white">
+    <div className="relative h-full w-full overflow-hidden bg-[#F4F7FC] text-[#0E1B2C]">
       <main className="absolute inset-0">{children}</main>
       <nav
         aria-label="Navigasi utama"
         className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(12px,env(safe-area-inset-bottom))]"
       >
-        <div className="pointer-events-auto flex w-full max-w-md items-end justify-between rounded-[28px] border border-white/10 bg-black/85 px-2 py-1.5 shadow-2xl backdrop-blur-xl">
+        <div className="pointer-events-auto flex w-full max-w-md items-end justify-between rounded-[28px] border border-[#E3E8EF] bg-[#FFFFFF]/90 px-2 py-1.5 shadow-[0_12px_40px_-12px_rgba(14,27,44,0.35)] backdrop-blur-xl">
           {tabs.map((tab) =>
             tab.id === 'camera' ? (
               <button
@@ -73,7 +72,7 @@ export const LeanShell: React.FC<{
                 type="button"
                 onClick={onOpenCamera}
                 aria-label="Laporkan kerusakan dengan kamera"
-                className="-mt-6 flex h-[64px] w-[64px] cursor-pointer items-center justify-center rounded-full border-4 border-[#0B0B0C] bg-[#FFE14D] text-black shadow-lg transition active:scale-95"
+                className="pp-pulse -mt-6 flex h-[64px] w-[64px] cursor-pointer items-center justify-center rounded-full border-4 border-[#FFFFFF] bg-[#FF7A1A] text-[#FFFFFF] shadow-lg transition hover:scale-105 active:scale-95"
               >
                 {tab.icon}
               </button>
@@ -84,13 +83,13 @@ export const LeanShell: React.FC<{
                 onClick={() => onNavigate(tab.id as RouteId)}
                 aria-current={lit === tab.id ? 'page' : undefined}
                 className={`relative flex min-w-[56px] cursor-pointer flex-col items-center gap-0.5 rounded-2xl px-2 py-1.5 text-[11px] font-bold transition ${
-                  lit === tab.id ? 'text-[#FFE14D]' : 'text-white/55 hover:text-white'
+                  lit === tab.id ? 'text-[#1463FF]' : 'text-[#7A8899] hover:text-[#0E1B2C]'
                 }`}
               >
                 {tab.icon}
                 {tab.label}
                 {(badges[tab.id as RouteId] ?? 0) > 0 && (
-                  <span className="absolute right-2 top-0.5 min-w-[18px] rounded-full bg-rose-500 px-1 text-center text-[10px] leading-[18px] text-white">
+                  <span className="absolute right-2 top-0.5 min-w-[18px] rounded-full bg-rose-500 px-1 text-center text-[10px] leading-[18px] text-[#FFFFFF]">
                     {badges[tab.id as RouteId]}
                   </span>
                 )}

@@ -10,7 +10,11 @@ import type { ServiceResult } from "../../src/domain/workflow/service";
 import type { ReportDraft } from "../../src/domain/reports/reportFactory";
 import { hashClaimToken, newClaimToken } from "../auth/sessionTokens";
 import { rateLimit } from "../middleware/rateLimit";
-import { checkPhotoReference, stripPhotoMetadata } from "../services/photoValidation";
+import { checkPhotoReference, photoGpsPosition, stripPhotoMetadata } from "../services/photoValidation";
+import { distanceMeters } from "../../src/domain/workflow/screening";
+
+/** How far the camera position may be from the reported position. */
+const PHOTO_LOCATION_TOLERANCE_M = 1000;
 import { attachCvAnalysis } from "../services/cvAttach";
 import type { WorkflowRuntime } from "../services/workflowRuntime";
 import { actorFrom, clearSessionCookie, credentialFrom, sessionFrom, setSessionCookie } from "../auth/actor";
@@ -262,6 +266,12 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
       const attached = await attachCvAnalysis(runtime.cv, cvId, draft);
       if (attached.ok === false) return sendError(res, "VALIDATION", (attached as { message: string }).message);
       verifiedCv = attached.assessment;
+    }
+    // On the spot only: when the camera recorded where the photo was taken, it must match the
+    // reported position (GPS drift and indoor fixes stay well inside 1 km).
+    const shotAt = typeof draft.photoUrl === "string" ? photoGpsPosition(draft.photoUrl) : null;
+    if (shotAt && Array.isArray(draft.coordinates) && distanceMeters(shotAt, draft.coordinates as [number, number]) > PHOTO_LOCATION_TOLERANCE_M) {
+      return sendError(res, "VALIDATION", "Foto ini diambil di tempat lain. Laporan harus dikirim dari lokasi kerusakan.");
     }
     // Privacy: camera metadata (EXIF GPS, device) is removed before storage, after the CV binding.
     if (typeof draft.photoUrl === "string") draft.photoUrl = stripPhotoMetadata(draft.photoUrl);

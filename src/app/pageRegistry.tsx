@@ -5,6 +5,7 @@
 import React from 'react';
 import type { RouteId } from './routeConfig';
 import { LoginPage } from '../pages/login/LoginPage';
+import { LandingPage } from '../pages/landing/LandingPage';
 import { TrackPage } from '../pages/track/TrackPage';
 import { MapPage } from '../pages/map/MapPage';
 import { MyReportsPage, NotificationsPage } from '../pages/lean/CitizenPages';
@@ -19,6 +20,7 @@ import { RoadDetailPage } from '../pages/roads/RoadDetailPage';
 export type PageComponent = React.ComponentType<{ params: Record<string, string> }>;
 
 export const PAGE_COMPONENTS: Record<RouteId, PageComponent> = {
+  landing: LandingPage,
   login: LoginPage,
   track: TrackPage,
   evidence: EvidencePage,
@@ -36,4 +38,4 @@ export const PAGE_COMPONENTS: Record<RouteId, PageComponent> = {
 };
 
 /** Pages shown without the shell's bottom bar. */
-export const STANDALONE_ROUTES: readonly RouteId[] = ['login', 'track', 'evidence'];
+export const STANDALONE_ROUTES: readonly RouteId[] = ['landing', 'login', 'track', 'evidence'];

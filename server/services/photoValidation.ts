@@ -82,3 +82,50 @@ function stripPng(b: Buffer): Buffer | null {
   parts.push(b.subarray(i));
   return Buffer.concat(parts);
 }
+
+/**
+ * The GPS position the camera wrote into a JPEG (EXIF GPS IFD), or null when absent.
+ * Used to refuse a report whose photo was taken far from the reported spot; read before
+ * stripPhotoMetadata removes it.
+ */
+export function photoGpsPosition(photoUrl: string): [number, number] | null {
+  const match = /^data:image\/jpe?g;base64,([A-Za-z0-9+/=\s]+)$/i.exec(photoUrl);
+  if (!match) return null;
+  const b = Buffer.from(match[1], "base64");
+  if (b.length < 4 || b[0] !== 0xff || b[1] !== 0xd8) return null;
+  let i = 2;
+  while (i + 4 <= b.length && b[i] === 0xff) {
+    const marker = b[i + 1];
+    const len = b.readUInt16BE(i + 2);
+    if (marker === 0xe1 && b.toString("latin1", i + 4, i + 10) === "Exif\0\0") return readExifGps(b.subarray(i + 10, i + 2 + len));
+    if (marker === 0xda) break;
+    i += 2 + len;
+  }
+  return null;
+}
+
+function readExifGps(t: Buffer): [number, number] | null {
+  try {
+    const le = t.toString("latin1", 0, 2) === "II";
+    const u16 = (o: number) => (le ? t.readUInt16LE(o) : t.readUInt16BE(o));
+    const u32 = (o: number) => (le ? t.readUInt32LE(o) : t.readUInt32BE(o));
+    const entries = (ifd: number) => Array.from({ length: u16(ifd) }, (_, k) => ifd + 2 + k * 12);
+    const gpsEntry = entries(u32(4)).find((e) => u16(e) === 0x8825);
+    if (gpsEntry === undefined) return null;
+    const tags = new Map(entries(u32(gpsEntry + 8)).map((e) => [u16(e), e]));
+    const ref = (tag: number) => (tags.has(tag) ? t.toString("latin1", tags.get(tag)! + 8, tags.get(tag)! + 9) : "");
+    const dms = (tag: number) => {
+      const e = tags.get(tag);
+      if (e === undefined) return null;
+      const off = u32(e + 8);
+      const r = (k: number) => u32(off + k * 8) / (u32(off + k * 8 + 4) || 1);
+      return r(0) + r(1) / 60 + r(2) / 3600;
+    };
+    const lat = dms(2);
+    const lon = dms(4);
+    if (lat === null || lon === null || (lat === 0 && lon === 0)) return null;
+    return [ref(1) === "S" ? -lat : lat, ref(3) === "W" ? -lon : lon];
+  } catch {
+    return null; // malformed EXIF: treated as no position
+  }
+}

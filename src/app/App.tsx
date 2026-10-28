@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { UserAccount } from '../features/authentication/demoAccounts';
 import { RouterProvider, useRouter } from './router';
 import { SessionProvider, useSession } from './providers/SessionProvider';
@@ -14,6 +14,8 @@ import { ServerVersionBanner } from '../components/ui/ServerVersionBanner';
 import { canOpenRoute, homeRouteFor, landingRouteAfterLogin, loginPathFor, resolveRouteAccess } from './guards/routeAccess';
 import { CameraLauncherContext } from './cameraLauncher';
 import { ReportRoadIssueCard } from '../features/community-reports/ReportRoadIssueCard';
+import { readDeviceCredential, signInCitizenDevice } from '../features/authentication/deviceAccount';
+import { accountFromProfile } from './providers/SessionProvider';
 
 /**
  * Application host: resolves the URL against the signed-in account, sends guests to the
@@ -34,9 +36,33 @@ function AppShell() {
     else if (match && decision === 'LOGIN_REQUIRED') navigate(loginPathFor(`${location.path}${location.search}`), { replace: true });
   }, [isRoot, match, decision, homeRoute, location.path, location.search, navigate]);
 
+  // A staff session that ended goes to the staff login; citizens are signed back in below.
   useEffect(() => {
-    if (endedNotice && match?.route.id !== 'login') navigateTo('login');
+    if (endedNotice && match?.route.id !== 'login' && !readDeviceCredential()) navigateTo('login');
   }, [endedNotice, match, navigateTo]);
+
+  // Returning citizen on this phone: sign the device account back in, no form.
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (resumed.current || currentAccount.role !== 'PUBLIC_VIEWER' || !readDeviceCredential()) return;
+    if (match && (match.route.id === 'login' || match.route.id === 'evidence' || match.route.id === 'track')) return;
+    resumed.current = true;
+    signInCitizenDevice(app.workflow.gateway)
+      .then((signed) => {
+        if (!signed.account) return;
+        establishSession(accountFromProfile(signed.account));
+        if (!match || match.route.id === 'landing') navigateTo('map');
+      })
+      .catch(() => undefined);
+  }, [currentAccount.role, match, app.workflow.gateway, establishSession, navigateTo]);
+
+  // "/peta/?lapor=1" (landing page button) opens the camera straight away.
+  useEffect(() => {
+    if (decision === 'ALLOW' && new URLSearchParams(location.search).get('lapor') === '1') {
+      setCameraOpen(true);
+      navigate(location.path, { replace: true });
+    }
+  }, [decision, location.search, location.path, navigate]);
 
   const host = useMemo<PageHostValue>(
     () => ({
@@ -111,7 +137,7 @@ export default function App() {
         <AppStateProvider>
           <GlobalModalsProvider>
             <AppErrorBoundary>
-              <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#0B0B0C]">
+              <div className="pp-light flex h-[100dvh] flex-col overflow-hidden bg-[#F4F7FC]">
                 <ServerVersionBanner />
                 <div className="relative min-h-0 flex-1 overflow-hidden">
                   <AppShell />

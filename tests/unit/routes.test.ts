@@ -20,6 +20,7 @@ import { DEFAULT_BASE_PATH, normalizeBasePath } from '../../src/constants/deploy
 
 /** The URL contract requested for the restructure. */
 const REQUIRED_URLS: Array<[string, RouteId]> = [
+  ['/beranda/', 'landing'],
   ['/login/', 'login'],
   ['/lacak/ABC123/', 'track'],
   ['/bukti/', 'evidence'],
@@ -114,6 +115,6 @@ test('base path: strip and re-apply are inverse for the GitHub Pages base and fo
   assert.equal(normalizeBasePath('PavementPinn'), '/PavementPinn/');
 });
 
-test('only login, public tracking and the evidence page are reachable without an account', () => {
-  assert.deepEqual(ROUTES.filter((r) => r.access === 'PUBLIC').map((r) => r.id).sort(), ['evidence', 'login', 'track']);
+test('only the landing, login, public tracking and evidence pages are reachable without an account', () => {
+  assert.deepEqual(ROUTES.filter((r) => r.access === 'PUBLIC').map((r) => r.id).sort(), ['evidence', 'landing', 'login', 'track']);
 });

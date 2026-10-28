@@ -14,6 +14,7 @@ export const ALL_ROLES: readonly UserRole[] = ['PUBLIC_REPORTER', 'FIELD_ENGINEE
 const EVERYONE: readonly UserRole[] = [...ALL_ROLES, 'PUBLIC_VIEWER', 'POLICY_MAKER'];
 
 export type RouteId =
+  | 'landing'
   | 'login'
   | 'track'
   | 'evidence'
@@ -49,6 +50,7 @@ const COORDINATOR: readonly UserRole[] = ['OPERATIONS_MANAGER'];
 const STAFF: readonly UserRole[] = ['FIELD_ENGINEER', 'OPERATIONS_MANAGER'];
 
 export const ROUTES: readonly RouteDefinition[] = [
+  { id: 'landing', path: '/beranda/', title: 'PavementPINN', access: 'PUBLIC', kind: 'page' },
   { id: 'login', path: '/login/', title: 'Masuk', access: 'PUBLIC', kind: 'page' },
   { id: 'track', path: '/lacak/:code/', title: 'Lacak Laporan', access: 'PUBLIC', kind: 'page' },
   { id: 'evidence', path: '/bukti/', title: 'Bukti & Transparansi', access: 'PUBLIC', kind: 'page' },

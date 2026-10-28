@@ -1221,19 +1221,39 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
 
   // Device position, only when the Geolocation API returned one
   useEffect(() => {
-    const map = mapRef.current;
     userMarkerRef.current?.remove();
     userMarkerRef.current = null;
-    if (!map || !userLocation) return;
+    if (!userLocation) return;
+    // The position often arrives before the map has finished loading: wait for it, then fly.
+    let cancelled = false;
+    let timer = 0;
+    const flyWhenReady = (tries: number) => {
+      const map = mapRef.current;
+      if (cancelled) return;
+      if (!map || !map.isStyleLoaded()) {
+        if (tries < 60) timer = window.setTimeout(() => flyWhenReady(tries + 1), 150);
+        return;
+      }
+      flyToUser(map);
+    };
+    const flyToUser = (map: maplibregl.Map) => {
     cancelIntroAnimation('user_location');
     const element = document.createElement('div');
     element.className = 'user-location-marker';
     element.style.cssText =
-      'width:16px;height:16px;border-radius:50%;background:#2563eb;border:3px solid #ffffff;box-shadow:0 0 0 6px rgba(59,130,246,0.2);';
+      'width:18px;height:18px;border-radius:50%;background:#1463FF;border:3px solid #ffffff;';
+    element.classList.add('pp-pulse');
     userMarkerRef.current = new maplibregl.Marker({ element, anchor: 'center' })
       .setLngLat(toLngLat(userLocation.coordinates))
       .addTo(map);
-    map.flyTo({ center: toLngLat(userLocation.coordinates), zoom: Math.max(map.getZoom(), 14), duration: 1400 });
+    // Smooth arc from wherever the camera is to the visitor's street.
+    map.flyTo({ center: toLngLat(userLocation.coordinates), zoom: 16, duration: 2600, curve: 1.5, speed: 0.9, essential: true });
+    };
+    flyWhenReady(0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [userLocation]);
 
   // Explicit camera target (a report chosen from a list, a newly created report)

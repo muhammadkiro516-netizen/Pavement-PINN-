@@ -38,3 +38,41 @@ test('PNG: text and eXIf chunks are dropped; other values pass through', () => {
   assert.ok(out.includes(Buffer.from('IHDR')));
   assert.equal(stripPhotoMetadata('https://example.org/a.jpg'), 'https://example.org/a.jpg');
 });
+
+import { photoGpsPosition } from '../../server/services/photoValidation';
+
+/** Minimal big-endian EXIF with a GPS IFD: lat 5°25'48" S, lon 105°15'36" E (Bandar Lampung). */
+function jpegWithGps(): string {
+  const tiff = Buffer.alloc(140);
+  tiff.write('MM', 0, 'latin1');
+  tiff.writeUInt16BE(42, 2);
+  tiff.writeUInt32BE(8, 4); // IFD0 at 8
+  tiff.writeUInt16BE(1, 8); // one entry: GPS IFD pointer
+  tiff.writeUInt16BE(0x8825, 10); tiff.writeUInt16BE(4, 12); tiff.writeUInt32BE(1, 14); tiff.writeUInt32BE(26, 18);
+  const gps = 26;
+  tiff.writeUInt16BE(4, gps);
+  const entry = (k: number, tag: number, type: number, count: number, value: number | string) => {
+    const e = gps + 2 + k * 12;
+    tiff.writeUInt16BE(tag, e); tiff.writeUInt16BE(type, e + 2); tiff.writeUInt32BE(count, e + 4);
+    if (typeof value === 'string') tiff.write(value, e + 8, 'latin1'); else tiff.writeUInt32BE(value, e + 8);
+  };
+  entry(0, 1, 2, 2, 'S');
+  entry(1, 2, 5, 3, 80);
+  entry(2, 3, 2, 2, 'E');
+  entry(3, 4, 5, 3, 104);
+  const rat = (off: number, [a, b, c]: number[]) => [a, b, c].forEach((v, i) => { tiff.writeUInt32BE(v, off + i * 8); tiff.writeUInt32BE(1, off + i * 8 + 4); });
+  rat(80, [5, 25, 48]);
+  rat(104, [105, 15, 36]);
+  const app1 = Buffer.concat([Buffer.from('Exif\0\0', 'latin1'), tiff]);
+  const head = Buffer.from([0xff, 0xe1, 0, 0]);
+  head.writeUInt16BE(app1.length + 2, 2);
+  return `data:image/jpeg;base64,${Buffer.concat([Buffer.from([0xff, 0xd8]), head, app1, Buffer.from([0xff, 0xda, 0, 2, 0xff, 0xd9])]).toString('base64')}`;
+}
+
+test('camera GPS is read from EXIF (to refuse photos taken elsewhere) and gone after stripping', () => {
+  const photo = jpegWithGps();
+  const [lat, lon] = photoGpsPosition(photo)!;
+  assert.ok(Math.abs(lat - -5.43) < 1e-3 && Math.abs(lon - 105.26) < 1e-3, `${lat},${lon}`);
+  assert.equal(photoGpsPosition(stripPhotoMetadata(photo)), null);
+  assert.equal(photoGpsPosition('data:image/png;base64,iVBORw0KGgo='), null);
+});

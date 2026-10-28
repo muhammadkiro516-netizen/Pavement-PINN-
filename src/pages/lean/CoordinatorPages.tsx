@@ -2,7 +2,7 @@
  * Koordinator tabs: Statistik (impact + AI quality from real records) and Tim (staff accounts).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart3, UserPlus, Users } from 'lucide-react';
+import { Glyph } from '../../components/ui/brand';
 import { Empty, Pill, SnapButton, SnapCard, SnapInput, SnapPage, Stat } from '../../components/ui/snap';
 import { useAppState } from '../../app/providers/AppStateProvider';
 import { useSession } from '../../app/providers/SessionProvider';
@@ -24,7 +24,7 @@ export const StatsPage: React.FC = () => {
   if (s.total === 0) {
     return (
       <SnapPage title="Statistik" subtitle="Dampak penanganan dan kualitas AI, dihitung dari data nyata.">
-        <Empty icon={<BarChart3 className="h-6 w-6" />} title="Belum ada data" text="Angka muncul setelah warga mulai melapor. Tidak ada angka contoh." />
+        <Empty icon={<Glyph name="chart" size={26} />} title="Belum ada data" text="Angka muncul setelah warga mulai melapor. Tidak ada angka contoh." />
       </SnapPage>
     );
   }
@@ -52,10 +52,10 @@ export const StatsPage: React.FC = () => {
         <SnapCard>
           <p className="mb-2 font-extrabold">Akurasi per jenis kerusakan</p>
           {Object.entries(s.perClass).map(([cls, [ok, n]]) => (
-            <div key={cls} className="flex items-center justify-between border-t border-white/5 py-2 text-sm">
+            <div key={cls} className="flex items-center justify-between border-t border-[#EEF2F7] py-2 text-sm">
               <span>{cls}</span>
               <span className="font-bold">
-                {pct(ok, n)} <span className="font-normal text-white/50">({ok}/{n})</span>
+                {pct(ok, n)} <span className="font-normal text-[#7A8899]">({ok}/{n})</span>
               </span>
             </div>
           ))}
@@ -125,9 +125,9 @@ export const TeamPage: React.FC = () => {
     <SnapPage
       title="Tim"
       subtitle="Akun petugas lapangan dan koordinator instansi Anda."
-      action={<SnapButton onClick={() => setOpen((v) => !v)}><UserPlus className="h-4 w-4" /> Tambah</SnapButton>}
+      action={<SnapButton onClick={() => setOpen((v) => !v)}><Glyph name="plus" size={18} /> Tambah</SnapButton>}
     >
-      {error && <p className="rounded-2xl bg-rose-500/15 p-3 text-sm text-rose-200">{error}</p>}
+      {error && <p className="rounded-2xl bg-[#FDECEC] p-3 text-sm text-[#C53035]">{error}</p>}
       {open && (
         <SnapCard>
           <form onSubmit={create} className="space-y-3">
@@ -141,7 +141,7 @@ export const TeamPage: React.FC = () => {
                   key={role}
                   type="button"
                   onClick={() => setForm({ ...form, role })}
-                  className={`flex-1 cursor-pointer rounded-2xl px-3 py-3 text-sm font-bold ${form.role === role ? 'bg-[#FFE14D] text-black' : 'bg-white/10 text-white'}`}
+                  className={`flex-1 cursor-pointer rounded-2xl px-3 py-3 text-sm font-bold ${form.role === role ? 'bg-[#1463FF] text-[#0E1B2C]' : 'bg-[#EEF2F7] text-[#0E1B2C]'}`}
                 >
                   {label}
                 </button>
@@ -152,14 +152,14 @@ export const TeamPage: React.FC = () => {
         </SnapCard>
       )}
       {staff.length === 0 ? (
-        <Empty icon={<Users className="h-6 w-6" />} title="Belum ada petugas" text="Tambahkan petugas lapangan agar laporan bisa ditugaskan untuk diinspeksi." />
+        <Empty icon={<Glyph name="team" size={26} />} title="Belum ada petugas" text="Tambahkan petugas lapangan agar laporan bisa ditugaskan untuk diinspeksi." />
       ) : (
         staff.map((a) => (
           <SnapCard key={a.id}>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-extrabold">{a.name}</p>
-                <p className="truncate text-xs text-white/50">{a.email} · {a.agency}</p>
+                <p className="truncate text-xs text-[#7A8899]">{a.email} · {a.agency}</p>
                 <div className="mt-1.5 flex gap-2">
                   <Pill tone="blue">{ROLE_NAME[a.role] ?? a.role}</Pill>
                   {!a.active && <Pill tone="red">Nonaktif</Pill>}

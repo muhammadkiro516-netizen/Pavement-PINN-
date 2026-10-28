@@ -7,7 +7,7 @@
  * "how many passes can this structure take" is physics, not a guess about the traffic.
  */
 import React, { useState } from 'react';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Glyph } from '../../components/ui/brand';
 import type { EngineAssessRequest, EngineAssessResult } from '../../types';
 
 /** Standard axle (Bina Marga / AASHTO 8.16 t) and an overloaded (ODOL) axle, 1.6 x. */
@@ -100,26 +100,26 @@ export const PinnDecisionCard: React.FC<{ base: EngineAssessRequest; onRun: (bod
   };
 
   return (
-    <div className="rounded-3xl bg-[#1A1A1C] p-4 text-white">
+    <div className="rounded-3xl bg-[#FFFFFF] border border-[#E3E8EF] p-4 text-[#0E1B2C]">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-lg font-extrabold">Keputusan dengan PINN</p>
-          <p className="text-sm text-white/60">Empat pertanyaan penanganan, dijawab dari perhitungan fisika jalan ini.</p>
+          <p className="text-sm text-[#5B6B7F]">Empat pertanyaan penanganan, dijawab dari perhitungan fisika jalan ini.</p>
         </div>
         <button
           type="button"
           onClick={() => void run()}
           disabled={busy}
-          className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-full bg-[#FFE14D] px-4 py-2.5 text-sm font-extrabold text-black disabled:opacity-60"
+          className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-full bg-[#1463FF] px-4 py-2.5 text-sm font-extrabold text-[#FFFFFF] disabled:opacity-60"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {busy ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Glyph name="spark" size={18} />}
           {decision ? 'Hitung ulang' : 'Analisis'}
         </button>
       </div>
-      {error && <p className="mt-3 rounded-2xl bg-rose-500/15 p-3 text-sm text-rose-200">Layanan PINN belum dapat dihubungi: {error}</p>}
+      {error && <p className="mt-3 rounded-2xl bg-[#FDECEC] p-3 text-sm text-[#C53035]">Layanan PINN belum dapat dihubungi: {error}</p>}
       {decision && (
         <div className="mt-4 space-y-3">
-          <div className="rounded-2xl bg-[#FFE14D] p-4 text-black">
+          <div className="rounded-2xl bg-[#1463FF] p-4 text-[#FFFFFF]">
             <p className="text-xs font-bold uppercase tracking-wide">Rekomendasi</p>
             <p className="text-xl font-extrabold">{ADVICE[decision.advice].title}</p>
             <p className="text-sm">{ADVICE[decision.advice].text}</p>
@@ -135,7 +135,7 @@ export const PinnDecisionCard: React.FC<{ base: EngineAssessRequest; onRun: (bod
           <Answer q="Penanganan mana yang tidak sia-sia?" a="Perbandingan daya tahan">
             Tambal: ×1 (struktur tidak berubah) · Overlay 5 cm: {x(decision.overlayFactor)} · Rekonstruksi: {x(decision.reconFactor)}
           </Answer>
-          <p className="text-xs text-white/40">Indikatif, bukan desain. Dihitung dengan PINN surrogate dan solver MLET dari tebal lapisan dan beban yang diisi petugas.</p>
+          <p className="text-xs text-[#9AA7B8]">Indikatif, bukan desain. Dihitung dengan PINN surrogate dan solver MLET dari tebal lapisan dan beban yang diisi petugas.</p>
         </div>
       )}
     </div>
@@ -143,9 +143,9 @@ export const PinnDecisionCard: React.FC<{ base: EngineAssessRequest; onRun: (bod
 };
 
 const Answer: React.FC<{ q: string; a: string; children: React.ReactNode }> = ({ q, a, children }) => (
-  <div className="rounded-2xl bg-white/5 p-3">
-    <p className="text-xs font-bold text-white/50">{q}</p>
+  <div className="rounded-2xl bg-[#F4F7FC] p-3">
+    <p className="text-xs font-bold text-[#7A8899]">{q}</p>
     <p className="text-[15px] font-extrabold">{a}</p>
-    <p className="text-sm text-white/70">{children}</p>
+    <p className="text-sm text-[#3E4C5E]">{children}</p>
   </div>
 );

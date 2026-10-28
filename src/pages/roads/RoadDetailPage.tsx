@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Route as RouteIcon } from 'lucide-react';
+import { Glyph } from '../../components/ui/brand';
 import { Empty, Pill, SnapCard, SnapPage } from '../../components/ui/snap';
 import { usePageHost } from '../../app/pageContext';
 import { useAppState } from '../../app/providers/AppStateProvider';
@@ -8,9 +8,9 @@ import type { EngineeringAssessment, RiskLevel } from '../../domain/intelligence
 import { StructuralAssessmentPanel } from '../../features/road-intelligence/StructuralAssessmentPanel';
 import { StatusPill } from '../lean/CitizenPages';
 
-const RISK: Record<RiskLevel, { label: string; tone: 'red' | 'yellow' | 'blue' | 'green' }> = {
+const RISK: Record<RiskLevel, { label: string; tone: 'red' | 'orange' | 'blue' | 'green' }> = {
   HIGH: { label: 'Perlu segera ditangani', tone: 'red' },
-  WATCH: { label: 'Perlu diawasi', tone: 'yellow' },
+  WATCH: { label: 'Perlu diawasi', tone: 'orange' },
   MODERATE: { label: 'Ada laporan kerusakan', tone: 'blue' },
   GOOD: { label: 'Belum ada laporan', tone: 'green' }
 };
@@ -40,15 +40,15 @@ export const RoadDetailPage: React.FC<{ params: Record<string, string> }> = ({ p
   }, [segment, workflow.gateway, workflow.views]);
 
   const back = (
-    <button type="button" onClick={closePage} className="cursor-pointer rounded-full bg-white/10 p-2.5" aria-label="Kembali">
-      <ArrowLeft className="h-5 w-5" />
+    <button type="button" onClick={closePage} className="cursor-pointer rounded-full bg-[#EEF2F7] p-2.5" aria-label="Kembali">
+      <span className="block rotate-180"><Glyph name="arrow" size={20} /></span>
     </button>
   );
 
   if (!segment) {
     return (
       <SnapPage title="Ruas tidak ditemukan" action={back}>
-        <Empty icon={<RouteIcon className="h-6 w-6" />} title="Ruas tidak dikenal" text={`Tidak ada ruas dengan ID ${params.roadId}.`} />
+        <Empty icon={<Glyph name="map" size={26} />} title="Ruas tidak dikenal" text={`Tidak ada ruas dengan ID ${params.roadId}.`} />
       </SnapPage>
     );
   }
@@ -59,16 +59,16 @@ export const RoadDetailPage: React.FC<{ params: Record<string, string> }> = ({ p
   return (
     <SnapPage title={segment.name} subtitle={`${segment.corridor} · ${segment.province} · ${segment.lengthKm} km`} action={back}>
       <SnapCard>
-        <p className="text-xs font-bold text-white/50">Kondisi menurut laporan & inspeksi</p>
+        <p className="text-xs font-bold text-[#7A8899]">Kondisi menurut laporan & inspeksi</p>
         {risk ? (
           <>
             <div className="mt-2"><Pill tone={risk.tone}>{risk.label}</Pill></div>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-white/80">
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[#2A3647]">
               {assessment!.riskReasons.map((r) => <li key={r}>{r}</li>)}
             </ul>
           </>
         ) : (
-          <p className="mt-2 text-sm text-white/60">{error ? `Belum dapat dimuat: ${error}` : 'Memuat…'}</p>
+          <p className="mt-2 text-sm text-[#5B6B7F]">{error ? `Belum dapat dimuat: ${error}` : 'Memuat…'}</p>
         )}
       </SnapCard>
 
@@ -78,14 +78,14 @@ export const RoadDetailPage: React.FC<{ params: Record<string, string> }> = ({ p
 
       <h2 className="pt-2 text-lg font-extrabold">Laporan di ruas ini</h2>
       {cases.length === 0 ? (
-        <SnapCard><p className="text-sm text-white/60">Belum ada laporan.</p></SnapCard>
+        <SnapCard><p className="text-sm text-[#5B6B7F]">Belum ada laporan.</p></SnapCard>
       ) : (
         cases.map((v) => (
           <SnapCard key={v.case.id}>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-extrabold">{v.case.report.damageTypeLabel}</p>
-                <p className="text-xs text-white/50">{v.case.id}</p>
+                <p className="text-xs text-[#7A8899]">{v.case.id}</p>
               </div>
               <StatusPill state={v.case.state} />
             </div>

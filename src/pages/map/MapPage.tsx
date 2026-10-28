@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Glyph } from '../../components/ui/brand';
+import { lastDeviceFix, requestDeviceLocation } from '../../features/location/deviceLocation';
 import { PavementMap } from '../../components/maps/PavementMap';
 import { MapSheet } from '../../components/maps/MapSheet';
 import type { MapSheetState } from '../../components/maps/sheetState';
@@ -24,6 +26,17 @@ export const MapPage: React.FC = () => {
   const [cluster, setCluster] = useState<DamageReport[] | null>(null);
   const [sheetState, setSheetState] = useState<MapSheetState>('HALF');
   const [reviews, setReviews] = useState<Record<string, ReportReview[]>>({});
+  const [userLocation, setUserLocation] = useState<{ coordinates: [number, number]; accuracyM: number } | null>(() => lastDeviceFix());
+  const [locating, setLocating] = useState(false);
+  const locate = () => {
+    setLocating(true);
+    void requestDeviceLocation().then((fix) => {
+      setLocating(false);
+      // A new object every time, so the map flies back even when the position is unchanged.
+      if (fix) setUserLocation({ coordinates: fix.coordinates, accuracyM: fix.accuracyM });
+    });
+  };
+  useEffect(locate, []);
   const live = useMemo(() => (selected ? app.communityReports.find((r) => r.id === selected.id) ?? selected : null), [selected, app.communityReports]);
 
   const openReport = (report: DamageReport) => {
@@ -54,7 +67,16 @@ export const MapPage: React.FC = () => {
         compact={false}
         isTabActive
         bottomInsetPx={96}
+        userLocation={userLocation}
       />
+      <button
+        type="button"
+        onClick={locate}
+        aria-label="Ke lokasi saya"
+        className="absolute bottom-28 right-4 z-30 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-[#E3E8EF] bg-[#FFFFFF] text-[#1463FF] shadow-[0_10px_30px_-10px_rgba(14,27,44,0.4)] transition hover:scale-105"
+      >
+        {locating ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Glyph name="pin" />}
+      </button>
       <MapSheet
         isOpen={!!cluster}
         state={sheetState}

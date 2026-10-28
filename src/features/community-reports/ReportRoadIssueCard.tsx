@@ -34,6 +34,8 @@ import { settleMutation } from './reportMutations';
 import { useSheetDrag } from '../../components/ui/useSheetDrag';
 import { CV_DAMAGE_CLASSES } from '../../engines/computer-vision/classification/cvDamageClasses';
 import type { CvAnalysis, CvJobStage, CvJobView, CvSeverityLevel } from '../../types/cv';
+import { AiPhotoScan } from './AiPhotoScan';
+import { lastDeviceFix } from '../location/deviceLocation';
 import { CV_STAGE_LABELS, CvClientError, checkImageInput, runCvAnalysis } from './cvClient';
 
 /** Damage-type choice in step 3: from the model (with its taxonomy code) or picked by the reporter. */
@@ -296,15 +298,17 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
   const lastGpsPointRef = useRef<[number, number] | null>(null);
   const prevIsOpenRef = useRef<boolean>(isOpen);
 
-  // Sync pin location when modal opens (Pin-First: never auto-trigger GPS)
+  // GPS first: a report is filed where the reporter stands, so the position is taken from the
+  // device as soon as the form opens (the pin below is only shown until the fix arrives).
   useEffect(() => {
     if (isOpen && !prevIsOpenRef.current) {
       if (currentState === 'SUCCESS') {
         handleReset();
       }
+      lastGpsPointRef.current = null;
+      handleDetectGps();
       const targetPin = initialCoordinates || selectedSegment?.coordinates;
       if (targetPin) {
-        lastGpsPointRef.current = null;
         const initialAddr = selectedSegment ? `${selectedSegment.name}, ${selectedSegment.province}` : labelFor(targetPin);
         setReportLocation({
           latitude: targetPin[0],
@@ -648,25 +652,6 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
   };
 
   // Helper to load verified real road damage test fixture photo
-  const handleLoadTestPhoto = async () => {
-    try {
-      const res = await fetch('/PavementPinn/test-fixtures/test-before.jpg');
-      const blob = await res.blob();
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result as string | undefined;
-        if (!dataUrl) return;
-        setSelectedImage(dataUrl);
-        setImageFileName('lubang_karawang_test.jpg');
-        setValidationError(null);
-        stopCameraStream();
-        if (currentState !== 'INPUT') setCurrentState('INPUT');
-      };
-      reader.readAsDataURL(blob);
-    } catch {
-      setValidationError('Foto uji coba tidak dapat dimuat.');
-    }
-  };
 
   // Reset form
   const handleReset = () => {
@@ -741,7 +726,15 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
       return;
     }
 
-    const finalCoordinates: [number, number] = [lat, lng];
+    // A report is filed where the reporter stands: only a fresh GPS fix is accepted, never a
+    // pin moved on the map or a typed address.
+    const gps = lastGpsPointRef.current ?? lastDeviceFix(2 * 60_000)?.coordinates ?? null;
+    if (!gps) {
+      setSubmitError('Laporan harus dikirim dari lokasi kerusakan. Izinkan akses lokasi (GPS), lalu coba lagi.');
+      handleDetectGps();
+      return;
+    }
+    const finalCoordinates: [number, number] = gps;
     const targetSeg = nearest(finalCoordinates) ?? roadSegments[0];
 
     const chosenSeverity = customSeverity || modelSeverity;
@@ -953,7 +946,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
 
             {/* Title */}
             <h2 className="text-base sm:text-lg font-bold text-white tracking-tight drop-shadow-md text-center">
-              Report Road Issue
+              Lapor jalan rusak
             </h2>
 
             {/* Flash / Mode Toggle */}
@@ -1147,7 +1140,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                 <div className="space-y-5">
                   <SheetHeader
                     step={1}
-                    title="Report Road Issue"
+                    title="Lapor jalan rusak"
                     subtitle="Foto, lokasi, dan catatan singkat"
                     onClose={() => {
                       stopCameraStream();
@@ -1214,15 +1207,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                             <span className={HINT}>Dari galeri</span>
                           </button>
                         </div>
-                        <button
-                          type="button"
-                          id="btn-sample-test-photo"
-                          onClick={handleLoadTestPhoto}
-                          className="w-full py-2 px-3 rounded-xl border border-dashed border-amber-400/40 bg-amber-400/5 hover:bg-amber-400/10 text-amber-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                        >
-                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Gunakan Foto Sampel Uji (Lubang Karawang)</span>
-                        </button>
+
                       </div>
                     )}
 
@@ -1310,7 +1295,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                   <SheetHeader
                     step={2}
                     title={cvError ? 'Pemeriksaan Foto' : 'Memeriksa foto'}
-                    subtitle={cvError ? 'Layanan AI offline — Anda dapat mengisi manual' : 'Biasanya hanya beberapa detik'}
+                    subtitle={cvError ? 'AI sedang tidak aktif, Anda tetap bisa melapor' : 'Biasanya hanya beberapa detik'}
                     onBack={() => setCurrentState('INPUT')}
                   />
 
@@ -1319,10 +1304,10 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-1.5 text-xs text-amber-200">
                         <div className="flex items-center gap-2 font-bold text-amber-300">
                           <AlertCircle className="w-4 h-4 shrink-0" />
-                          <span>Layanan Analisis CV Otomatis Offline</span>
+                          <span>AI sedang tidak aktif</span>
                         </div>
                         <p className="text-slate-300 leading-relaxed text-[11px]">
-                          Deteksi AI otomatis sedang tidak aktif ({cvError.message}). Foto Anda tetap tersimpan dan Anda dapat melanjutkan pengisian jenis kerusakan secara manual.
+                          Foto Anda tetap tersimpan. Pilih sendiri jenis kerusakannya, petugas akan memeriksanya.
                         </p>
                       </div>
                       <button
@@ -1331,11 +1316,12 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                         onClick={continueWithoutAi}
                         className={PRIMARY}
                       >
-                        Lanjutkan Pelaporan Secara Manual
+                        Lanjut isi sendiri
                       </button>
                     </div>
                   ) : (
                     <div className="space-y-3">
+                      {selectedImage && <AiPhotoScan src={selectedImage} scanning />}
                       <div className={`${CARD} p-4 space-y-3`}>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-slate-200 truncate pr-3">{processingStageText}</span>
@@ -1358,7 +1344,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                         onClick={continueWithoutAi}
                         className="w-full py-2 px-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
                       >
-                        Lewati Analisis AI &amp; Isi Manual
+                        Lewati, isi sendiri
                       </button>
                     </div>
                   )}
@@ -1383,13 +1369,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                     }}
                   />
 
-                  <div className={`${CARD} overflow-hidden`}>
-                    <img
-                      src={selectedImage || CV_DAMAGE_CLASSES.pothole.samplePhotoUrl}
-                      alt="Foto kerusakan jalan"
-                      className="w-full aspect-[16/9] object-cover"
-                    />
-                  </div>
+                  {selectedImage && <AiPhotoScan src={selectedImage} analysis={cvAnalysis} />}
 
                   {/* Damage type */}
                   <div className="space-y-2">

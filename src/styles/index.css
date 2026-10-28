@@ -1419,3 +1419,56 @@ html, body, #root {
   }
 }
 
+
+/* ---- Lean app motion (docs/LEAN_PLAN.md "UI") ---------------------------------------- */
+@keyframes pp-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes pp-scan { 0% { top: -10%; } 100% { top: 105%; } }
+@keyframes pp-draw { from { clip-path: inset(0 100% 100% 0); opacity: 0.2; } to { clip-path: inset(0 0 0 0); opacity: 1; } }
+@keyframes pp-pop { 0% { transform: scale(0.6); opacity: 0; } 70% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes pp-pulse { 0% { box-shadow: 0 0 0 0 rgba(20, 99, 255, 0.45); } 100% { box-shadow: 0 0 0 18px rgba(20, 99, 255, 0); } }
+@keyframes pp-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes pp-dots { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
+.pp-rise { animation: pp-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.pp-pop { animation: pp-pop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.pp-float { animation: pp-float 4s ease-in-out infinite; }
+.pp-pulse { animation: pp-pulse 1.6s ease-out infinite; }
+.pp-scanline {
+  position: absolute; left: 0; right: 0; height: 18%;
+  background: linear-gradient(180deg, rgba(20, 99, 255, 0) 0%, rgba(20, 99, 255, 0.28) 70%, rgba(120, 170, 255, 0.95) 100%);
+  animation: pp-scan 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+.pp-box { animation: pp-draw 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.pp-dot { animation: pp-dots 1.2s infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .pp-rise, .pp-pop, .pp-float, .pp-pulse, .pp-box, .pp-dot { animation: none; }
+  .pp-scanline { animation: none; display: none; }
+}
+
+/*
+ * Bright theme for the whole app (docs/LEAN_PLAN.md "UI"). The older screens are written
+ * against the dark token ladder and Tailwind's slate/amber scales; flipping those tokens here
+ * turns every one of them into the bright palette at once: light surfaces, navy ink, sky-blue
+ * primary (was amber), green/red kept readable on white. New screens use explicit hex colours.
+ */
+.pp-light {
+  --color-app: #F4F7FC; --color-workspace: #F4F7FC; --color-panel: #FFFFFF; --color-card: #FFFFFF;
+  --color-surface: #FFFFFF; --color-raised: #EEF2F7; --color-raised-hover: #E3E8EF;
+  --color-line-subtle: #E3E8EF; --color-line-active: #C9D3E0;
+  --color-ink: #0E1B2C; --color-ink-2: #3E4C5E; --color-ink-3: #7A8899; --color-focus: #1463FF;
+  --color-white: #0E1B2C; --color-black: #FFFFFF;
+  --color-slate-50: #0E1B2C; --color-slate-100: #162436; --color-slate-200: #2A3647; --color-slate-300: #3E4C5E;
+  --color-slate-400: #5B6B7F; --color-slate-500: #7A8899; --color-slate-600: #C9D3E0; --color-slate-700: #E3E8EF;
+  --color-slate-800: #EEF2F7; --color-slate-900: #F4F7FC; --color-slate-950: #FFFFFF;
+  --color-gray-50: #0E1B2C; --color-gray-100: #162436; --color-gray-200: #2A3647; --color-gray-300: #3E4C5E;
+  --color-gray-400: #5B6B7F; --color-gray-500: #7A8899; --color-gray-600: #C9D3E0; --color-gray-700: #E3E8EF;
+  --color-gray-800: #EEF2F7; --color-gray-900: #F4F7FC; --color-gray-950: #FFFFFF;
+  --color-amber-50: #E8F0FF; --color-amber-100: #D6E4FF; --color-amber-200: #1463FF; --color-amber-300: #1463FF;
+  --color-amber-400: #1463FF; --color-amber-500: #0F55E0; --color-amber-600: #0D47BD; --color-amber-700: #0B3A99;
+  --color-amber-800: #E8F0FF; --color-amber-900: #E8F0FF; --color-amber-950: #F4F7FC;
+  --color-yellow-200: #1463FF; --color-yellow-300: #1463FF; --color-yellow-400: #1463FF; --color-yellow-500: #0F55E0;
+  --color-rose-200: #C53035; --color-rose-300: #C53035; --color-red-200: #C53035; --color-red-300: #C53035;
+  --color-emerald-200: #0E8A43; --color-emerald-300: #0E8A43; --color-emerald-400: #12A150;
+  --color-sky-200: #1463FF; --color-sky-300: #1463FF; --color-cyan-300: #1463FF;
+  background: #F4F7FC;
+  color: #0E1B2C;
+}

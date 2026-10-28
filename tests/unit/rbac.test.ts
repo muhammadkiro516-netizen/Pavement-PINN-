@@ -17,6 +17,7 @@ type Row = [fe: string, ko: string, warga: string, guest: string];
 const MATRIX_ROLES: UserRole[] = ['FIELD_ENGINEER', 'OPERATIONS_MANAGER', 'PUBLIC_REPORTER', 'PUBLIC_VIEWER'];
 
 const EXPECTED: Record<RouteId, Row> = {
+  landing: [A, A, A, A],
   login: [A, A, A, A],
   track: [A, A, A, A],
   evidence: [A, A, A, A],
@@ -33,18 +34,18 @@ const EXPECTED: Record<RouteId, Row> = {
   profile: [A, A, A, L]
 };
 
-test('role x route matrix (14 routes x 3 roles + guest)', () => {
+test('role x route matrix (15 routes x 3 roles + guest)', () => {
   assert.deepEqual(ROUTES.map((r) => r.id).sort(), Object.keys(EXPECTED).sort());
   for (const route of ROUTES) {
     MATRIX_ROLES.forEach((role, i) => assert.equal(resolveRouteAccess(route, { role }), EXPECTED[route.id][i], `${route.id} as ${role}`));
   }
 });
 
-test('each role lands on its own main tab; guests on login', () => {
+test('each role lands on its own main tab; guests on the landing page', () => {
   assert.equal(homeRouteFor({ role: 'PUBLIC_REPORTER' }), 'map');
   assert.equal(homeRouteFor({ role: 'FIELD_ENGINEER' }), 'tasks');
   assert.equal(homeRouteFor({ role: 'OPERATIONS_MANAGER' }), 'queue');
-  assert.equal(homeRouteFor({ role: 'PUBLIC_VIEWER' }), 'login');
+  assert.equal(homeRouteFor({ role: 'PUBLIC_VIEWER' }), 'landing');
 });
 
 test('after login: stay on the page that asked for it when allowed, else go home', () => {

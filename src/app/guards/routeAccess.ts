@@ -23,7 +23,7 @@ export function canOpenRoute(routeId: RouteId, identity: GuardIdentity): boolean
   return resolveRouteAccess(getRoute(routeId), identity) === 'ALLOW';
 }
 
-/** Landing route: guests sign in; each role opens on its own main tab. */
+/** Landing route: guests see the landing page; each role opens on its own main tab. */
 export function homeRouteFor(identity: GuardIdentity): RouteId {
   switch (identity.role) {
     case 'FIELD_ENGINEER':
@@ -33,13 +33,13 @@ export function homeRouteFor(identity: GuardIdentity): RouteId {
     case 'PUBLIC_REPORTER':
       return 'map';
     default:
-      return 'login';
+      return 'landing';
   }
 }
 
 /** After login: stay on the page that asked for it when the account may open it, else go home. */
 export function landingRouteAfterLogin(identity: GuardIdentity, current: RouteMatch | null): { id: RouteId; params: Record<string, string> } {
-  if (current && current.route.id !== 'login' && canOpenRoute(current.route.id, identity)) {
+  if (current && current.route.id !== 'login' && current.route.id !== 'landing' && canOpenRoute(current.route.id, identity)) {
     return { id: current.route.id, params: current.params };
   }
   return { id: homeRouteFor(identity), params: {} };
