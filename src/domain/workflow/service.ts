@@ -16,7 +16,7 @@ import type { DamageReport, UserRole } from '../../types';
 import type { CvAssessment } from '../../types/cv';
 import { canEditReport } from '../access';
 import { createSessionReport, ReportCreationError, ReportDraft } from '../reports/reportFactory';
-import { Actor, ReportCase, SYSTEM_ACTOR, TransitionRecord } from './model';
+import { Actor, ReportCase, SYSTEM_ACTOR, TransitionRecord, type CaseAuthority, type DataStatus } from './model';
 import { CvScreeningProvider, screenReport } from './screening';
 import { applyCommand, CommandResult, createReportCase, isFailure, WorkflowCommand, WorkflowErrorCode } from './stateMachine';
 import { legacyStatusFor } from './projections';
@@ -51,7 +51,25 @@ export interface WorkflowSnapshot {
   audit: AuditEvent[];
   /** Optional so stores written before simulations were persisted still load. */
   simulations?: SimulationRecord[];
+  /** Real comments by signed-in people (never generated). Optional for older stores. */
+  comments?: CommentRecord[];
 }
+
+/** A comment on a report by a real signed-in account. STAFF comments are hidden from citizens. */
+export interface CommentRecord {
+  id: string;
+  caseId: string;
+  at: string;
+  authorId: string;
+  authorRole: string;
+  /** Shown name, decided by the server (citizens on a device are "Warga · XXXX"). */
+  authorName: string;
+  text: string;
+  visibility: 'PUBLIC' | 'STAFF';
+}
+
+export const MAX_COMMENT_LENGTH = 500;
+const MAX_COMMENTS = 20000;
 
 export interface CaseStore {
   load(): Promise<WorkflowSnapshot>;
@@ -246,6 +264,31 @@ export class WorkflowService {
     });
   }
 
+  /** Persist a comment; comments are not workflow transitions, so they never bump a case version. */
+  addComment(input: Omit<CommentRecord, 'id' | 'at'>): Promise<ServiceResult<CommentRecord>> {
+    return this.serialize(async () => {
+      const text = input.text.replace(/[ --]+/g, ' ').trim();
+      if (text.length < 1 || text.length > MAX_COMMENT_LENGTH) {
+        return { ok: false, code: 'VALIDATION', message: `Komentar 1-${MAX_COMMENT_LENGTH} karakter.` };
+      }
+      const snapshot = await this.store.load();
+      if (!snapshot.cases.some((c) => c.id === input.caseId)) return { ok: false, code: 'NOT_FOUND', message: 'Laporan tidak ditemukan.' };
+      const record: CommentRecord = { ...input, text, id: this.deps.newId('CMT'), at: this.deps.now() };
+      const next: WorkflowSnapshot = { ...snapshot, revision: snapshot.revision + 1, comments: [...(snapshot.comments ?? []), record].slice(-MAX_COMMENTS) };
+      try {
+        await this.store.commit(next);
+      } catch (error) {
+        if (error instanceof StoreConflictError) throw error;
+        return { ok: false, code: 'STORAGE', message: `Komentar tidak tersimpan: ${(error as Error).message}` };
+      }
+      return { ok: true, value: record };
+    });
+  }
+
+  async listComments(caseId: string, includeStaff: boolean): Promise<CommentRecord[]> {
+    return ((await this.store.load()).comments ?? []).filter((c) => c.caseId === caseId && (includeStaff || c.visibility === 'PUBLIC'));
+  }
+
   async listSimulations(segmentId?: string): Promise<SimulationRecord[]> {
     return ((await this.store.load()).simulations ?? []).filter((s) => !segmentId || s.segmentId === segmentId);
   }
@@ -273,7 +316,13 @@ export class WorkflowService {
    * (client-sent ids and creator fields are discarded), then run automated screening.
    * SUBMIT, BEGIN_SCREENING and the screening outcome are committed together.
    */
-  submitReport(draft: ReportDraft, actor: Actor, claimTokenHash: string | null, verifiedCv?: CvAssessment): Promise<ServiceResult<ReportCase>> {
+  submitReport(
+    draft: ReportDraft,
+    actor: Actor,
+    claimTokenHash: string | null,
+    verifiedCv?: CvAssessment,
+    extra: { authority?: CaseAuthority | null; dataStatus?: DataStatus } = {}
+  ): Promise<ServiceResult<ReportCase>> {
     return this.serialize(async () => {
       if (actor.role === 'SYSTEM') return { ok: false, code: 'FORBIDDEN', message: 'The system cannot submit reports.' };
       let report: DamageReport;
@@ -291,7 +340,8 @@ export class WorkflowService {
       if (typeof clientId === 'string' && CLIENT_REPORT_ID.test(clientId) && !snapshot.cases.some((c) => c.id === clientId)) {
         report = { ...report, id: clientId };
       }
-      const created = createReportCase(report, actor, { now, newId: this.deps.newId, claimTokenHash, dataStatus: 'USER_GENERATED' });
+      const created = createReportCase(report, actor, { now, newId: this.deps.newId, claimTokenHash, dataStatus: extra.dataStatus ?? 'USER_GENERATED' });
+      if (extra.authority) created.next.authority = extra.authority;
       const events = [auditFrom(created.record, created.next.id)];
 
       const begin = applyCommand(created.next, { action: 'BEGIN_SCREENING' }, this.systemCtx(created.next, now));

@@ -19,6 +19,8 @@ export interface AccountRecord {
   role: AccountRole;
   /** Agency of a staff account (e.g. "Dinas BMBK Provinsi Lampung"); null for citizens. */
   agency: string | null;
+  /** Registry id of the agency (config/authorities); null for citizens. */
+  agencyId?: string | null;
   passwordHash: string;
   createdAt: string;
   createdBy: string | null;
@@ -56,8 +58,20 @@ export const toProfile = ({ passwordHash: _hash, ...profile }: AccountRecord): A
 export class AccountStore {
   private accounts: AccountRecord[];
 
+  private loadedMtime = 0;
+
   constructor(private readonly file: string | null = null) {
-    this.accounts = file && fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, "utf8")) as AccountRecord[]) : [];
+    this.accounts = [];
+    this.refresh();
+  }
+
+  /** Re-read the file when another process (e.g. scripts/seed-agencies.ts) changed it. */
+  private refresh(): void {
+    if (!this.file || !fs.existsSync(this.file)) return;
+    const mtime = fs.statSync(this.file).mtimeMs;
+    if (mtime === this.loadedMtime) return;
+    this.accounts = JSON.parse(fs.readFileSync(this.file, "utf8")) as AccountRecord[];
+    this.loadedMtime = mtime;
   }
 
   private persist(): void {
@@ -66,9 +80,11 @@ export class AccountStore {
     const tmp = `${this.file}.${process.pid}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(this.accounts, null, 2));
     fs.renameSync(tmp, this.file);
+    this.loadedMtime = fs.statSync(this.file).mtimeMs;
   }
 
   get(id: string): AccountRecord | null {
+    this.refresh();
     return this.accounts.find((a) => a.id === id) ?? null;
   }
 
@@ -78,10 +94,11 @@ export class AccountStore {
   }
 
   list(role?: AccountRole): AccountProfile[] {
+    this.refresh();
     return this.accounts.filter((a) => !role || a.role === role).map(toProfile);
   }
 
-  create(input: { email: unknown; name: unknown; password: unknown; role: AccountRole; agency?: unknown; createdBy?: string | null }): AccountProfile {
+  create(input: { email: unknown; name: unknown; password: unknown; role: AccountRole; agency?: unknown; agencyId?: string | null; createdBy?: string | null }): AccountProfile {
     const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : "";
     const name = typeof input.name === "string" ? input.name.replace(/[\u0000-\u001f\u007f]+/g, " ").trim().slice(0, 80) : "";
     const agency = typeof input.agency === "string" && input.agency.trim() ? input.agency.trim().slice(0, 120) : null;
@@ -91,6 +108,7 @@ export class AccountStore {
       throw new AccountError("VALIDATION", `Kata sandi minimal ${MIN_PASSWORD} karakter.`);
     }
     if (!ACCOUNT_ROLES.includes(input.role)) throw new AccountError("VALIDATION", "Peran tidak dikenal.");
+    this.refresh();
     if (input.role !== "PUBLIC_REPORTER" && !agency) throw new AccountError("VALIDATION", "Akun petugas wajib mencantumkan instansi.");
     if (this.accounts.some((a) => a.email === email)) throw new AccountError("CONFLICT", "Email sudah terdaftar.");
     const record: AccountRecord = {
@@ -99,6 +117,7 @@ export class AccountStore {
       name,
       role: input.role,
       agency: input.role === "PUBLIC_REPORTER" ? null : agency,
+      agencyId: input.role === "PUBLIC_REPORTER" ? null : input.agencyId ?? null,
       passwordHash: hashPassword(input.password),
       createdAt: new Date().toISOString(),
       createdBy: input.createdBy ?? null,
@@ -111,6 +130,7 @@ export class AccountStore {
 
   /** The account for an email and password, or null; unknown emails cost the same as wrong passwords. */
   verify(email: unknown, password: unknown): AccountProfile | null {
+    this.refresh();
     if (typeof email !== "string" || typeof password !== "string" || password.length > 256) return null;
     const account = this.accounts.find((a) => a.email === email.trim().toLowerCase());
     const ok = passwordMatches(password, account?.passwordHash ?? UNKNOWN_HASH);

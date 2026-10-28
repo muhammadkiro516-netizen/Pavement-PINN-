@@ -24,7 +24,7 @@ export const AiPhotoScan: React.FC<{ src: string; scanning?: boolean; analysis?:
         analysis?.detections.map((d, i) => (
           <div
             key={i}
-            className="pp-box absolute rounded-xl border-[3px] border-[#FF7A1A] bg-[#FF7A1A]/10"
+            className="pp-box absolute rounded-xl border-[3px] border-[#FF6B2C] bg-[#FF6B2C]/10"
             style={{
               left: `${(d.bbox[0] / w) * 100}%`,
               top: `${(d.bbox[1] / h) * 100}%`,
@@ -33,7 +33,7 @@ export const AiPhotoScan: React.FC<{ src: string; scanning?: boolean; analysis?:
               animationDelay: `${i * 150}ms`
             }}
           >
-            <span className="pp-pop absolute -top-8 left-0 whitespace-nowrap rounded-full bg-[#FF7A1A] px-2.5 py-1 text-[11px] font-extrabold text-[#FFFFFF]">
+            <span className="pp-pop absolute -top-8 left-0 whitespace-nowrap rounded-full bg-[#FF6B2C] px-2.5 py-1 text-[11px] font-extrabold text-[#FFFFFF]">
               {d.label.replace(/\s*\(.*\)/, '')} · {Math.round(d.confidence * 100)}%
             </span>
           </div>

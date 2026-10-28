@@ -27,6 +27,7 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import { DamageReport, ReportReview } from '../../types';
+import { CommentThread } from './CommentThread';
 import { ILLUSTRATIVE_PHOTO_LABEL } from '../../data/provenance';
 import { UserAccount } from '../authentication/demoAccounts';
 import { BeforeAfterSlider } from '../../components/ui/BeforeAfterSlider';
@@ -83,10 +84,6 @@ export const ReportDetailBottomSheet: React.FC<ReportDetailBottomSheetProps> = (
   const [isEntering, setIsEntering] = useState<boolean>(true);
   const [isClosing, setIsClosing] = useState<boolean>(false);
 
-  // Review submission state
-  const [newReviewRating, setNewReviewRating] = useState<number>(5);
-  const [newReviewText, setNewReviewText] = useState<string>('');
-  const [reviewSubmitSuccess, setReviewSubmitSuccess] = useState<boolean>(false);
 
   const closeRef = useRef<() => void>(() => undefined);
   // Shared drag: the card follows the finger and settles on PEEK / HALF / FULL (or closes).
@@ -114,8 +111,6 @@ export const ReportDetailBottomSheet: React.FC<ReportDetailBottomSheetProps> = (
     if (isOpen) {
       setIsClosing(false);
       setSnapPoint('HALF');
-      setReviewSubmitSuccess(false);
-      setNewReviewText('');
       
       // Start from bottom translateY(100%), then smoothly scroll up into view
       setIsEntering(true);
@@ -150,25 +145,6 @@ export const ReportDetailBottomSheet: React.FC<ReportDetailBottomSheetProps> = (
     setTimeout(() => setCopiedLocation(false), 2000);
   };
 
-  const handleSubmitReview = () => {
-    if (!newReviewText.trim()) return;
-    const newRev: ReportReview = {
-      id: `rev-${Date.now()}`,
-      userName: currentAccount.name || 'Warga Karawang',
-      userAvatar: currentAccount.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150',
-      userBadge: currentAccount.role === 'PUBLIC_REPORTER' ? 'Warga Pelapor' : 'Warga Terverifikasi',
-      rating: newReviewRating,
-      timeAgo: 'Baru saja',
-      dateFormatted: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-      comment: newReviewText.trim(),
-      likesCount: 0
-    };
-
-    onAddReview(report.id, newRev);
-    setNewReviewText('');
-    setReviewSubmitSuccess(true);
-    setTimeout(() => setReviewSubmitSuccess(false), 3000);
-  };
 
   const toggleSnapPoint = () => {
     setSnapPoint((prev) => {
@@ -191,31 +167,6 @@ export const ReportDetailBottomSheet: React.FC<ReportDetailBottomSheetProps> = (
   };
 
   const isRepaired = report.status === 'REPAIRED';
-  const defaultFallbackReviews: ReportReview[] = [
-    {
-      id: 'rev-def-1',
-      userName: 'Agus Setiawan',
-      userAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150',
-      userBadge: 'Local Guide',
-      rating: 5,
-      timeAgo: '2 hari lalu',
-      dateFormatted: '16 Agu 2026',
-      comment: 'Lubang jalan ini sempat cukup dalam dan membahayakan pengendara motor saat malam hari. Syukurlah sudah masuk sistem pemantauan PUPR.',
-      likesCount: 12
-    },
-    {
-      id: 'rev-def-2',
-      userName: 'Siti Rahmawati',
-      userAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150',
-      userBadge: 'Warga Karawang',
-      rating: 5,
-      timeAgo: '1 minggu lalu',
-      dateFormatted: '10 Agu 2026',
-      comment: 'Sering dilewati truk industri muatan berat, mohon segera ditangani agar tidak semakin melebar aspalnya.',
-      likesCount: 8
-    }
-  ];
-  const reviews = reviewsMap[report.id] && reviewsMap[report.id].length > 0 ? reviewsMap[report.id] : defaultFallbackReviews;
 
   return (
     <>
@@ -416,100 +367,12 @@ export const ReportDetailBottomSheet: React.FC<ReportDetailBottomSheetProps> = (
           {/* 3. WORKFLOW PANEL: DETAIL LAPORAN + TABS (A. Laporan & Bukti, B. Analisis, C. Tindakan) */}
           {workflowPanel}
 
-          {/* 4. ULASAN KOMUNITAS WARGA */}
-          <div className="space-y-3 pt-3 border-t border-white/10">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-xs uppercase tracking-wider text-slate-200">
-                Ulasan Komunitas Warga
-              </span>
-              <span className="text-xs text-slate-400 font-mono">
-                {reviews.length} Ulasan
-              </span>
-            </div>
-
-            {/* Reviews List */}
-            <div className="space-y-2.5 max-h-56 overflow-y-auto custom-scrollbar pr-1 divide-y divide-white/10">
-              {reviews.map((rev) => (
-                <div key={rev.id} className="pt-2.5 first:pt-0 space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2 min-w-0">
-                      <img
-                        src={rev.userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'}
-                        alt={rev.userName}
-                        className="w-7 h-7 rounded-full object-cover border border-white/20 shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <span className="font-bold text-white text-xs block truncate leading-tight">
-                          {rev.userName}
-                        </span>
-                        <span className="text-[11px] text-slate-400 font-mono">{rev.timeAgo}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-0.5 shrink-0">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-3 h-3 ${
-                            i < rev.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-600'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-slate-200 text-xs leading-relaxed break-words">{rev.comment}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Add Review Box */}
-            <div className="bg-white/[0.02] p-3 rounded-xl border border-white/10 space-y-2 mt-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white">Tulis Ulasan:</span>
-                <div className="flex items-center space-x-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setNewReviewRating(star)}
-                      className="p-1 hover:scale-110 transition-transform cursor-pointer"
-                    >
-                      <Star
-                        className={`w-4 h-4 ${
-                          star <= newReviewRating ? 'fill-amber-400 text-amber-400' : 'text-slate-600'
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <textarea
-                value={newReviewText}
-                onChange={(e) => setNewReviewText(e.target.value)}
-                placeholder="Bagikan kondisi terkini perkerasan jalan..."
-                rows={2}
-                className="w-full bg-[#080E1B] border border-white/10 rounded-xl p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400/50 resize-none"
-              />
-
-              <div className="flex items-center justify-between">
-                {reviewSubmitSuccess ? (
-                  <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Ulasan berhasil dikirim!
-                  </span>
-                ) : (
-                  <span />
-                )}
-                <button
-                  onClick={handleSubmitReview}
-                  disabled={!newReviewText.trim()}
-                  className="py-1.5 px-3.5 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-40 text-slate-950 font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer ml-auto"
-                >
-                  <Send className="w-3 h-3" />
-                  <span>Kirim</span>
-                </button>
-              </div>
-            </div>
-          </div>
+          {/* 4. KOMENTAR (real, server-stored) */}
+          <CommentThread
+            reportId={report.id}
+            canWrite={currentAccount.role !== 'PUBLIC_VIEWER'}
+            isStaff={currentAccount.role === 'FIELD_ENGINEER' || currentAccount.role === 'OPERATIONS_MANAGER'}
+          />
 
           {/* Citizen Reporter Edit Button */}
           {canEditReport(currentAccount, report) && onOpenEditModal && (

@@ -5,6 +5,7 @@ import { useAppState } from '../../app/providers/AppStateProvider';
 import { useRouter } from '../../app/router';
 import { reportForDisplay } from '../../domain/workflow/projections';
 import type { ReportCase } from '../../domain/workflow/model';
+import { ControlCenter } from '../../features/workflow/ControlCenter';
 
 /**
  * Routes: /engineering/tasks/ and /operations/tasks/ — tasks, inspections and work
@@ -30,6 +31,9 @@ export const WorkOrdersPage: React.FC = () => {
 
   return (
     <div className="w-full h-full overflow-y-auto custom-scrollbar bg-workspace text-ink">
+      {!isFieldEngineer && (
+        <ControlCenter cases={Object.values(workflow.views).filter((v) => v.audience === 'STAFF').map((v) => v.case as ReportCase)} />
+      )}
       <LegacyCaseBoard
         role={isFieldEngineer ? 'FE' : 'OPS'}
         views={Object.values(workflow.views)}

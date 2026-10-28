@@ -52,7 +52,7 @@ export const StatsPage: React.FC = () => {
         <SnapCard>
           <p className="mb-2 font-extrabold">Akurasi per jenis kerusakan</p>
           {Object.entries(s.perClass).map(([cls, [ok, n]]) => (
-            <div key={cls} className="flex items-center justify-between border-t border-[#2C2C2E] py-2 text-sm">
+            <div key={cls} className="flex items-center justify-between border-t border-[#2A2F37] py-2 text-sm">
               <span>{cls}</span>
               <span className="font-bold">
                 {pct(ok, n)} <span className="font-normal text-[#8E8E93]">({ok}/{n})</span>
@@ -141,7 +141,7 @@ export const TeamPage: React.FC = () => {
                   key={role}
                   type="button"
                   onClick={() => setForm({ ...form, role })}
-                  className={`flex-1 cursor-pointer rounded-2xl px-3 py-3 text-sm font-bold ${form.role === role ? 'bg-[#FFE14D] text-[#FFFFFF]' : 'bg-[#2C2C2E] text-[#FFFFFF]'}`}
+                  className={`flex-1 cursor-pointer rounded-2xl px-3 py-3 text-sm font-bold ${form.role === role ? 'bg-[#FFD60A] text-[#0B0D10]' : 'bg-[#1E2229] text-[#FFFFFF]'}`}
                 >
                   {label}
                 </button>

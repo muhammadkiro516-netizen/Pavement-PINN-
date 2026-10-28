@@ -35,6 +35,7 @@ export const WORKFLOW_API_PATHS = {
   staffActive: '/api/staff/:id/active',
   reports: '/api/workflow/reports',
   report: '/api/workflow/reports/:id',
+  comments: '/api/workflow/reports/:id/comments',
   transitions: '/api/workflow/reports/:id/transitions',
   content: '/api/workflow/reports/:id/content',
   audit: '/api/workflow/audit',
@@ -127,6 +128,7 @@ export interface AccountProfile {
   name: string;
   role: import('./rbac').UserRole;
   agency: string | null;
+  agencyId?: string | null;
   createdAt?: string;
   active?: boolean;
 }

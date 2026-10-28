@@ -99,7 +99,8 @@ test('cross-role golden path over HTTP, with public tracking and audit', async (
   const queue = await call('GET', '/api/workflow/reports?state=NEEDS_REVIEW', undefined, ops);
   const inQueue = queue.body.items.find((i: any) => i.case.id === id);
   assert.equal(inQueue.audience, 'STAFF');
-  assert.deepEqual(inQueue.availableActions, ['REVIEW_ACCEPT', 'CLOSE_INVALID']);
+  // TRANSFER_AUTHORITY: the Koordinator may hand the report to the agency that owns the road.
+  assert.deepEqual(inQueue.availableActions, ['REVIEW_ACCEPT', 'CLOSE_INVALID', 'TRANSFER_AUTHORITY']);
   assert.equal(inQueue.case.screening.modelStatus, 'DEMO');
 
   let version = inQueue.case.version as number;
@@ -117,11 +118,11 @@ test('cross-role golden path over HTTP, with public tracking and audit', async (
 
   // The engineer's queue shows the assignment; the same person's classic account sees it too.
   const engView = await call('GET', `/api/workflow/reports/${id}`, undefined, eng);
-  assert.deepEqual(engView.body.report.availableActions, ['SUBMIT_INSPECTION']);
+  assert.deepEqual(engView.body.report.availableActions, ['SUBMIT_INSPECTION', 'MARK_HAZARD']);
   // USR-001 is the same engineer on the classic portal (domain/identity/people.ts): same task, same rights.
   // A different engineer is refused in tests/unit/people.test.ts.
   const classicView = await call('GET', `/api/workflow/reports/${id}`, undefined, engOther);
-  assert.deepEqual(classicView.body.report.availableActions, ['SUBMIT_INSPECTION']);
+  assert.deepEqual(classicView.body.report.availableActions, ['SUBMIT_INSPECTION', 'MARK_HAZARD']);
 
   await act(eng, { action: 'SUBMIT_INSPECTION', verdict: 'CONFIRMED', cvReview: { accepted: true, correctedClass: null }, measuredDepthCm: 8, measuredAreaM2: 2.4, severity: 'SEVERE', notes: 'Lubang aktif, tepi retak.' });
   await act(ops, { action: 'VERIFY_INSPECTION', reason: 'Bukti inspeksi sesuai.' });

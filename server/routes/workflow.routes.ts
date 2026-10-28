@@ -12,10 +12,13 @@ import { hashClaimToken, newClaimToken } from "../auth/sessionTokens";
 import { rateLimit } from "../middleware/rateLimit";
 import { checkPhotoReference, photoGpsPosition, stripPhotoMetadata } from "../services/photoValidation";
 import { distanceMeters } from "../../src/domain/workflow/screening";
+import { AGENCIES, agencyById, resolveAuthority } from "../services/authorityResolver";
+import { citizenImpact } from "../../src/domain/workflow/impact";
 
 /** How far the camera position may be from the reported position. */
 const PHOTO_LOCATION_TOLERANCE_M = 1000;
 import { attachCvAnalysis } from "../services/cvAttach";
+import { checkRepairPhoto } from "../services/repairCheck";
 import type { WorkflowRuntime } from "../services/workflowRuntime";
 import { actorFrom, clearSessionCookie, credentialFrom, sessionFrom, setSessionCookie } from "../auth/actor";
 import { verifyDemoLogin } from "../auth/demoLogin";
@@ -171,7 +174,12 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
     const role = req.body?.role;
     if (role !== "FIELD_ENGINEER" && role !== "OPERATIONS_MANAGER") return sendError(res, "VALIDATION", "Peran harus Petugas Lapangan atau Koordinator.");
     try {
-      const profile = runtime.accounts.create({ email: req.body?.email, name: req.body?.name, password: req.body?.password, agency: req.body?.agency, role, createdBy: actor.id });
+      // Staff join the Koordinator's own agency; the agency is never taken from the request.
+      const me = runtime.accounts.get(actor.id);
+      const profile = runtime.accounts.create({
+        email: req.body?.email, name: req.body?.name, password: req.body?.password,
+        agency: me?.agency ?? req.body?.agency, agencyId: me?.agencyId ?? null, role, createdBy: actor.id
+      });
       res.status(201).json({ success: true, account: profile });
     } catch (error) {
       accountFailure(res, error);
@@ -276,7 +284,12 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
     // Privacy: camera metadata (EXIF GPS, device) is removed before storage, after the CV binding.
     if (typeof draft.photoUrl === "string") draft.photoUrl = stripPhotoMetadata(draft.photoUrl);
     const claim = actor.kind === "ANONYMOUS" ? newClaimToken() : null;
-    const result = await service.submitReport(draft, actor, claim ? claim.hash : null, verifiedCv);
+    // Who handles this road: resolved from the reported position (OSM, cached; offline fallback).
+    const coords = Array.isArray(draft.coordinates) && draft.coordinates.every((n: unknown) => Number.isFinite(n)) ? (draft.coordinates as [number, number]) : null;
+    const authority = coords ? await resolveAuthority(coords[0], coords[1]) : null;
+    // Reports imported from public photo archives are labelled as such, never as citizen reports.
+    const archive = runtime.accounts.get(actor.id)?.email === "arsip-commons@pavement-pinn.id";
+    const result = await service.submitReport(draft, actor, claim ? claim.hash : null, verifiedCv, { authority, dataStatus: archive ? "PUBLIC_ARCHIVE" : undefined });
     if (result.ok && verifiedCv) await runtime.cv.bind(verifiedCv.analysisId, result.value.id);
     if (result.ok && claim) {
       // The claim token is shown once; only its hash is stored.
@@ -299,10 +312,24 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
       return sendError(res, "VALIDATION", "Body must be { command: { action, ... }, expectedVersion }.");
     }
     if (expectedVersion === null) return sendError(res, "VALIDATION", "expectedVersion must be a positive integer.");
+    if (command.action === "MARK_HAZARD") {
+      const photo = checkPhotoReference(command.photoUrl);
+      if (photo.ok === false) return sendError(res, "VALIDATION", `Hazard photo: ${photo.message}`);
+      command.photoUrl = stripPhotoMetadata(command.photoUrl as string);
+    }
+    if (command.action === "TRANSFER_AUTHORITY") {
+      // Only agencies of the registry; name and level come from the registry, not from the request.
+      const agency = agencyById(String(command.agencyId ?? ""));
+      if (!agency) return sendError(res, "VALIDATION", "Unknown agency.");
+      command.agencyName = agency.name;
+      command.level = agency.level;
+    }
     if (command.action === "COMPLETE_WORK_ORDER") {
       const photo = checkPhotoReference(command.completionPhotoUrl);
       if (photo.ok === false) return sendError(res, "VALIDATION", `Repair photo: ${photo.message}`);
       command.completionPhotoUrl = stripPhotoMetadata(command.completionPhotoUrl as string);
+      // Computed here only; a client-sent repairCheck is discarded.
+      command.repairCheck = await checkRepairPhoto(command.completionPhotoUrl, await service.getCase(req.params.id), new Date().toISOString());
     }
     if (command.action === "SUBMIT_INSPECTION" && command.evidencePhotoUrl) {
       // Same byte-level check as the citizen photo: real JPEG/PNG/WebP, at most 5 MB.
@@ -350,6 +377,51 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
     const { limit, offset } = parsePaging(req);
     const entityId = typeof req.query.entityId === "string" ? req.query.entityId : undefined;
     res.json({ success: true, ...(await service.listAudit({ entityId, limit, offset })), limit, offset });
+  });
+
+  // Real comments: anyone signed in may read public comments and write one; staff may write
+  // staff-only notes. The shown name is decided here, never by the request.
+  const commentLimit = rateLimit("comments", 10, 10 * 60_000, (req) => actorFrom(req, runtime)?.id ?? null);
+  const displayName = (actor: Actor): string => {
+    const account = runtime.accounts.get(actor.id);
+    if (account) {
+      if (account.role === "PUBLIC_REPORTER") return `Warga · ${account.id.slice(-4)}`;
+      return account.agency ? `${account.name} · ${account.agency}` : account.name;
+    }
+    const fixture = USER_ACCOUNTS.find((a) => a.id === actor.id);
+    return fixture ? fixture.name : "Warga";
+  };
+  router.get(WORKFLOW_API_PATHS.comments, async (req: Request, res: Response) => {
+    await runtime.ready;
+    const actor = actorFrom(req, runtime);
+    const items = await service.listComments(req.params.id, isOfficial(actor));
+    res.json({ success: true, items });
+  });
+  router.post(WORKFLOW_API_PATHS.comments, commentLimit, async (req: Request, res: Response) => {
+    await runtime.ready;
+    const actor = actorFrom(req, runtime);
+    if (!actor || actor.role === "SYSTEM" || actor.kind === "ANONYMOUS") return sendError(res, "UNAUTHENTICATED", "Masuk dulu untuk berkomentar.");
+    const text = typeof req.body?.text === "string" ? req.body.text : "";
+    const visibility = req.body?.visibility === "STAFF" && isOfficial(actor) ? "STAFF" : "PUBLIC";
+    const result = await service.addComment({ caseId: req.params.id, authorId: actor.id, authorRole: actor.role, authorName: displayName(actor), text, visibility });
+    if (result.ok === false) {
+      const failure = result as { code: ErrorCode; message: string };
+      return sendError(res, failure.code, failure.message);
+    }
+    res.status(201).json({ success: true, comment: result.value });
+  });
+
+  // The signed-in citizen's recognition, computed from their real reports.
+  router.get("/api/me/impact", async (req: Request, res: Response) => {
+    await runtime.ready;
+    const actor = actorFrom(req, runtime);
+    if (!actor) return sendError(res, "UNAUTHENTICATED", "Masuk dulu.");
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ success: true, impact: citizenImpact(await service.listCases(), actor.id) });
+  });
+
+  router.get("/api/agencies", (_req: Request, res: Response) => {
+    res.json({ success: true, items: AGENCIES, attribution: "Penentuan instansi memakai data © OpenStreetMap contributors (ODbL)." });
   });
 
   router.get(WORKFLOW_API_PATHS.engineers, (req: Request, res: Response) => {

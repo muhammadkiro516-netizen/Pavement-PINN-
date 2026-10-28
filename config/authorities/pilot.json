@@ -1,0 +1,15 @@
+{
+  "note": "Road authorities for the pilot (DKI Jakarta, Kabupaten Karawang). Who is responsible follows the legal road status (UU 38/2004 jo. UU 2/2022, PP 34/2006); OpenStreetMap road class is only an approximation, so every routing shows its confidence and a Koordinator can transfer (disposisi). Verify names and contacts with the agencies before production.",
+  "agencies": [
+    { "id": "bbpjn-jabar-dki", "level": "NASIONAL", "name": "BBPJN Jawa Barat - DKI Jakarta", "parent": "Ditjen Bina Marga, Kementerian PU", "region": ["DKI Jakarta", "Jawa Barat"] },
+    { "id": "bujt", "level": "TOL", "name": "Badan Usaha Jalan Tol (operator ruas)", "parent": "BPJT, Kementerian PU", "region": ["DKI Jakarta", "Jawa Barat"] },
+    { "id": "dbm-dki", "level": "PROVINSI", "name": "Dinas Bina Marga Provinsi DKI Jakarta", "parent": "Pemprov DKI Jakarta", "region": ["DKI Jakarta"] },
+    { "id": "sudin-bm-jaktim", "level": "KOTA", "name": "Suku Dinas Bina Marga Kota Administrasi Jakarta Timur", "parent": "Dinas Bina Marga Provinsi DKI Jakarta", "region": ["Jakarta Timur"] },
+    { "id": "sudin-bm-jakpus", "level": "KOTA", "name": "Suku Dinas Bina Marga Kota Administrasi Jakarta Pusat", "parent": "Dinas Bina Marga Provinsi DKI Jakarta", "region": ["Jakarta Pusat"] },
+    { "id": "sudin-bm-jakbar", "level": "KOTA", "name": "Suku Dinas Bina Marga Kota Administrasi Jakarta Barat", "parent": "Dinas Bina Marga Provinsi DKI Jakarta", "region": ["Jakarta Barat"] },
+    { "id": "sudin-bm-jaksel", "level": "KOTA", "name": "Suku Dinas Bina Marga Kota Administrasi Jakarta Selatan", "parent": "Dinas Bina Marga Provinsi DKI Jakarta", "region": ["Jakarta Selatan"] },
+    { "id": "sudin-bm-jakut", "level": "KOTA", "name": "Suku Dinas Bina Marga Kota Administrasi Jakarta Utara", "parent": "Dinas Bina Marga Provinsi DKI Jakarta", "region": ["Jakarta Utara"] },
+    { "id": "dbmpr-jabar", "level": "PROVINSI", "name": "Dinas Bina Marga dan Penataan Ruang Provinsi Jawa Barat", "parent": "Pemprov Jawa Barat", "region": ["Jawa Barat"] },
+    { "id": "dpupr-karawang", "level": "KABUPATEN", "name": "Dinas PUPR Kabupaten Karawang", "parent": "Pemkab Karawang", "region": ["Karawang"] }
+  ]
+}

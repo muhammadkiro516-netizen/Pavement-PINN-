@@ -1262,6 +1262,28 @@ const WorkDoneModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) => 
 };
 
 /** M.O: compare before with the F.E repair photo, complete checklist, then verify or ask for rework. */
+/** AI second opinion on the after-photo. Advisory: the O.M still compares the photos and decides. */
+const RepairCheckCard: React.FC<{ check: NonNullable<ReportCase['workOrder']>['repairCheck'] }> = ({ check }) => {
+  if (!check) return null;
+  if (!check.ran) return <p className="rounded-xl border border-line-subtle bg-panel p-3 text-xs text-slate-300">Cek AI foto perbaikan tidak berjalan: {check.reason}</p>;
+  const still = check.damageStillDetected;
+  const tone = check.isRoad === false ? '#FFB020' : still ? '#FF4D5E' : '#2BD67B';
+  const headline = check.isRoad === false ? 'Foto sesudah tampaknya bukan permukaan jalan' : still ? `AI masih melihat ${check.detections} titik kerusakan` : 'AI tidak menemukan kerusakan di foto sesudah';
+  return (
+    <div className="rounded-xl border p-3 text-xs" style={{ borderColor: `${tone}66`, background: `${tone}14` }}>
+      <p className="font-bold" style={{ color: tone }}>{headline}</p>
+      <div className="mt-2 flex items-center gap-3 text-slate-300">
+        <span>Indeks kerusakan visual</span>
+        <b className="tabular text-white">{check.indexBefore ?? '—'}</b>
+        <span aria-hidden>→</span>
+        <b className="tabular text-white">{check.indexAfter ?? '—'}</b>
+        <span className="text-slate-500">(0–100, relatif terhadap foto)</span>
+      </div>
+      <p className="mt-1 text-slate-500">Saran AI saja, bukan keputusan. Bandingkan kedua foto sebelum memverifikasi. Model: {check.modelId ?? '—'}</p>
+    </div>
+  );
+};
+
 const WorkVerifyModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) => Promise<ReportMutationOutcome>; onClose: () => void }> = ({ c, onRun, onClose }) => {
   const [reason, setReason] = useState('');
   const [checklist, setChecklist] = useState({
@@ -1287,7 +1309,8 @@ const WorkVerifyModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) =
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-slate-300">
             <span>Petugas Pelaksana: <b className="text-emerald-400">{wo?.completedBy ? actorName(wo.completedBy) : (c.assignment?.engineerId ? actorName(c.assignment.engineerId) : '—')}</b></span>
             {c.recommendation && <span>Metode SPK: <b className="text-slate-100">{c.recommendation.treatment}</b></span>}
-            {c.assignment && <span>Prioritas: <b className="text-[#E8B52B]">URGENT / PRIORITY</b></span>}
+            {c.recommendation && <span>Urgensi: <b className="text-[#E8B52B]">{({ ROUTINE: 'Rutin', PRIORITY: 'Prioritas', URGENT: 'Mendesak' } as Record<string, string>)[c.recommendation.urgency] ?? c.recommendation.urgency}</b></span>}
+            {wo?.contractor && <span>Pelaksana: <b className="text-slate-100">{wo.contractor}</b></span>}
           </div>
           {c.assignment?.instructions && (
             <p className="text-slate-400 pt-0.5 border-t border-[#202B3B]/60 mt-1">
@@ -1305,6 +1328,7 @@ const WorkVerifyModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) =
           afterBadge="Menunggu verifikasi O.M"
           onZoom={(src, alt) => setZoom({ src, alt })}
         />
+        <RepairCheckCard check={wo?.repairCheck ?? null} />
         {zoom && (
           <button type="button" className="fixed inset-0 z-[1300] grid place-items-center bg-black/85 p-4" onClick={() => setZoom(null)} aria-label="Tutup foto">
             <img src={zoom.src} alt={zoom.alt} className="max-h-[90vh] max-w-full rounded-lg object-contain" />

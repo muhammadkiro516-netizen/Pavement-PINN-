@@ -174,6 +174,8 @@ export interface LeafletMapProps {
   recenterKey?: number;
   highlightReportId?: string | null;
   mapCenterTarget?: { coords: [number, number]; zoom?: number; timestamp: number } | null;
+  /** Reports with a temporary warning sign on site (MARK_HAZARD); their pins get a sign badge. */
+  signedReportIds?: ReadonlySet<string>;
   /** Report-density overlay. A layer, independent of the severity filter. */
   showDensity?: boolean;
   /** Active pin coordinates for newly picking, confirming or creating reports with dedicated heatmap */

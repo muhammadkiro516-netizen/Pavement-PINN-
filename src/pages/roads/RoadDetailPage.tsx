@@ -40,7 +40,7 @@ export const RoadDetailPage: React.FC<{ params: Record<string, string> }> = ({ p
   }, [segment, workflow.gateway, workflow.views]);
 
   const back = (
-    <button type="button" onClick={closePage} className="cursor-pointer rounded-full bg-[#2C2C2E] p-2.5" aria-label="Kembali">
+    <button type="button" onClick={closePage} className="cursor-pointer rounded-full bg-[#1E2229] p-2.5" aria-label="Kembali">
       <span className="block rotate-180"><Glyph name="arrow" size={20} /></span>
     </button>
   );

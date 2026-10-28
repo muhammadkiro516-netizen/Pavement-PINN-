@@ -29,7 +29,9 @@ import {
   TransitionRecord,
   WorkflowAction,
   WorkflowState,
-  type WorkOrder
+  type WorkOrder,
+  type CaseAuthority,
+  type RepairCheck
 } from './model';
 
 export const SCREENING_CONFIDENCE_THRESHOLD = 0.6;
@@ -69,6 +71,8 @@ export const TRANSITIONS: Readonly<Record<WorkflowAction, TransitionRule>> = {
   REQUEST_REWORK: { from: ['IN_PROGRESS', 'INSPECTED'], to: 'IN_PROGRESS', roles: ['OPERATIONS_MANAGER'], reasonRequired: true, publicNote: 'Perbaikan perlu diulang' },
   RESOLVE: { from: ['IN_PROGRESS', 'INSPECTED'], to: 'RESOLVED', roles: ['OPERATIONS_MANAGER'], reasonRequired: true, publicNote: 'Perbaikan terverifikasi petugas' },
   CLOSE_RESOLVED: { from: ['RESOLVED'], to: 'CLOSED', roles: ['OPERATIONS_MANAGER'], reasonRequired: true, publicNote: 'Laporan ditutup' },
+  TRANSFER_AUTHORITY: { from: ['NEEDS_REVIEW', 'VERIFIED'], to: 'SAME', roles: ['OPERATIONS_MANAGER'], reasonRequired: true, publicNote: 'Laporan dialihkan ke instansi yang berwenang' },
+  MARK_HAZARD: { from: ['VERIFIED', 'FIELD_INSPECTION_REQUESTED', 'INSPECTED', 'INSPECTION_VERIFIED', 'ACTION_RECOMMENDED', 'ACTION_APPROVED', 'IN_PROGRESS'], to: 'SAME', roles: ['FIELD_ENGINEER', 'OPERATIONS_MANAGER'], reasonRequired: true, publicNote: 'Rambu peringatan sementara dipasang di lokasi' },
   SEED_IMPORT: { from: [null], to: 'SAME', roles: [], reasonRequired: false, publicNote: 'Data contoh (DEMO) dimuat ke sistem' }
 };
 
@@ -76,7 +80,7 @@ export type WorkflowCommand =
   | { action: 'BEGIN_SCREENING' }
   | { action: 'SCREENING_PASSED' | 'SCREENING_NEEDS_REVIEW'; screening: ScreeningResult }
   | { action: 'REVIEW_ACCEPT' | 'CLOSE_INVALID' | 'VERIFY_INSPECTION' | 'REQUEST_REINSPECTION' | 'CLOSE_NO_ACTION' | 'APPROVE_ACTION' | 'REJECT_ACTION' | 'REQUEST_REWORK' | 'RESOLVE' | 'CLOSE_RESOLVED'; reason: string }
-  | { action: 'COMPLETE_WORK_ORDER'; reason: string; completionPhotoUrl: string }
+  | { action: 'COMPLETE_WORK_ORDER'; reason: string; completionPhotoUrl: string; repairCheck?: RepairCheck | null }
   | { action: 'REQUEST_INSPECTION'; reason: string; engineerId: string; dueAt: string; instructions: string }
   | {
       action: 'SUBMIT_INSPECTION';
@@ -90,7 +94,9 @@ export type WorkflowCommand =
       evidencePhotoUrl?: string | null;
     }
   | { action: 'RECOMMEND_ACTION'; treatment: string; urgency: 'ROUTINE' | 'PRIORITY' | 'URGENT'; rationale: string; assessmentId: string | null; assessment?: AssessmentSnapshot | null }
-  | { action: 'START_WORK'; reason: string; contractorNote: string };
+  | { action: 'START_WORK'; reason: string; contractorNote: string; contractor?: string; contractValueIdr?: number | null; targetDate?: string | null; supervisor?: string }
+  | { action: 'TRANSFER_AUTHORITY'; reason: string; agencyId: string; agencyName: string; level: CaseAuthority['level'] }
+  | { action: 'MARK_HAZARD'; photoUrl: string; note: string };
 
 export interface CommandContext {
   actor: Actor;
@@ -164,6 +170,10 @@ function assignmentGuard(action: WorkflowAction, c: ReportCase, actor: Actor): s
     case 'RECOMMEND_ACTION':
       if (!c.assignment || !samePerson(c.assignment.engineerId, actor.id)) return 'Only the assigned field engineer may do this.';
       if (action === 'RECOMMEND_ACTION' && c.inspection?.verdict !== 'CONFIRMED') return 'An action can only be recommended after damage is confirmed.';
+      return null;
+    case 'MARK_HAZARD':
+      if (c.hazard) return 'A warning sign is already recorded for this report.';
+      if (actor.role === 'FIELD_ENGINEER' && (!c.assignment || !samePerson(c.assignment.engineerId, actor.id))) return 'Only the assigned field engineer may do this.';
       return null;
     case 'APPROVE_ACTION':
       if (c.recommendation && samePerson(c.recommendation.recommendedBy, actor.id)) return 'The person who recommended an action cannot approve it.';
@@ -322,15 +332,43 @@ export function applyCommand(c: ReportCase, command: WorkflowCommand, ctx: Comma
     case 'START_WORK': {
       const contractorNote = cleanText(command.contractorNote, 'contractorNote', false);
       if (isResult(contractorNote)) return contractorNote;
+      const contractor = cleanText(command.contractor ?? '', 'contractor', false);
+      if (isResult(contractor)) return contractor;
+      const supervisor = cleanText(command.supervisor ?? '', 'supervisor', false);
+      if (isResult(supervisor)) return supervisor;
+      const value = command.contractValueIdr;
+      if (value != null && (!Number.isFinite(value) || value < 0 || value > 1e13)) return fail('VALIDATION', 'contractValueIdr must be a positive amount in rupiah.');
+      const target = command.targetDate ?? null;
+      if (target !== null && (Number.isNaN(Date.parse(target)) || Date.parse(target) < Date.parse(ctx.now) - 86400000)) return fail('VALIDATION', 'targetDate must be today or later.');
       next.workOrder = {
         id: ctx.newId('WO'),
         issuedBy: ctx.actor.id,
         issuedAt: ctx.now,
         status: 'ISSUED',
         contractorNote,
+        contractor: contractor || null,
+        contractValueIdr: value ?? null,
+        targetDate: target,
+        supervisor: supervisor || null,
         completedAt: null,
         isOfficialDocument: false
       };
+      break;
+    }
+    case 'TRANSFER_AUTHORITY': {
+      if (!command.agencyId || !command.agencyName) return fail('VALIDATION', 'Choose the agency to transfer to.');
+      if (c.authority?.agencyId === command.agencyId) return fail('VALIDATION', 'The report is already with this agency.');
+      next.authorityHistory = [...(c.authorityHistory ?? []), { at: ctx.now, by: ctx.actor.id, from: c.authority?.agencyId ?? null, to: command.agencyId, reason: reason as string }];
+      next.authority = { agencyId: command.agencyId, level: command.level, name: command.agencyName, confidence: 'HIGH', basis: `Didisposisikan Koordinator: ${reason as string}` };
+      autoReason = `Dialihkan ke ${command.agencyName}.`;
+      break;
+    }
+    case 'MARK_HAZARD': {
+      if (typeof command.photoUrl !== 'string' || !PHOTO_REF.test(command.photoUrl)) return fail('VALIDATION', 'A photo of the warning sign is required.');
+      const note = cleanText(command.note ?? '', 'note', false);
+      if (isResult(note)) return note;
+      next.hazard = { at: ctx.now, by: ctx.actor.id, photoUrl: command.photoUrl, note };
+      autoReason = 'Rambu peringatan sementara dipasang.';
       break;
     }
     case 'COMPLETE_WORK_ORDER': {
@@ -357,7 +395,8 @@ export function applyCommand(c: ReportCase, command: WorkflowCommand, ctx: Comma
         completionPhotoUrl: photo,
         completionNote: reason as string,
         completedBy: ctx.actor.id,
-        submissions: [...(currentWo.submissions ?? []), submission]
+        submissions: [...(currentWo.submissions ?? []), submission],
+        repairCheck: command.repairCheck ?? null
       };
       break;
     }

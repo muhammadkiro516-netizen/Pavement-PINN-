@@ -77,9 +77,12 @@ test('only a Koordinator creates staff; the new engineer can sign in and is offe
   const citizen = (await post('/api/auth/register', { email: 'warga2@mail.com', name: 'Warga Dua', password: 'panjang123' })).body.token;
   const staff = { email: 'petugas@dinas.go.id', name: 'Petugas Uji', password: 'lapangan-1', role: 'FIELD_ENGINEER', agency: 'UPTD Uji' };
   assert.equal((await post('/api/staff', staff, citizen)).status, 403);
-  assert.equal((await post('/api/staff', { ...staff, agency: '' }, coordinatorToken)).status, 400, 'staff need an agency');
-  const created = await post('/api/staff', staff, coordinatorToken);
+  const created = await post('/api/staff', { ...staff, agency: 'Instansi Lain' }, coordinatorToken);
   assert.equal(created.status, 201);
+  // Staff always join the Koordinator's own agency; the request cannot pick another one.
+  const me = await get('/api/auth/me', coordinatorToken);
+  const coordinatorAgency = me.body.account?.agency ?? me.body.actor?.agency;
+  if (coordinatorAgency) assert.equal(created.body.account.agency, coordinatorAgency);
   const login = await post('/api/auth/login', { email: staff.email, password: staff.password });
   assert.equal(login.body.actor.role, 'FIELD_ENGINEER');
   const engineers = await get('/api/workflow/engineers', coordinatorToken);

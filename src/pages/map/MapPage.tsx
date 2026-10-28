@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Glyph } from '../../components/ui/brand';
+import { Pavi } from '../../components/brand/Pavi';
+import { readPaviHelmet } from '../../components/brand/paviPrefs';
+import { distanceMeters } from '../../domain/workflow/screening';
+import type { ReportCase } from '../../domain/workflow/model';
+import type { PublicReportView } from '../../domain/workflow/projections';
 import { lastDeviceFix, requestDeviceLocation } from '../../features/location/deviceLocation';
 import { PavementMap } from '../../components/maps/PavementMap';
 import { MapSheet } from '../../components/maps/MapSheet';
@@ -18,6 +23,28 @@ import type { DamageReport, RoadSegment } from '../../types';
  * Tap a pin for its sheet (photo, AI result, status and the actions this role may take),
  * a cluster for its list, a road for its detail page.
  */
+type MapFilter = 'ALL' | 'POTHOLE' | 'CRACK' | 'WATER' | 'SIGN' | 'FIXED';
+const FILTERS: ReadonlyArray<[MapFilter, string]> = [['ALL', 'Semua'], ['POTHOLE', 'Lubang'], ['CRACK', 'Retak'], ['WATER', 'Genangan'], ['SIGN', 'Ada rambu'], ['FIXED', 'Sudah diperbaiki']];
+
+function matchesFilter(r: DamageReport, f: MapFilter, c?: { hazard?: unknown | null }): boolean {
+  switch (f) {
+    case 'POTHOLE': return r.damageType === 'POTHOLE';
+    case 'CRACK': return /CRACK/.test(r.damageType);
+    case 'WATER': return !!r.cvAssessment?.hazards?.includes('GENANGAN');
+    case 'SIGN': return !!c?.hazard;
+    case 'FIXED': return r.status === 'REPAIRED' || r.status === 'CLOSED';
+    default: return true;
+  }
+}
+
+/** Story-ring colour: green repaired, orange in progress, red severe and open, yellow otherwise. */
+function ringFor(r: DamageReport): string {
+  if (r.status === 'REPAIRED' || r.status === 'CLOSED') return '#2BD67B';
+  if (r.status === 'SCHEDULED_FOR_REPAIR' || r.status === 'VERIFIED_BY_ENGINEER') return 'linear-gradient(135deg,#FF6B2C,#FFD60A)';
+  if (r.severity === 'SEVERE' || r.severity === 'CRITICAL') return '#FF4D5E';
+  return '#FFD60A';
+}
+
 export const MapPage: React.FC = () => {
   const app = useAppState();
   const { currentAccount, activeRole } = useSession();
@@ -28,8 +55,19 @@ export const MapPage: React.FC = () => {
   const [reviews, setReviews] = useState<Record<string, ReportReview[]>>({});
   const [userLocation, setUserLocation] = useState<{ coordinates: [number, number]; accuracyM: number } | null>(() => lastDeviceFix());
   const [locating, setLocating] = useState(false);
-  const [filter, setFilter] = useState<'ALL' | 'CRITICAL' | 'MODERATE' | 'MINOR'>('ALL');
+  const [filter, setFilter] = useState<MapFilter>('ALL');
+  const [target, setTarget] = useState<{ coords: [number, number]; zoom?: number; timestamp: number } | null>(null);
+  const caseOf = (id: string) => app.workflow.views[id]?.case as (ReportCase & PublicReportView) | undefined;
+  const shown = useMemo(() => app.communityReports.filter((r) => matchesFilter(r, filter, caseOf(r.id))), [app.communityReports, filter, app.workflow.views]);
+  const signedReportIds = useMemo(() => new Set(Object.values(app.workflow.views).filter((v) => (v.case as { hazard?: unknown }).hazard).map((v) => v.case.id)), [app.workflow.views]);
   const openCount = app.communityReports.filter((r) => r.status !== 'REPAIRED' && r.status !== 'CLOSED').length;
+  const nearby = useMemo(() => {
+    const here = userLocation?.coordinates;
+    return [...app.communityReports]
+      .map((r) => ({ r, d: here ? distanceMeters(here, r.coordinates) : null }))
+      .sort((a, b) => (a.d ?? 0) - (b.d ?? 0))
+      .slice(0, 14);
+  }, [app.communityReports, userLocation]);
   const locate = () => {
     setLocating(true);
     void requestDeviceLocation().then((fix) => {
@@ -57,7 +95,8 @@ export const MapPage: React.FC = () => {
           navigateTo('roadDetail', { roadId: segment.id });
         }}
         activeRole={activeRole}
-        communityReports={app.communityReports}
+        communityReports={shown}
+        signedReportIds={signedReportIds}
         onUpvoteReport={app.upvoteCommunityReport}
         currentAccount={currentAccount}
         onSelectReport={openReport}
@@ -73,13 +112,13 @@ export const MapPage: React.FC = () => {
         baseMapStyle="DARK"
         theme="dark"
         showDensity
-        activeFilter={filter}
+        mapCenterTarget={target}
       />
       {/* Snap-Map-style overlays: avatar, place title, filter chips */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-30 bg-gradient-to-b from-[#000000]/70 to-transparent px-4 pb-10 pt-[max(14px,env(safe-area-inset-top))]">
         <div className="flex items-start justify-between">
-          <button type="button" onClick={() => navigateTo('profile')} className="pointer-events-auto flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#FFE14D] text-lg font-extrabold text-[#000000] ring-4 ring-[#000000]/30">
-            {currentAccount.name.slice(0, 1).toUpperCase()}
+          <button type="button" onClick={() => navigateTo('profile')} aria-label="Profil" className="pointer-events-auto flex h-14 w-14 cursor-pointer items-end justify-center overflow-hidden rounded-full bg-[#1E2229] ring-2 ring-[#FFD60A]/70">
+            <Pavi size={40} helmet={readPaviHelmet()} />
           </button>
           <div className="text-right">
             <p className="text-[26px] font-extrabold leading-tight text-[#FFFFFF] drop-shadow">Sekitar Anda</p>
@@ -87,23 +126,39 @@ export const MapPage: React.FC = () => {
           </div>
         </div>
         <div className="pointer-events-auto mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
-          {([['ALL', 'Semua'], ['CRITICAL', 'Kritis'], ['MODERATE', 'Sedang'], ['MINOR', 'Ringan']] as const).map(([key, label]) => (
+          {FILTERS.map(([key, label]) => (
             <button
               key={key}
               type="button"
               onClick={() => setFilter(key)}
-              className={`shrink-0 cursor-pointer rounded-full px-4 py-2.5 text-sm font-bold backdrop-blur ${filter === key ? 'bg-[#FFFFFF] text-[#000000]' : 'bg-[#1C1C1E]/85 text-[#FFFFFF]'}`}
+              className={`shrink-0 cursor-pointer rounded-full px-4 py-2.5 text-sm font-bold backdrop-blur ${filter === key ? 'bg-[#FFFFFF] text-[#000000]' : 'bg-[#15181D]/85 text-[#FFFFFF]'}`}
             >
               {label}
             </button>
           ))}
         </div>
       </div>
+      {nearby.length > 0 && !live && !cluster && (
+        <div className="absolute inset-x-0 bottom-[104px] z-30">
+          <p className="mb-1.5 px-4 text-xs font-extrabold uppercase tracking-wider text-[#FFFFFF]/70 drop-shadow">Sekitar Anda</p>
+          <div className="flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+            {nearby.map(({ r, d }) => (
+              <button key={r.id} type="button" onClick={() => { setTarget({ coords: r.coordinates, zoom: 17, timestamp: Date.now() }); openReport(r); }}
+                className="pp-rise flex w-[68px] shrink-0 cursor-pointer flex-col items-center gap-1">
+                <span className="rounded-full p-[3px]" style={{ background: ringFor(r) }}>
+                  <img src={r.photoUrl} alt="" className="h-[58px] w-[58px] rounded-full border-2 border-[#0B0D10] object-cover" loading="lazy" />
+                </span>
+                <span className="w-full truncate text-center text-[11px] font-bold text-[#FFFFFF] drop-shadow">{d === null ? r.damageTypeLabel : d < 1000 ? `${Math.round(d)} m` : `${(d / 1000).toFixed(1)} km`}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <button
         type="button"
         onClick={locate}
         aria-label="Ke lokasi saya"
-        className="absolute bottom-28 right-4 z-30 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#1C1C1E] text-[#FFFFFF] shadow-[0_10px_30px_-10px_rgba(14,27,44,0.4)] transition hover:scale-105"
+        className="absolute bottom-[214px] right-4 z-30 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-[#15181D] text-[#FFFFFF] shadow-[0_10px_30px_-10px_rgba(14,27,44,0.4)] transition hover:scale-105"
       >
         {locating ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Glyph name="pin" />}
       </button>

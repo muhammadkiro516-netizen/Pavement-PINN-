@@ -25,6 +25,7 @@ import {
   History
 } from 'lucide-react';
 import { loadDraft, saveDraft } from '../work-orders/inspectionDraft';
+import { apiUrl } from '../../services/api/client';
 import type { WorkflowAction, WorkflowState, ReportCase } from '../../domain/workflow/model';
 import type { PublicReportView } from '../../domain/workflow/projections';
 import type { WorkflowCommand } from '../../domain/workflow/stateMachine';
@@ -207,6 +208,25 @@ const ActionForm: React.FC<{
   const [urgency, setUrgency] = useState<'ROUTINE' | 'PRIORITY' | 'URGENT'>('PRIORITY');
   const [rationale, setRationale] = useState('');
   const [contractorNote, setContractorNote] = useState('');
+  // SPK (surat perintah kerja) details for START_WORK: who does the work, for how much, until when.
+  const [contractor, setContractor] = useState('');
+  const [contractValue, setContractValue] = useState('');
+  const [targetDate, setTargetDate] = useState(inDays(14));
+  const [supervisor, setSupervisor] = useState('');
+  // Disposisi: agencies come from the server registry, never typed in.
+  const [agencies, setAgencies] = useState<Array<{ id: string; name: string; level: string; parent: string }>>([]);
+  const [agencyId, setAgencyId] = useState('');
+  useEffect(() => {
+    if (action !== 'TRANSFER_AUTHORITY') return;
+    fetch(apiUrl('/api/agencies'), { credentials: 'same-origin' })
+      .then((r) => r.json())
+      .then((j) => {
+        const items = (j?.items ?? []).filter((a: { id: string }) => a.id !== caseData.authority?.agencyId);
+        setAgencies(items);
+        setAgencyId(items[0]?.id ?? '');
+      })
+      .catch(() => undefined);
+  }, [action, caseData.authority?.agencyId]);
 
   const num = (v: string) => (v.trim() === '' ? null : Number(v));
 
@@ -229,7 +249,21 @@ const ActionForm: React.FC<{
       case 'RECOMMEND_ACTION':
         return onSubmit({ action, treatment, urgency, rationale, assessmentId: null });
       case 'START_WORK':
-        return onSubmit({ action, reason, contractorNote });
+        return onSubmit({
+          action,
+          reason,
+          contractorNote,
+          contractor,
+          contractValueIdr: contractValue.trim() === '' ? null : Number(contractValue.replace(/\D/g, '')),
+          targetDate: targetDate ? new Date(`${targetDate}T17:00:00`).toISOString() : null,
+          supervisor
+        });
+      case 'TRANSFER_AUTHORITY':
+        // Name and level are filled from the registry by the server.
+        return onSubmit({ action, reason, agencyId, agencyName: '', level: 'KABUPATEN' });
+      case 'MARK_HAZARD':
+        if (!evidence) return setEvidenceError('Foto rambu di lokasi wajib dilampirkan.');
+        return onSubmit({ action, reason, photoUrl: evidence, note: notes } as WorkflowCommand);
       default:
         return onSubmit({ action, reason } as WorkflowCommand);
     }
@@ -341,9 +375,57 @@ const ActionForm: React.FC<{
       )}
 
       {action === 'START_WORK' && (
-        <Field skin={skin} label="Catatan pelaksana" htmlFor={id('con')} hint="Perintah kerja internal sistem — bukan dokumen SPK resmi.">
-          <input id={id('con')} className={inputClass} value={contractorNote} onChange={(e) => setContractorNote(e.target.value)} placeholder="Mis. tim swakelola BBPJN" />
-        </Field>
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <Field skin={skin} label="Pelaksana" htmlFor={id('ctr')}>
+              <input id={id('ctr')} className={inputClass} value={contractor} onChange={(e) => setContractor(e.target.value)} required placeholder="Mis. Swakelola UPT / CV Jaya Aspal" />
+            </Field>
+            <Field skin={skin} label="Pengawas" htmlFor={id('sup')}>
+              <input id={id('sup')} className={inputClass} value={supervisor} onChange={(e) => setSupervisor(e.target.value)} placeholder="Nama pengawas lapangan" />
+            </Field>
+            <Field skin={skin} label="Nilai pekerjaan (Rp)" htmlFor={id('val')}>
+              <input id={id('val')} inputMode="numeric" className={inputClass} value={contractValue} onChange={(e) => setContractValue(e.target.value)} placeholder="Kosongkan jika swakelola" />
+            </Field>
+            <Field skin={skin} label="Target selesai" htmlFor={id('tgt')}>
+              <input id={id('tgt')} type="date" className={inputClass} value={targetDate} min={inDays(0)} onChange={(e) => setTargetDate(e.target.value)} />
+            </Field>
+          </div>
+          <Field skin={skin} label="Catatan pelaksana" htmlFor={id('con')} hint="Perintah kerja internal sistem — nomor SPK resmi tetap dari instansi.">
+            <input id={id('con')} className={inputClass} value={contractorNote} onChange={(e) => setContractorNote(e.target.value)} placeholder="Mis. nomor SPK, volume, metode" />
+          </Field>
+        </>
+      )}
+
+      {action === 'TRANSFER_AUTHORITY' && (
+        <>
+          <p className={`text-[11px] ${skin.muted}`}>
+            Saat ini: <b className="text-white">{caseData.authority?.name ?? 'belum ditentukan'}</b>
+            {caseData.authority?.basis ? ` — ${caseData.authority.basis}` : ''}
+          </p>
+          <Field skin={skin} label="Alihkan ke instansi" htmlFor={id('agency')}>
+            <select id={id('agency')} className={inputClass} value={agencyId} onChange={(e) => setAgencyId(e.target.value)} required>
+              {agencies.map((a) => (
+                <option key={a.id} value={a.id} className="bg-slate-900 text-white">
+                  {a.name} · {a.level}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </>
+      )}
+
+      {action === 'MARK_HAZARD' && (
+        <>
+          <p className={`text-[11px] ${skin.muted}`}>UU 22/2009 Ps. 24 ayat 2: selama belum diperbaiki, kerusakan wajib diberi tanda atau rambu. Rambu tampil di peta publik.</p>
+          <Field skin={skin} label="Foto rambu terpasang" htmlFor={id('hz')}>
+            <input id={id('hz')} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className={inputClass} onChange={(e) => pickEvidence(e.target.files?.[0])} />
+          </Field>
+          {evidenceError && <p role="alert" className="text-xs text-red-300">{evidenceError}</p>}
+          {evidence && <img src={evidence} alt="Pratinjau foto rambu" className="w-28 h-20 object-cover rounded-lg border border-line" />}
+          <Field skin={skin} label="Jenis rambu / catatan" htmlFor={id('hzn')}>
+            <input id={id('hzn')} className={inputClass} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Mis. kerucut + garis polisi 10 m" />
+          </Field>
+        </>
       )}
 
       {needsReason && (

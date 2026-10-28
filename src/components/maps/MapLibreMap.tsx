@@ -7,6 +7,8 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { AlertTriangle } from 'lucide-react';
 import { LeafletMap, type LeafletMapProps, createActivePinMarkerHtml } from './LeafletMap';
 import { prefersReducedMotion } from '../ui/motion';
+import { paviMarkerHtml } from '../brand/Pavi';
+import { readPaviHelmet } from '../brand/paviPrefs';
 import type { DamageReport, RoadSegment } from '../../types';
 import {
   LocationSelection,
@@ -136,6 +138,7 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
     recenterKey = 0,
     highlightReportId = null,
     mapCenterTarget = null,
+    signedReportIds,
     userLocation = null,
     bottomInsetPx = 0,
     activePinCoordinates = null,
@@ -195,7 +198,8 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
     highlightReportId,
     bottomInsetPx,
     activePinCoordinates,
-    onActivePinChange
+    onActivePinChange,
+    signedReportIds
   });
   latest.current = {
     roadSegments,
@@ -212,7 +216,8 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
     highlightReportId,
     bottomInsetPx,
     activePinCoordinates,
-    onActivePinChange
+    onActivePinChange,
+    signedReportIds
   };
 
   const applyCandidate = (index: number) => {
@@ -502,12 +507,15 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
         const report = cluster.items[0];
         const color = report.status === 'REPAIRED' ? '#57ae78' : SEVERITY_COLOR[report.severity];
         const isHighlighted = report.id === effectiveHighlightId;
-        const badgeCount =
-          report.severity === 'CRITICAL'
-            ? 12
-            : report.severity === 'SEVERE' || report.severity === 'MODERATE'
-            ? 5
-            : 2;
+        // The badge says something true about the report: repaired, warning sign on site, or water.
+        const badge =
+          report.status === 'REPAIRED'
+            ? { bg: '#2BD67B', fg: '#0B0D10', text: '&#10003;', title: 'Sudah diperbaiki' }
+            : latest.current.signedReportIds?.has(report.id)
+            ? { bg: '#FF6B2C', fg: '#0B0D10', text: '!', title: 'Rambu sementara terpasang' }
+            : report.cvAssessment?.hazards?.includes('GENANGAN')
+            ? { bg: '#38BDF8', fg: '#0B0D10', text: '~', title: 'Genangan' }
+            : null;
 
         element.className = 'clean-damage-pin-marker report-marker';
         element.dataset.reportId = report.id;
@@ -525,9 +533,7 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
           <div style="position:relative;display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.3));transform-origin:50% 100%;${isHighlighted ? 'transform:scale(1.15);' : ''}">
             <div style="position:relative;width:40px;height:40px;border-radius:50%;background:#ffffff;border:3px solid ${isHighlighted ? '#f59e0b' : color};box-shadow:${markerShadow};display:flex;align-items:center;justify-content:center;">
               <img src="${report.photoUrl}" alt="${report.damageTypeLabel}" decoding="async" onerror="this.onerror=null;this.src='${NO_PHOTO_URL}'" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" />
-              <div style="position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 3px;border-radius:999px;background-color:${color};color:${color === '#e8b23a' ? '#0f172a' : '#ffffff'};font-size:9.5px;font-weight:900;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;border:2px solid #ffffff;box-shadow:0 2px 4px rgba(0,0,0,0.3);z-index:10;line-height:1;">
-                ${badgeCount}
-              </div>
+              ${badge ? `<div title="${badge.title}" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:999px;background-color:${badge.bg};color:${badge.fg};font-size:11px;font-weight:900;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;border:2px solid #0B0D10;box-shadow:0 2px 4px rgba(0,0,0,0.3);z-index:10;line-height:1;">${badge.text}</div>` : ''}
             </div>
             <div style="width:0;height:0;border-left:5.5px solid transparent;border-right:5.5px solid transparent;border-top:7px solid ${isHighlighted ? '#f59e0b' : color};margin-top:-1px;"></div>
           </div>
@@ -1161,7 +1167,7 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
   useEffect(() => {
     syncLayers();
     renderMarkers();
-  }, [roadSegments, communityReports, activeFilter, showDensity, selectedSegment, highlightReportId, localHighlightId, language]);
+  }, [roadSegments, communityReports, activeFilter, showDensity, selectedSegment, highlightReportId, localHighlightId, language, signedReportIds]);
 
   // Basemap choice
   useEffect(() => {
@@ -1238,12 +1244,12 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
     };
     const flyToUser = (map: maplibregl.Map) => {
     cancelIntroAnimation('user_location');
+    // Pavi, the mascot, stands where the user is (Snap-Map style); helmet colour is the user's choice.
     const element = document.createElement('div');
     element.className = 'user-location-marker';
-    element.style.cssText =
-      'width:18px;height:18px;border-radius:50%;background:#1463FF;border:3px solid #ffffff;';
-    element.classList.add('pp-pulse');
-    userMarkerRef.current = new maplibregl.Marker({ element, anchor: 'center' })
+    element.title = 'Lokasi Anda';
+    element.innerHTML = paviMarkerHtml(readPaviHelmet());
+    userMarkerRef.current = new maplibregl.Marker({ element, anchor: 'bottom' })
       .setLngLat(toLngLat(userLocation.coordinates))
       .addTo(map);
     // Smooth arc from wherever the camera is to the visitor's street.

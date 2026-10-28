@@ -1,0 +1,16 @@
+{
+  "name": "PavementPINN — Lapor jalan rusak",
+  "short_name": "PavementPINN",
+  "description": "Potret jalan rusak. AI dan petugas mengawal sampai diperbaiki.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B0D10",
+  "theme_color": "#0B0D10",
+  "lang": "id",
+  "icons": [
+    { "src": "logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "logo-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

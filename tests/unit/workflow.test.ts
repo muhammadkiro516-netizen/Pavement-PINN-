@@ -191,7 +191,8 @@ test('wrong role, wrong assignee and self-approval are forbidden', async () => {
   const otherEngineer = await service.transition(c.id, { action: 'SUBMIT_INSPECTION', verdict: 'CONFIRMED', cvReview: { accepted: true, correctedClass: null }, measuredDepthCm: 5, measuredAreaM2: 1, severity: 'MODERATE', notes: 'x' }, ENG_OTHER, c.version);
   assert.equal(codeOf(otherEngineer), 'FORBIDDEN');
   assert.deepEqual(availableActions(c, ENG_OTHER), []);
-  assert.deepEqual(availableActions(c, ENG), ['SUBMIT_INSPECTION']);
+  // the assigned engineer on site may also record a temporary warning sign (UU 22/2009 Ps. 24)
+  assert.deepEqual(availableActions(c, ENG), ['SUBMIT_INSPECTION', 'MARK_HAZARD']);
 });
 
 test('the recommending engineer cannot approve; an operations manager must', async () => {

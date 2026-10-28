@@ -59,6 +59,10 @@ export interface PublicReportView {
   segmentId: string;
   report: DamageReport;
   timeline: PublicTimelineEntry[];
+  /** Which agency is responsible, and how sure the routing is (shown, never hidden). */
+  authority: { name: string; level: string; confidence: string } | null;
+  /** A temporary warning sign is on site (UU 22/2009 Ps. 24 ayat 2). */
+  hazard: { at: string; note: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -106,6 +110,8 @@ export function toPublicView(c: ReportCase): PublicReportView {
     // Citizens see the repair photo only after M.O verified it.
     report: ((r) => (r.repairDetails && r.repairDetails.verified === false ? { ...r, repairDetails: undefined } : r))(reportForDisplay(c)),
     timeline: c.history.map((h) => ({ at: h.at, state: h.to, note: h.publicNote })),
+    authority: c.authority ? { name: c.authority.name, level: c.authority.level, confidence: c.authority.confidence } : null,
+    hazard: c.hazard ? { at: c.hazard.at, note: c.hazard.note } : null,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt
   };

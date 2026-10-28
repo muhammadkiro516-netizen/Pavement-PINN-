@@ -14,6 +14,7 @@ import { ServerVersionBanner } from '../components/ui/ServerVersionBanner';
 import { canOpenRoute, homeRouteFor, landingRouteAfterLogin, loginPathFor, resolveRouteAccess } from './guards/routeAccess';
 import { CameraLauncherContext } from './cameraLauncher';
 import { LogoMark } from '../components/ui/brand';
+import { Pavi } from '../components/brand/Pavi';
 import { ReportRoadIssueCard } from '../features/community-reports/ReportRoadIssueCard';
 import { readDeviceCredential, signInCitizenDevice } from '../features/authentication/deviceAccount';
 import { accountFromProfile } from './providers/SessionProvider';
@@ -131,32 +132,66 @@ function AppShell() {
   );
 }
 
-/** Opening animation (about 2 s) shown each time the site is opened. */
+/**
+ * Opening animation: lane markings draw in with perspective, Pavi walks up the lane and scans
+ * once, the logo settles, then the app crossfades in. Full (~2.2 s) on the first open of a
+ * session, logo-only (~0.6 s) afterwards; a tap skips it; reduced motion shows the logo only.
+ */
 function Splash() {
   const [phase, setPhase] = useState<'in' | 'out' | 'gone'>('in');
+  const short = useMemo(() => {
+    try {
+      const seen = sessionStorage.getItem('pp-splash') === '1';
+      sessionStorage.setItem('pp-splash', '1');
+      return seen || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch {
+      return false;
+    }
+  }, []);
   useEffect(() => {
-    const a = window.setTimeout(() => setPhase('out'), 1700);
-    const b = window.setTimeout(() => setPhase('gone'), 2100);
+    const a = window.setTimeout(() => setPhase('out'), short ? 450 : 2050);
+    const b = window.setTimeout(() => setPhase('gone'), short ? 800 : 2450);
     return () => {
       window.clearTimeout(a);
       window.clearTimeout(b);
     };
-  }, []);
+  }, [short]);
   if (phase === 'gone') return null;
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-br from-[#0E1B2C] via-[#1463FF] to-[#FF7A1A] transition-opacity duration-400 ${phase === 'out' ? 'opacity-0' : 'opacity-100'}`}
+      onClick={() => setPhase('gone')}
+      className={`fixed inset-0 z-[9999] overflow-hidden bg-[#0B0D10] transition-opacity duration-400 ${phase === 'out' ? 'opacity-0' : 'opacity-100'}`}
       aria-hidden="true"
     >
-      <div className="pp-pop">
-        <LogoMark size={104} />
-      </div>
-      <p className="pp-rise mt-5 text-3xl font-extrabold tracking-tight text-[#FFFFFF]" style={{ animationDelay: '250ms' }}>
-        Pavement<span className="text-[#FFE14D]">PINN</span>
-      </p>
-      <p className="pp-rise mt-2 text-sm font-semibold text-[#FFFFFF]/80" style={{ animationDelay: '450ms' }}>Potret jalan rusak. Kami kawal sampai beres.</p>
-      <div className="mt-8 h-1 w-40 overflow-hidden rounded-full bg-[#1C1C1E]/25">
-        <div className="h-full rounded-full bg-[#1C1C1E]" style={{ animation: 'pp-load 1.7s ease-out forwards' }} />
+      {!short && (
+        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 400 800" preserveAspectRatio="xMidYMax slice">
+          <defs>
+            <linearGradient id="sp-road" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#15181D" stopOpacity="0" />
+              <stop offset="1" stopColor="#15181D" />
+            </linearGradient>
+          </defs>
+          <path d="M190 260 L210 260 L380 800 L20 800 Z" fill="url(#sp-road)" />
+          <path d="M200 270 L200 800" stroke="#FFD60A" strokeWidth="8" strokeDasharray="38 30" className="sp-lane" />
+          <path d="M193 262 L40 800" stroke="#FFFFFF" strokeOpacity="0.5" strokeWidth="3" className="sp-edge" />
+          <path d="M207 262 L360 800" stroke="#FFFFFF" strokeOpacity="0.5" strokeWidth="3" className="sp-edge" />
+        </svg>
+      )}
+      {!short && (
+        <div className="sp-pavi absolute left-1/2 -translate-x-1/2">
+          <Pavi size={92} mood="scan" />
+        </div>
+      )}
+      <div className={`absolute inset-x-0 ${short ? 'top-1/2 -translate-y-1/2' : 'top-[18%]'} flex flex-col items-center`}>
+        <div className="pp-pop" style={{ animationDelay: short ? '0ms' : '900ms' }}>
+          <LogoMark size={short ? 96 : 84} />
+        </div>
+        <p className="pp-rise mt-4 text-[30px] font-extrabold tracking-tight text-[#FFFFFF]" style={{ animationDelay: short ? '80ms' : '1100ms' }}>
+          Pavement<span className="text-[#FFD60A]">PINN</span>
+        </p>
+        <p className="pp-rise mt-1 text-sm font-semibold text-[#FFFFFF]/60" style={{ animationDelay: short ? '120ms' : '1250ms' }}>
+          Potret jalan rusak. Kami kawal sampai beres.
+        </p>
       </div>
     </div>
   );
@@ -169,7 +204,7 @@ export default function App() {
         <AppStateProvider>
           <GlobalModalsProvider>
             <AppErrorBoundary>
-              <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#000000]">
+              <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#0B0D10]">
                 <ServerVersionBanner />
                 <div className="relative min-h-0 flex-1 overflow-hidden">
                   <AppShell />

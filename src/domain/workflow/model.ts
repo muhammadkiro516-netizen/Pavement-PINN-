@@ -43,6 +43,7 @@ export const SYSTEM_ACTOR: Actor = { id: 'system:screening', role: 'SYSTEM', kin
 
 /** Data status labels (spec §28 + execution brief §P). */
 export type DataStatus =
+  | 'PUBLIC_ARCHIVE'
   | 'OBSERVED'
   | 'USER_GENERATED'
   | 'PUBLIC'
@@ -140,12 +141,29 @@ export interface WorkSubmission {
   decidedAt?: string;
   reason?: string;
 }
+/** CV run on the repair photo. `ran: false` says why, so a missing check is never read as "clean". */
+export interface RepairCheck {
+  ran: boolean;
+  at: string;
+  reason: string | null;
+  indexBefore: number | null;
+  indexAfter: number | null;
+  damageStillDetected: boolean | null;
+  detections: number;
+  isRoad: boolean | null;
+  modelId: string | null;
+}
+
 export interface WorkOrder {
   id: string;
   issuedBy: string;
   issuedAt: string;
   status: WorkOrderStatus;
   contractorNote: string;
+  contractor?: string | null;
+  contractValueIdr?: number | null;
+  targetDate?: string | null;
+  supervisor?: string | null;
   completedAt: string | null;
   /** Repair evidence from the assigned F.E (latest submission); verified by M.O via RESOLVE. */
   completionPhotoUrl?: string | null;
@@ -153,6 +171,8 @@ export interface WorkOrder {
   completedBy?: string | null;
   /** Every evidence submission, kept when M.O asks for rework (never overwritten). */
   submissions?: WorkSubmission[];
+  /** AI second opinion on the latest repair photo (server-computed; advisory only). */
+  repairCheck?: RepairCheck | null;
   /** This is an internal demo work order, not an official government SPK document. */
   isOfficialDocument: false;
 }
@@ -193,6 +213,35 @@ export interface ReportCase {
   inspectionReviews?: InspectionReviewRecord[];
   workOrder: WorkOrder | null;
   history: TransitionRecord[];
+  /** Agency responsible for the road (resolved on submit; Koordinator can transfer). */
+  authority?: CaseAuthority | null;
+  authorityHistory?: AuthorityChange[];
+  /** Temporary warning sign placed at the damage (UU 22/2009 Ps. 24 ayat 2). */
+  hazard?: HazardSign | null;
+}
+
+export interface CaseAuthority {
+  agencyId: string;
+  level: 'NASIONAL' | 'TOL' | 'PROVINSI' | 'KOTA' | 'KABUPATEN';
+  name: string;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  basis: string;
+  area?: { province: string | null; city: string | null; road: string | null; highway: string | null; ref: string | null };
+}
+
+export interface AuthorityChange {
+  at: string;
+  by: string;
+  from: string | null;
+  to: string;
+  reason: string;
+}
+
+export interface HazardSign {
+  at: string;
+  by: string;
+  photoUrl: string;
+  note: string;
 }
 
 export const WORKFLOW_ACTIONS = [
@@ -215,6 +264,8 @@ export const WORKFLOW_ACTIONS = [
   'REQUEST_REWORK',
   'RESOLVE',
   'CLOSE_RESOLVED',
+  'TRANSFER_AUTHORITY',
+  'MARK_HAZARD',
   /** Bundled demo report imported into the store with its existing state; never user-triggered. */
   'SEED_IMPORT'
 ] as const;

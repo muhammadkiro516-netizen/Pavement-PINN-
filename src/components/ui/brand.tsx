@@ -19,26 +19,27 @@ export const COLORS = {
   danger: '#E5484D'
 } as const;
 
-/** The mark: a road narrowing to the horizon, with an orange scan dot on the damage. */
+/** The mark (v2): a lane-marking stroke that bends into a "P", with the orange scan dot where
+ *  the AI finds the damage. Night-asphalt tile, lane-yellow stroke. */
 export const LogoMark: React.FC<{ size?: number; className?: string }> = ({ size = 40, className }) => (
   <svg width={size} height={size} viewBox="0 0 64 64" className={className} aria-hidden="true">
     <defs>
-      <linearGradient id="pp-sky" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stopColor="#3B82FF" />
-        <stop offset="1" stopColor="#1463FF" />
+      <linearGradient id="pp-asphalt" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stopColor="#1E2229" />
+        <stop offset="1" stopColor="#0B0D10" />
       </linearGradient>
     </defs>
-    <rect width="64" height="64" rx="18" fill="url(#pp-sky)" />
-    <path d="M27 14 L37 14 L50 52 L14 52 Z" fill="#0E1B2C" opacity="0.9" />
-    <path d="M32 18 L32 23 M32 28 L32 34 M32 40 L32 47" stroke="#FFFFFF" strokeWidth="2.6" strokeLinecap="round" />
-    <circle cx="40" cy="40" r="7.5" fill="none" stroke="#FF7A1A" strokeWidth="2.6" />
-    <circle cx="40" cy="40" r="2.6" fill="#FF7A1A" />
+    <rect width="64" height="64" rx="18" fill="url(#pp-asphalt)" />
+    <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="17.25" fill="none" stroke="#FFFFFF" strokeOpacity="0.08" />
+    <path d="M22 50 V16 h12 a10 10 0 0 1 0 20 H22" fill="none" stroke="#FFD60A" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="9 5" />
+    <circle cx="44" cy="46" r="6.5" fill="none" stroke="#FF6B2C" strokeWidth="2.6" />
+    <circle cx="44" cy="46" r="2.4" fill="#FF6B2C" />
   </svg>
 );
 
 export const Wordmark: React.FC<{ light?: boolean }> = ({ light }) => (
   <span className={`text-[17px] font-extrabold tracking-tight text-[#FFFFFF]`}>
-    Pavement<span className="text-[#FFE14D]">PINN</span>
+    Pavement<span className="text-[#FFD60A]">PINN</span>
   </span>
 );
 

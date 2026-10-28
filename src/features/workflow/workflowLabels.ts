@@ -23,6 +23,8 @@ export const ACTION_LABEL: Record<WorkflowAction, string> = {
   REQUEST_REWORK: 'Minta perbaikan ulang ke F.E',
   RESOLVE: 'Setujui & verifikasi perbaikan',
   CLOSE_RESOLVED: 'Tutup laporan',
+  TRANSFER_AUTHORITY: 'Alihkan ke instansi lain (disposisi)',
+  MARK_HAZARD: 'Pasang rambu peringatan',
   SEED_IMPORT: 'Impor data contoh'
 };
 

@@ -36,24 +36,24 @@ const ScanScreen: React.FC = () => {
       {!found && <div className="pp-scanline" />}
       {found && hero && (
         <div
-          className="pp-box absolute rounded-2xl border-[3px] border-[#FF7A1A] bg-[#FF7A1A]/15"
+          className="pp-box absolute rounded-2xl border-[3px] border-[#FF6B2C] bg-[#FF6B2C]/15"
           style={{ left: `${hero.box[0] * 100}%`, top: `${hero.box[1] * 100}%`, width: `${(hero.box[2] - hero.box[0]) * 100}%`, height: `${(hero.box[3] - hero.box[1]) * 100}%` }}
         />
       )}
-      <div className="absolute inset-x-3 top-10 flex items-center justify-between rounded-2xl bg-[#1C1C1E]/90 px-3 py-2 text-[11px] font-extrabold text-[#FFFFFF] backdrop-blur">
+      <div className="absolute inset-x-3 top-10 flex items-center justify-between rounded-2xl bg-[#15181D]/90 px-3 py-2 text-[11px] font-extrabold text-[#FFFFFF] backdrop-blur">
         <span className="flex items-center gap-1.5">
-          <span className={`h-2 w-2 rounded-full ${found ? 'bg-[#12A150]' : 'pp-dot bg-[#FFE14D]'}`} />
+          <span className={`h-2 w-2 rounded-full ${found ? 'bg-[#12A150]' : 'pp-dot bg-[#FFD60A]'}`} />
           {found ? 'Lubang terdeteksi' : 'AI memeriksa…'}
         </span>
         <span className="text-[#8E8E93]">{found && hero ? `${Math.round(hero.confidence * 100)}% yakin` : 'OpenVINO'}</span>
       </div>
-      <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-[#FF7A1A] py-3 text-center text-sm font-extrabold text-[#FFFFFF]">Kirim laporan</div>
+      <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-[#FF6B2C] py-3 text-center text-sm font-extrabold text-[#FFFFFF]">Kirim laporan</div>
     </div>
   );
 };
 
 const FloatCard: React.FC<{ className: string; delay?: string; tone: string; title: string; text: string }> = ({ className, delay = '0s', tone, title, text }) => (
-  <div className={`pp-float absolute z-20 w-[210px] rounded-2xl border border-[#2C2C2E] bg-[#1C1C1E]/95 p-3 shadow-[0_18px_40px_-18px_rgba(14,27,44,0.45)] backdrop-blur ${className}`} style={{ animationDelay: delay }}>
+  <div className={`pp-float absolute z-20 w-[210px] rounded-2xl border border-[#2A2F37] bg-[#15181D]/95 p-3 shadow-[0_18px_40px_-18px_rgba(14,27,44,0.45)] backdrop-blur ${className}`} style={{ animationDelay: delay }}>
     <div className="flex items-center gap-2">
       <span className="h-2.5 w-2.5 rounded-full" style={{ background: tone }} />
       <p className="text-xs font-extrabold text-[#FFFFFF]">{title}</p>
@@ -64,14 +64,14 @@ const FloatCard: React.FC<{ className: string; delay?: string; tone: string; tit
 
 const HeroVisual: React.FC = () => (
   <div className="relative mx-auto h-[560px] w-full max-w-[460px]">
-    <div className="absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#1463FF]/25 to-[#FF7A1A]/20 blur-3xl" />
+    <div className="absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#1463FF]/25 to-[#FF6B2C]/20 blur-3xl" />
     <div className="absolute left-1/2 top-4 z-10 h-[520px] w-[260px] -translate-x-1/2 rounded-[44px] border-[10px] border-[#0E1B2C] bg-[#0E1B2C] shadow-[0_40px_80px_-30px_rgba(14,27,44,0.7)]">
       <div className="absolute left-1/2 top-2 z-30 h-5 w-24 -translate-x-1/2 rounded-full bg-[#0E1B2C]" />
       <div className="h-full w-full overflow-hidden rounded-[34px]">
         <ScanScreen />
       </div>
     </div>
-    <FloatCard className="-left-2 top-20 md:-left-10" tone="#FF7A1A" title="AI: Lubang" text={`Terdeteksi dengan keyakinan ${Math.round((hero?.confidence ?? 0) * 100)}%. Petugas akan memastikan.`} />
+    <FloatCard className="-left-2 top-20 md:-left-10" tone="#FF6B2C" title="AI: Lubang" text={`Terdeteksi dengan keyakinan ${Math.round((hero?.confidence ?? 0) * 100)}%. Petugas akan memastikan.`} />
     <FloatCard className="-right-2 top-[230px] md:-right-12" delay="1.2s" tone="#1463FF" title="PINN: cek struktur" text="Kerusakan sampai lapisan bawah? Tambal saja tidak cukup." />
     <FloatCard className="bottom-8 left-0 md:-left-6" delay="2.1s" tone="#12A150" title="Petugas menuju lokasi" text="Status langsung muncul di Laporanku." />
   </div>
@@ -103,12 +103,12 @@ const Flow: React.FC = () => (
       <defs>
         <linearGradient id="pp-flow" x1="0" x2="1">
           <stop offset="0" stopColor="#1463FF" />
-          <stop offset="1" stopColor="#FF7A1A" />
+          <stop offset="1" stopColor="#FF6B2C" />
         </linearGradient>
       </defs>
       <path d={FLOW_PATH} fill="none" stroke="#E3E8EF" strokeWidth="10" strokeLinecap="round" />
       <path d={FLOW_PATH} fill="none" stroke="url(#pp-flow)" strokeWidth="4" strokeLinecap="round" className="pp-dash" />
-      <circle r="9" fill="#FF7A1A">
+      <circle r="9" fill="#FF6B2C">
         <animateMotion dur="5s" repeatCount="indefinite" path={FLOW_PATH} />
       </circle>
       {FLOW.map((n, i) => (
@@ -132,7 +132,7 @@ const RoadSection: React.FC = () => {
         <svg viewBox="0 0 560 330" className="block w-full">
           <defs>
             <radialGradient id="pp-stress" cx="50%" cy="0%" r="100%">
-              <stop offset="0" stopColor="#FF7A1A" stopOpacity="1" />
+              <stop offset="0" stopColor="#FF6B2C" stopOpacity="1" />
               <stop offset="0.3" stopColor="#FF9A45" stopOpacity="0.85" />
               <stop offset="0.65" stopColor="#FFC88F" stopOpacity="0.45" />
               <stop offset="1" stopColor="#FFC88F" stopOpacity="0" />
@@ -146,7 +146,7 @@ const RoadSection: React.FC = () => {
             </pattern>
           </defs>
           {/* truck */}
-          <rect x={odol ? 150 : 175} y="18" width={odol ? 260 : 210} height="62" rx="10" fill={odol ? '#FF7A1A' : '#1463FF'} style={{ transition: 'all 0.6s' }} />
+          <rect x={odol ? 150 : 175} y="18" width={odol ? 260 : 210} height="62" rx="10" fill={odol ? '#FF6B2C' : '#1463FF'} style={{ transition: 'all 0.6s' }} />
           {odol && <rect x="160" y="0" width="240" height="22" rx="6" fill="#FFB067" />}
           <circle cx="230" cy="92" r="20" fill="#0B1220" stroke="#C9D3E0" strokeWidth="4" />
           <circle cx="330" cy="92" r="20" fill="#0B1220" stroke="#C9D3E0" strokeWidth="4" />
@@ -165,13 +165,13 @@ const RoadSection: React.FC = () => {
           <text x="14" y="192" fontSize="13" fontWeight="800" fill="#FFFFFF">Lapis pondasi</text>
           <text x="14" y="280" fontSize="13" fontWeight="800" fill="#FFFFFF">Tanah dasar</text>
         </svg>
-        <div className="mt-4 flex w-max rounded-full bg-[#1C1C1E]/10 p-1 text-xs font-extrabold">
-          <button type="button" onClick={() => setOdol(false)} className={`cursor-pointer rounded-full px-3 py-1.5 ${!odol ? 'bg-[#FFE14D] text-[#000000]' : 'text-[#FFFFFF]/70'}`}>Truk normal</button>
-          <button type="button" onClick={() => setOdol(true)} className={`cursor-pointer rounded-full px-3 py-1.5 ${odol ? 'bg-[#FF7A1A] text-[#FFFFFF]' : 'text-[#FFFFFF]/70'}`}>Truk ODOL</button>
+        <div className="mt-4 flex w-max rounded-full bg-[#15181D]/10 p-1 text-xs font-extrabold">
+          <button type="button" onClick={() => setOdol(false)} className={`cursor-pointer rounded-full px-3 py-1.5 ${!odol ? 'bg-[#FFD60A] text-[#000000]' : 'text-[#FFFFFF]/70'}`}>Truk normal</button>
+          <button type="button" onClick={() => setOdol(true)} className={`cursor-pointer rounded-full px-3 py-1.5 ${odol ? 'bg-[#FF6B2C] text-[#FFFFFF]' : 'text-[#FFFFFF]/70'}`}>Truk ODOL</button>
         </div>
       </div>
       <div>
-        <span className="text-sm font-extrabold uppercase tracking-wider text-[#FFE14D]">Mesin PINN</span>
+        <span className="text-sm font-extrabold uppercase tracking-wider text-[#FFD60A]">Mesin PINN</span>
         <h2 className="mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">Kami melihat sampai ke bawah aspal.</h2>
         <p className="mt-3 text-lg leading-relaxed text-[#A1A1AA]">
           Lubang hanyalah gejala. Mesin PINN menghitung tekanan dari roda kendaraan sampai ke tanah dasar, lalu memberi
@@ -191,42 +191,42 @@ const RoadSection: React.FC = () => {
 
 // ---------------------------------------------------------------------------------------
 const RadarCard: React.FC = () => (
-  <div className="relative h-44 overflow-hidden rounded-2xl bg-[#2C2C2E]">
+  <div className="relative h-44 overflow-hidden rounded-2xl bg-[#1E2229]">
     <svg viewBox="0 0 300 180" className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid slice">
       <path d="M-10 120 C 60 100, 120 150, 310 90" stroke="#FFFFFF" strokeWidth="14" fill="none" />
       <path d="M90 -10 C 110 60, 80 120, 130 190" stroke="#FFFFFF" strokeWidth="10" fill="none" />
       <path d="M200 -10 L 230 190" stroke="#FFFFFF" strokeWidth="8" fill="none" />
     </svg>
     {[0, 0.8, 1.6].map((d) => (
-      <span key={d} className="pp-radar absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#FFE14D]" style={{ animationDelay: `${d}s` }} />
+      <span key={d} className="pp-radar absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#FFD60A]" style={{ animationDelay: `${d}s` }} />
     ))}
-    <span className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-[#FFFFFF] bg-[#FFE14D]" />
-    <span className="absolute left-[22%] top-[30%] h-3 w-3 rounded-full bg-[#FF7A1A]" />
-    <span className="absolute left-[70%] top-[64%] h-3 w-3 rounded-full bg-[#FF7A1A]" />
+    <span className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-[#FFFFFF] bg-[#FFD60A]" />
+    <span className="absolute left-[22%] top-[30%] h-3 w-3 rounded-full bg-[#FF6B2C]" />
+    <span className="absolute left-[70%] top-[64%] h-3 w-3 rounded-full bg-[#FF6B2C]" />
   </div>
 );
 
 const Bento: React.FC = () => (
   <div className="grid gap-4 md:grid-cols-3">
-    <div className="pp-rise rounded-[28px] border border-[#2C2C2E] bg-[#1C1C1E] p-5 md:col-span-2">
+    <div className="pp-rise rounded-[28px] border border-[#2A2F37] bg-[#15181D] p-5 md:col-span-2">
       <RadarCard />
       <p className="mt-4 text-xl font-extrabold">Laporan hanya dari lokasi kerusakan</p>
       <p className="mt-1 text-[15px] text-[#A1A1AA]">Titik laporan diambil dari GPS HP saat itu juga. Foto yang diambil di tempat lain ditolak.</p>
     </div>
     <div className="pp-rise rounded-[28px] bg-gradient-to-br from-[#1463FF] to-[#3B82FF] p-5 text-[#FFFFFF]">
-      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1C1C1E]/15"><Glyph name="user" size={26} /></span>
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#15181D]/15"><Glyph name="user" size={26} /></span>
       <p className="mt-16 text-xl font-extrabold">Tanpa daftar</p>
       <p className="mt-1 text-[15px] text-[#FFFFFF]/80">Akun warga tersimpan di HP Anda. Buka lagi, laporan Anda masih ada.</p>
     </div>
     <div className="pp-rise rounded-[28px] bg-[#0E1B2C] p-5 text-[#FFFFFF]">
-      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1C1C1E]/10 text-[#FF7A1A]"><Glyph name="shield" size={26} /></span>
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#15181D]/10 text-[#FF6B2C]"><Glyph name="shield" size={26} /></span>
       <p className="mt-16 text-xl font-extrabold">Foto Anda aman</p>
       <p className="mt-1 text-[15px] text-[#FFFFFF]/70">Data tersembunyi di foto (lokasi kamera, jenis HP) dihapus sebelum disimpan.</p>
     </div>
-    <div className="pp-rise rounded-[28px] border border-[#2C2C2E] bg-[#1C1C1E] p-5 md:col-span-2">
+    <div className="pp-rise rounded-[28px] border border-[#2A2F37] bg-[#15181D] p-5 md:col-span-2">
       <div className="flex flex-wrap gap-2">
         {['Warga melapor', 'AI menyaring', 'Petugas memastikan', 'Koordinator memutuskan', 'Warga memantau'].map((t, i) => (
-          <span key={t} className={`rounded-full px-3 py-1.5 text-sm font-bold ${i % 2 ? 'bg-[#3A2414] text-[#D9600C]' : 'bg-[#2C2C2E] text-[#FFE14D]'}`}>{t}</span>
+          <span key={t} className={`rounded-full px-3 py-1.5 text-sm font-bold ${i % 2 ? 'bg-[#3A2414] text-[#D9600C]' : 'bg-[#1E2229] text-[#FFD60A]'}`}>{t}</span>
         ))}
       </div>
       <p className="mt-6 text-xl font-extrabold">AI mengusulkan, manusia memutuskan</p>
@@ -263,37 +263,37 @@ export const LandingPage: React.FC = () => {
       type="button"
       onClick={() => void start()}
       disabled={busy}
-      className={`inline-flex cursor-pointer items-center gap-2.5 rounded-full bg-[#FF7A1A] font-extrabold text-[#FFFFFF] shadow-[0_14px_30px_-12px_rgba(255,122,26,0.8)] transition hover:-translate-y-0.5 hover:bg-[#F06A0A] disabled:opacity-60 ${big ? 'h-16 px-8 text-lg' : 'h-14 px-7 text-base'}`}
+      className={`inline-flex cursor-pointer items-center gap-2.5 rounded-full bg-[#FF6B2C] font-extrabold text-[#FFFFFF] shadow-[0_14px_30px_-12px_rgba(255,122,26,0.8)] transition hover:-translate-y-0.5 hover:bg-[#F06A0A] disabled:opacity-60 ${big ? 'h-16 px-8 text-lg' : 'h-14 px-7 text-base'}`}
     >
       <Glyph name="camera" size={22} /> {busy ? 'Menyiapkan…' : 'Laporkan jalan rusak'}
     </button>
   );
 
   return (
-    <div className="min-h-full w-full overflow-x-hidden bg-[#000000] text-[#FFFFFF]">
+    <div className="min-h-full w-full overflow-x-hidden bg-[#0B0D10] text-[#FFFFFF]">
       <div className="relative">
         <div className="pp-grid-bg absolute inset-0 [mask-image:linear-gradient(180deg,black,transparent)]" />
-        <div className="pp-drift absolute -left-24 -top-24 h-96 w-96 rounded-full bg-[#FFE14D]/20 blur-3xl" />
-        <div className="pp-drift absolute -right-24 top-40 h-80 w-80 rounded-full bg-[#FF7A1A]/20 blur-3xl" style={{ animationDelay: '3s' }} />
+        <div className="pp-drift absolute -left-24 -top-24 h-96 w-96 rounded-full bg-[#FFD60A]/20 blur-3xl" />
+        <div className="pp-drift absolute -right-24 top-40 h-80 w-80 rounded-full bg-[#FF6B2C]/20 blur-3xl" style={{ animationDelay: '3s' }} />
 
         <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
           <div className="flex items-center gap-2.5">
             <LogoMark size={38} />
             <Wordmark />
           </div>
-          <button type="button" onClick={() => navigateTo('login')} className="cursor-pointer rounded-full border border-[#2C2C2E] bg-[#1C1C1E]/80 px-4 py-2 text-sm font-bold text-[#FFE14D] backdrop-blur hover:bg-[#1C1C1E]">
+          <button type="button" onClick={() => navigateTo('login')} className="cursor-pointer rounded-full border border-[#2A2F37] bg-[#15181D]/80 px-4 py-2 text-sm font-bold text-[#FFD60A] backdrop-blur hover:bg-[#15181D]">
             Masuk petugas
           </button>
         </header>
 
         <section className="relative z-10 mx-auto grid max-w-6xl items-center gap-6 px-5 pb-10 pt-4 md:grid-cols-[1.05fr_1fr] md:pt-10">
           <div className="pp-rise">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#5A3418] bg-[#1C1C1E] px-3 py-1.5 text-xs font-extrabold text-[#D9600C]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#FF7A1A]" /> 86.844 km jalan di Indonesia rusak berat (BPS)
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#5A3418] bg-[#15181D] px-3 py-1.5 text-xs font-extrabold text-[#D9600C]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#FF6B2C]" /> 86.844 km jalan di Indonesia rusak berat (BPS)
             </span>
             <h1 className="mt-5 text-[42px] font-extrabold leading-[1.02] tracking-tight md:text-[64px]">
               Lihat jalan rusak?{' '}
-              <span className="bg-gradient-to-r from-[#FFE14D] to-[#FF7A1A] bg-clip-text text-transparent">Potret saja.</span>
+              <span className="bg-gradient-to-r from-[#FFD60A] to-[#FF6B2C] bg-clip-text text-transparent">Potret saja.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-[#A1A1AA] md:text-xl">
               AI mengenali kerusakannya, petugas memastikannya di lokasi, dan Anda memantau prosesnya sampai jalan kembali
@@ -301,7 +301,7 @@ export const LandingPage: React.FC = () => {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <ReportButton />
-              <a href="#cara-kerja" className="inline-flex h-14 items-center gap-2 rounded-full px-5 text-base font-bold hover:bg-[#1C1C1E]">
+              <a href="#cara-kerja" className="inline-flex h-14 items-center gap-2 rounded-full px-5 text-base font-bold hover:bg-[#15181D]">
                 Cara kerjanya <Glyph name="arrow" size={18} />
               </a>
             </div>
@@ -312,8 +312,8 @@ export const LandingPage: React.FC = () => {
                 ['3 peran', 'warga, petugas, koordinator'],
                 ['Lokal', 'AI di server sendiri, bukan cloud']
               ].map(([v, l]) => (
-                <div key={l} className="rounded-2xl border border-[#2C2C2E] bg-[#1C1C1E]/80 p-3 backdrop-blur">
-                  <p className="text-xl font-extrabold text-[#FFE14D]">{v}</p>
+                <div key={l} className="rounded-2xl border border-[#2A2F37] bg-[#15181D]/80 p-3 backdrop-blur">
+                  <p className="text-xl font-extrabold text-[#FFD60A]">{v}</p>
                   <p className="text-xs leading-snug text-[#A1A1AA]">{l}</p>
                 </div>
               ))}
@@ -332,10 +332,10 @@ export const LandingPage: React.FC = () => {
 
       <section id="cara-kerja" className="mx-auto max-w-6xl px-5 pb-16">
         <div className="text-center">
-          <span className="text-sm font-extrabold uppercase tracking-wider text-[#FFE14D]">Cara kerja</span>
+          <span className="text-sm font-extrabold uppercase tracking-wider text-[#FFD60A]">Cara kerja</span>
           <h2 className="mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">Dari foto sampai jalan mulus.</h2>
         </div>
-        <div className="mt-8 rounded-[32px] border border-[#2C2C2E] bg-[#1C1C1E] p-6">
+        <div className="mt-8 rounded-[32px] border border-[#2A2F37] bg-[#15181D] p-6">
           <Flow />
         </div>
       </section>
@@ -350,19 +350,19 @@ export const LandingPage: React.FC = () => {
 
       <section className="mx-auto max-w-6xl px-5 pb-16">
         <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-br from-[#1463FF] via-[#2F6BFF] to-[#0E1B2C] px-6 py-14 text-center text-[#FFFFFF]">
-          <div className="pp-drift absolute -right-20 -top-20 h-72 w-72 rounded-full bg-[#FF7A1A]/40 blur-3xl" />
+          <div className="pp-drift absolute -right-20 -top-20 h-72 w-72 rounded-full bg-[#FF6B2C]/40 blur-3xl" />
           <h2 className="relative text-3xl font-extrabold tracking-tight md:text-5xl">Satu foto Anda bisa mencegah satu kecelakaan.</h2>
           <p className="relative mx-auto mt-3 max-w-xl text-lg text-[#FFFFFF]/80">Butuh kurang dari satu menit. Tidak perlu daftar.</p>
           <div className="relative mt-8 flex flex-wrap justify-center gap-3">
             <ReportButton big />
-            <button type="button" onClick={() => navigateTo('evidence')} className="inline-flex h-16 cursor-pointer items-center rounded-full border border-[#FFFFFF]/30 px-7 text-base font-bold text-[#FFFFFF] hover:bg-[#1C1C1E]/10">
+            <button type="button" onClick={() => navigateTo('evidence')} className="inline-flex h-16 cursor-pointer items-center rounded-full border border-[#FFFFFF]/30 px-7 text-base font-bold text-[#FFFFFF] hover:bg-[#15181D]/10">
               Lihat bukti kerja AI
             </button>
           </div>
         </div>
       </section>
 
-      <footer className="border-t border-[#2C2C2E] bg-[#1C1C1E] px-5 py-6 text-xs text-[#8E8E93]">
+      <footer className="border-t border-[#2A2F37] bg-[#15181D] px-5 py-6 text-xs text-[#8E8E93]">
         <div className="mx-auto max-w-6xl space-y-1">
           <div className="mb-3 flex items-center gap-2"><LogoMark size={24} /><Wordmark /></div>
           <p>Foto: Wikimedia Commons.</p>

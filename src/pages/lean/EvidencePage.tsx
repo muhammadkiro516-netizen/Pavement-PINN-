@@ -41,7 +41,7 @@ export const EvidencePage: React.FC = () => {
     <SnapPage
       title="Bukti & Transparansi"
       subtitle="Semua angka di halaman ini diukur, bukan diperkirakan."
-      action={<button type="button" onClick={() => history.length > 1 ? history.back() : navigateTo('login')} className="cursor-pointer rounded-full bg-[#2C2C2E] p-2.5" aria-label="Kembali"><span className="block rotate-180"><Glyph name="arrow" size={20} /></span></button>}
+      action={<button type="button" onClick={() => history.length > 1 ? history.back() : navigateTo('login')} className="cursor-pointer rounded-full bg-[#1E2229] p-2.5" aria-label="Kembali"><span className="block rotate-180"><Glyph name="arrow" size={20} /></span></button>}
     >
       <SnapCard>
         <p className="mb-2 font-extrabold">Status layanan AI saat ini</p>
@@ -54,7 +54,7 @@ export const EvidencePage: React.FC = () => {
         <SnapCard key={e.name}>
           <p className="font-extrabold">{e.name}</p>
           <p className="mt-1 text-sm text-[#D1D1D6]">{e.what}</p>
-          <p className="mt-1 text-sm text-[#FFE14D]">{e.why}</p>
+          <p className="mt-1 text-sm text-[#FFD60A]">{e.why}</p>
         </SnapCard>
       ))}
 
@@ -71,7 +71,7 @@ export const EvidencePage: React.FC = () => {
               </thead>
               <tbody>
                 {S.latency.map((r) => (
-                  <tr key={`${r.model}-${r.precision}-${r.device}`} className="border-t border-[#2C2C2E]">
+                  <tr key={`${r.model}-${r.precision}-${r.device}`} className="border-t border-[#2A2F37]">
                     <td className="py-1.5 pr-2">{r.model}</td><td className="pr-2">{r.precision}</td><td className="pr-2">{r.device}</td>
                     <td className="pr-2 text-right font-bold">{r.p50Ms.toFixed(1)}</td><td className="text-right">{r.fps.toFixed(0)}</td>
                   </tr>
