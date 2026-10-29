@@ -26,6 +26,8 @@ import { MATERIAL_CATALOGUE, materialById } from "../services/materials";
 import { reportCards } from "../../src/domain/workflow/reportCard";
 import { CONFIRM_MILESTONES_MONTHS, dueConfirmations, recurrence, repairLives, statsByMethod } from "../../src/domain/roads/recurrence";
 import type { WorkflowRuntime } from "../services/workflowRuntime";
+import { CvAnalysisStore } from "../services/cvAnalysisStore";
+import { createHash } from "node:crypto";
 import { actorFrom, clearSessionCookie, credentialFrom, sessionFrom, setSessionCookie } from "../auth/actor";
 import { verifyDemoLogin } from "../auth/demoLogin";
 import { AccountError, toProfile, type AccountProfile } from "../repositories/accountStore";
@@ -103,8 +105,29 @@ function parseVersion(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : null;
 }
 
+/** Model result for one inspection view, copied from the server's CV store; null if unverifiable. */
+async function viewAiFrom(store: WorkflowRuntime["cv"], analysisId: unknown, photoUrl: string) {
+  if (!CvAnalysisStore.isId(analysisId)) return null;
+  const record = await store.get(analysisId);
+  const m = /^data:image\/[a-z0-9.+-]+;base64,(.+)$/i.exec(photoUrl);
+  if (!record || !m || createHash("sha256").update(Buffer.from(m[1], "base64")).digest("hex") !== record.imageSha256) return null;
+  const a = record.analysis;
+  return {
+    analysisId: a.analysisId,
+    status: a.status,
+    primaryLabel: a.primary?.label ?? null,
+    primaryType: a.primary?.damageType ?? null,
+    confidence: a.primary?.confidence ?? null,
+    detections: a.detections.length,
+    severity: a.overallSeverity ?? "unknown",
+    surfaceIndex: typeof a.surfaceIndex === "number" ? a.surfaceIndex : null,
+    flooded: !!a.hazards?.includes("GENANGAN")
+  };
+}
+
 export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime): void {
   const { service, signer } = runtime;
+  const viewAi = (id: unknown, photo: string) => viewAiFrom(runtime.cv, id, photo);
   const writeLimit = rateLimit("workflow-write", 120, 60_000);
   // Spec Lampiran L / §20.2: 10 reports per hour per client.
   const submitLimit = rateLimit("report-submit", 10, 60 * 60_000);
@@ -343,6 +366,17 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
       // Same byte-level check as the citizen photo: real JPEG/PNG/WebP, at most 5 MB.
       const photo = checkPhotoReference(command.evidencePhotoUrl);
       if (photo.ok === false) return sendError(res, "VALIDATION", `Evidence photo: ${photo.message}`);
+    }
+    if (command.action === "SUBMIT_INSPECTION" && Array.isArray(command.views)) {
+      // Guided multi-angle views: each photo is checked; its AI result comes from this server's
+      // CV store and only when the stored analysis was made on exactly these bytes.
+      for (const v of command.views as Array<Record<string, unknown>>) {
+        const photo = checkPhotoReference(v.photoUrl);
+        if (photo.ok === false) return sendError(res, "VALIDATION", `Foto ${String(v.angle)}: ${photo.message}`);
+        v.ai = await viewAi(v.analysisId, v.photoUrl as string);
+        delete v.analysisId;
+        v.photoUrl = stripPhotoMetadata(v.photoUrl as string);
+      }
     }
     if (command.action === "RECOMMEND_ACTION") {
       // The assessment behind a recommendation is computed here, never taken from the client.

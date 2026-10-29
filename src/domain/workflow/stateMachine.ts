@@ -17,6 +17,7 @@
  *   transitions; the engineer who recommended an action cannot approve it.
  * - The work order is an internal record, explicitly not an official SPK document.
  */
+import { INSPECTION_ANGLES, REQUIRED_ANGLES, type FieldDimensions, type InspectionView, type InspectionViewAi } from './inspectionViews';
 import type { UserRole } from '../../types';
 import { samePerson } from '../identity/people';
 import type { AssessmentSnapshot } from '../intelligence/assessment';
@@ -97,6 +98,9 @@ export type WorkflowCommand =
       notes: string;
       /** Optional field photo; the server checks the image bytes (photoValidation.ts). */
       evidencePhotoUrl?: string | null;
+      /** Guided multi-angle photos; `ai` is replaced by the server from its CV store. */
+      views?: Array<Omit<InspectionView, 'ai'> & { analysisId?: string | null; ai?: InspectionViewAi | null }>;
+      dimensions?: FieldDimensions | null;
     }
   | { action: 'RECOMMEND_ACTION'; treatment: string; urgency: 'ROUTINE' | 'PRIORITY' | 'URGENT'; rationale: string; assessmentId: string | null; assessment?: AssessmentSnapshot | null }
   | { action: 'START_WORK'; reason: string; contractorNote: string; contractor?: string; contractValueIdr?: number | null; targetDate?: string | null; supervisor?: string; maintenanceMonths?: number | null }
@@ -288,6 +292,26 @@ export function applyCommand(c: ReportCase, command: WorkflowCommand, ctx: Comma
       if (evidence !== null && (typeof evidence !== 'string' || !/^(data:image\/(jpeg|png|webp);base64,|https?:\/\/)/i.test(evidence))) {
         return fail('VALIDATION', 'evidencePhotoUrl must be a JPEG, PNG or WebP image.');
       }
+      const rawViews = command.views ?? [];
+      if (!Array.isArray(rawViews) || rawViews.length > INSPECTION_ANGLES.length) return fail('VALIDATION', 'views must be a list of at most 5 photos.');
+      const views: InspectionView[] = [];
+      for (const v of rawViews) {
+        if (!v || !(INSPECTION_ANGLES as readonly string[]).includes(v.angle)) return fail('VALIDATION', 'view angle is invalid.');
+        if (views.some((x) => x.angle === v.angle)) return fail('VALIDATION', 'each view angle may appear once.');
+        if (typeof v.photoUrl !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/i.test(v.photoUrl)) return fail('VALIDATION', 'view photo must be a JPEG, PNG or WebP image.');
+        views.push({ angle: v.angle, photoUrl: v.photoUrl, takenAt: typeof v.takenAt === 'string' ? v.takenAt : ctx.now, ai: v.ai ?? null });
+      }
+      if (views.length && REQUIRED_ANGLES.some((a) => !views.some((v) => v.angle === a))) return fail('VALIDATION', 'Foto jauh, foto atas dan foto samping wajib ada.');
+      let dims: FieldDimensions | null = null;
+      if (command.dimensions) {
+        const parts: Array<keyof FieldDimensions> = ['lengthCm', 'widthCm', 'depthCm'];
+        dims = { lengthCm: null, widthCm: null, depthCm: null };
+        for (const k of parts) {
+          const m = optionalMeasure(command.dimensions[k], k);
+          if (isResult(m)) return m;
+          dims[k] = m;
+        }
+      }
       const review = command.cvReview ?? { accepted: true, correctedClass: null };
       const corrected = review.accepted ? null : cleanText(review.correctedClass, 'correctedClass', true);
       if (isResult(corrected)) return corrected;
@@ -302,6 +326,8 @@ export function applyCommand(c: ReportCase, command: WorkflowCommand, ctx: Comma
         severity: command.severity,
         notes,
         evidencePhotoUrl: evidence,
+        ...(views.length ? { views } : {}),
+        ...(dims ? { dimensions: dims } : {}),
         dataStatus: 'OBSERVED'
       };
       autoReason = command.verdict === 'CONFIRMED' ? 'Hasil inspeksi: kerusakan terkonfirmasi.' : 'Hasil inspeksi: kerusakan tidak terkonfirmasi.';

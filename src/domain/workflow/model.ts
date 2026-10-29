@@ -1,3 +1,4 @@
+import type { FieldDimensions, InspectionView } from './inspectionViews';
 /**
  * Canonical cross-role workflow model (spec v2.2 §24, "State Machine Laporan").
  *
@@ -94,6 +95,10 @@ export interface InspectionRecord {
   notes: string;
   /** Field photo taken by the engineer (data URL in the demo store). Optional: older records have none. */
   evidencePhotoUrl?: string | null;
+  /** Guided multi-angle photos with the server-side CV result of each (inspectionViews.ts). */
+  views?: InspectionView[];
+  /** Tape-measured damage size; area/volume are derived from it. */
+  dimensions?: FieldDimensions | null;
   /** Provenance of the measurements: observed in the field by a person. */
   dataStatus: 'OBSERVED';
 }

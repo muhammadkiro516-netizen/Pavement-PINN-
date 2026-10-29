@@ -16,9 +16,10 @@ import { samePerson } from '../../../domain/identity/people';
 import { operationsQueue } from '../queues';
 import { ACTION_LABEL, WORKFLOW_STATE_LABEL } from '../workflowLabels';
 import { ReportWorkflowPanel, actorName } from '../ReportWorkflowPanel';
-import { clearDraft, loadDraft, saveDraft } from '../../work-orders/inspectionDraft';
 import type { RoadSegment } from '../../../types';
 import { TaskNavigation } from './TaskNavigation';
+import { GuidedInspection } from './GuidedInspection';
+import { InspectionCaseSummary } from './InspectionCaseSummary';
 import { RepairResult } from './RepairResult';
 import { friendlyError } from '../friendlyError';
 import { fieldStage } from '../../work-orders/fieldStages';
@@ -95,12 +96,20 @@ export interface LegacyCaseBoardProps {
   roadSegments?: RoadSegment[];
   /** Signed-in account, for the account context header. */
   account?: AccountInfo | null;
+  /** Set from the workflow guide: open this tab and scroll the list into view. */
+  focus?: { tab: Tab; nonce: number } | null;
 }
 
 type Dialog = { kind: 'SPK' | 'EVIDENCE' | 'VERIFY' | 'WORK_DONE' | 'WORK_VERIFY' | 'NAV' | 'RESULT'; caseId: string } | { kind: 'PANEL'; caseId: string; action: WorkflowAction | null } | { kind: 'PHOTO'; src: string; alt: string };
 
-export const LegacyCaseBoard: React.FC<LegacyCaseBoardProps> = ({ role, views, me, mode, engineers, loading, error, onRefresh, onRun, onShowOnMap, onOpenAnalysis, onStartNavigation, roadSegments = [], account = null }) => {
+export const LegacyCaseBoard: React.FC<LegacyCaseBoardProps> = ({ role, views, me, mode, engineers, loading, error, onRefresh, onRun, onShowOnMap, onOpenAnalysis, onStartNavigation, roadSegments = [], account = null, focus = null }) => {
   const [tab, setTab] = useState<Tab>(role === 'OPS' ? 'MENUNGGU_PENINJAUAN' : 'MENUNGGU_FE');
+  const listTop = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!focus) return;
+    setTab(focus.tab);
+    listTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [focus]);
   // After a server-confirmed action: say what happened and, if the case now belongs to
   // another tab, follow it there and highlight it.
   const [notice, setNotice] = useState<{ id: string; text: string; to: Tab | null } | null>(null);
@@ -210,6 +219,7 @@ export const LegacyCaseBoard: React.FC<LegacyCaseBoardProps> = ({ role, views, m
       )}
       {role === 'OPS' && <AccountContext role="OPS" account={account} cases={mine.map((v) => v.case)} mode={mode} syncedAt={syncedAt} onTab={setTab} />}
 
+      <div ref={listTop} className="scroll-mt-4" />
       <nav className="flex items-center gap-2 overflow-x-auto no-scrollbar rounded-panel border border-line-subtle bg-panel p-2" aria-label="Filter status">
         {tabs.map((t) => {
           const isSelected = tab === t.key;
@@ -295,7 +305,7 @@ export const LegacyCaseBoard: React.FC<LegacyCaseBoardProps> = ({ role, views, m
         </Modal>
       )}
       {open && dialog?.kind === 'SPK' && <SpkModal c={open.case} engineers={engineers} onRun={run} onClose={() => setDialog(null)} />}
-      {open && dialog?.kind === 'EVIDENCE' && <EvidenceModal c={open.case} onRun={run} onClose={() => setDialog(null)} />}
+      {open && dialog?.kind === 'EVIDENCE' && <GuidedInspection c={open.case} onRun={run} onClose={() => setDialog(null)} />}
       {open && dialog?.kind === 'VERIFY' && <VerifyModal c={open.case} onRun={run} onClose={() => setDialog(null)} />}
       {open && dialog?.kind === 'WORK_DONE' && <WorkDoneModal c={open.case} onRun={run} onClose={() => setDialog(null)} />}
       {open && dialog?.kind === 'WORK_VERIFY' && <WorkVerifyModal c={open.case} onRun={run} onClose={() => setDialog(null)} />}
@@ -367,13 +377,59 @@ const CaseCard: React.FC<{
 
   // Primary action button based on role & canonical status
   let primary: React.ReactNode = null;
-  if (role === 'OPS') {
+  // The step that needs a person now, by real workflow state: inspection -> case summary ->
+  // recommendation -> approval -> SPK. The canonical tabs below cover the repair steps.
+  const can = (a: WorkflowAction) => actions.includes(a);
+  const workDone = wo?.status === 'COMPLETED' || !!wo?.completedAt;
+  const waitNote = (text: string) => <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-center text-xs font-semibold text-sky-200">{text}</div>;
+  let stateFirst: React.ReactNode = null;
+  if (role === 'FE') {
+    if (c.state === 'FIELD_INSPECTION_REQUESTED' && can('SUBMIT_INSPECTION')) {
+      stateFirst = (
+        <button type="button" className={BTN_BRAND} onClick={() => onDialog({ kind: 'EVIDENCE', caseId: c.id })}>
+          <Camera className="h-4 w-4" /> {returned ? 'Inspeksi ulang (foto 3–5 sisi)' : 'Mulai inspeksi terpandu (foto 3–5 sisi)'}
+        </button>
+      );
+    } else if (c.state === 'INSPECTED' && !workDone) stateFirst = waitNote('Ringkasan kasus terkirim · menunggu koordinator');
+    else if (c.state === 'INSPECTION_VERIFIED' && can('RECOMMEND_ACTION')) {
+      stateFirst = (
+        <button type="button" className={BTN_BRAND} onClick={() => onDialog({ kind: 'PANEL', caseId: c.id, action: 'RECOMMEND_ACTION' })}>
+          <ClipboardList className="h-4 w-4" /> Susun rekomendasi penanganan
+        </button>
+      );
+    } else if (c.state === 'ACTION_RECOMMENDED' || c.state === 'ACTION_APPROVED') stateFirst = waitNote(c.state === 'ACTION_RECOMMENDED' ? 'Rekomendasi menunggu persetujuan koordinator' : 'Disetujui · menunggu SPK perbaikan');
+  } else {
+    if (c.state === 'INSPECTED' && !workDone && can('VERIFY_INSPECTION')) {
+      stateFirst = (
+        <button type="button" className={BTN_BRAND} onClick={() => onDialog({ kind: 'VERIFY', caseId: c.id })}>
+          <ShieldCheck className="h-4 w-4" /> Cek ringkasan kasus dari lapangan
+        </button>
+      );
+    } else if (c.state === 'FIELD_INSPECTION_REQUESTED') stateFirst = waitNote('Petugas sedang inspeksi di lapangan');
+    else if (c.state === 'INSPECTION_VERIFIED') stateFirst = waitNote('Menunggu rekomendasi petugas (analisis PINN)');
+    else if (c.state === 'ACTION_RECOMMENDED' && can('APPROVE_ACTION')) {
+      stateFirst = (
+        <button type="button" className={BTN_BRAND} onClick={() => onDialog({ kind: 'PANEL', caseId: c.id, action: 'APPROVE_ACTION' })}>
+          <ClipboardCheck className="h-4 w-4" /> Tinjau & setujui rekomendasi
+        </button>
+      );
+    } else if (c.state === 'ACTION_APPROVED' && can('START_WORK')) {
+      stateFirst = (
+        <button type="button" className={BTN_BRAND} onClick={() => onDialog({ kind: 'PANEL', caseId: c.id, action: 'START_WORK' })}>
+          <HardHat className="h-4 w-4" /> Terbitkan SPK perbaikan
+        </button>
+      );
+    }
+  }
+  if (stateFirst) {
+    primary = stateFirst;
+  } else if (role === 'OPS') {
     switch (statusKey) {
       case 'MENUNGGU_PENINJAUAN':
       case 'BELUM_DITUGASKAN':
         primary = (
           <button type="button" className={BTN_BRAND} onClick={() => onDialog({ kind: 'SPK', caseId: c.id })}>
-            <HardHat className="h-4 w-4" /> + Beri Tugas ke F.E (Terbitkan SPK)
+            <HardHat className="h-4 w-4" /> Terima & tugaskan inspeksi
           </button>
         );
         break;
@@ -1056,96 +1112,6 @@ const BeforeAfter: React.FC<{ before?: string | null; after?: string | null; aft
 );
 
 /** F.E: inspection result + evidence photo, sent to M.O for verification (not a final status). */
-const EvidenceModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) => Promise<ReportMutationOutcome>; onClose: () => void }> = ({ c, onRun, onClose }) => {
-  const draft = loadDraft(c);
-  const [verdict, setVerdict] = useState(draft?.verdict ?? 'CONFIRMED');
-  const [depth, setDepth] = useState(draft?.depth ?? '');
-  const [area, setArea] = useState(draft?.area ?? '');
-  const [severity, setSeverity] = useState(draft?.severity ?? c.inspection?.severity ?? c.report.severity);
-  const [notes, setNotes] = useState(draft?.notes ?? '');
-  const [photo, setPhoto] = useState<string | null>(draft?.evidencePhotoUrl ?? null);
-  const [photoErr, setPhotoErr] = useState<string | null>(null);
-  const [savedAt, setSavedAt] = useState<string | null>(draft?.savedAt ?? null);
-  const { busy, err, submit } = useSubmit(onClose);
-
-  useEffect(() => {
-    if (!(depth || area || notes || photo || verdict !== 'CONFIRMED')) return;
-    const at = new Date().toISOString();
-    saveDraft(c.id, { version: c.version, savedAt: at, verdict, cvAccepted: true, correctedClass: '', depth, area, severity, notes, evidencePhotoUrl: photo });
-    setSavedAt(at);
-  }, [c.id, c.version, verdict, depth, area, severity, notes, photo]);
-
-  const pick = (file?: File) => {
-    setPhotoErr(null);
-    if (!file) return;
-    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return setPhotoErr('Gunakan foto JPEG, PNG atau WebP.');
-    if (file.size > 5 * 1024 * 1024) return setPhotoErr('Foto lebih dari 5 MB.');
-    const reader = new FileReader();
-    reader.onload = () => setPhoto(String(reader.result));
-    reader.onerror = () => setPhotoErr('Foto tidak dapat dibaca.');
-    reader.readAsDataURL(file);
-  };
-  const num = (v: string) => (v.trim() === '' ? null : Number(v));
-  const ready = notes.trim() && photo;
-
-  return (
-    <Modal busy={busy} title="Kirim hasil inspeksi & bukti" subtitle={<>Dikirim ke <span className="text-brand">Operations Manager</span> untuk diverifikasi · {c.id}</>} icon={<Camera className="h-5 w-5" />} onClose={onClose}>
-      <div className="space-y-4">
-        <BeforeAfter
-          before={c.report.photoUrl}
-          afterSlot={
-            <label htmlFor={`ev-${c.id}`} className="grid h-36 cursor-pointer place-items-center overflow-hidden rounded-lg border border-dashed border-brand/50 text-center text-xs text-amber-200 hover:bg-brand/5">
-              {photo ? <img src={photo} alt="Pratinjau foto bukti inspeksi" className="h-full w-full object-cover" /> : <span><Camera className="mx-auto mb-1 h-5 w-5" /> Wajib lampirkan foto<br /><span className="text-fg-muted">Klik untuk kamera / unggah</span></span>}
-            </label>
-          }
-        />
-        <input id={`ev-${c.id}`} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="sr-only" aria-label="Foto bukti inspeksi" onChange={(e) => pick(e.target.files?.[0])} />
-        <div className="flex items-center justify-between text-xs">
-          <span className={photo ? 'text-emerald-300' : 'text-rose-300'}>{photo ? '✓ Foto terlampir' : '⚠ Foto belum diunggah'}</span>
-          {photo && <button type="button" className="text-fg-muted underline" onClick={() => setPhoto(null)}>Ganti / hapus foto</button>}
-        </div>
-        {photoErr && <p role="alert" className="text-xs text-rose-300">{photoErr}</p>}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block"><span className={LABEL}>Hasil pemeriksaan</span>
-            <select className={INPUT} value={verdict} onChange={(e) => setVerdict(e.target.value as typeof verdict)}>
-              <option value="CONFIRMED">Kerusakan terkonfirmasi</option><option value="NOT_CONFIRMED">Tidak ditemukan kerusakan</option>
-            </select>
-          </label>
-          <label className="block"><span className={LABEL}>Tingkat keparahan</span>
-            <select className={INPUT} value={severity} onChange={(e) => setSeverity(e.target.value as typeof severity)}>
-              <option value="LIGHT">Ringan</option><option value="MODERATE">Sedang</option><option value="SEVERE">Berat</option><option value="CRITICAL">Kritis</option>
-            </select>
-          </label>
-          <label className="block"><span className={LABEL}>Kedalaman terukur (cm)</span><input type="number" min="0" step="0.1" className={INPUT} value={depth} onChange={(e) => setDepth(e.target.value)} /></label>
-          <label className="block"><span className={LABEL}>Luas terukur (m²)</span><input type="number" min="0" step="0.1" className={INPUT} value={area} onChange={(e) => setArea(e.target.value)} /></label>
-        </div>
-        <label className="block"><span className={LABEL}>Catatan inspeksi lapangan</span>
-          <textarea className={INPUT} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Apa yang Anda temukan dan bagaimana mengukurnya." />
-        </label>
-        <p className="font-mono text-[11px] text-fg-muted">
-          Lokasi laporan: {c.report.coordinates[0].toFixed(4)}, {c.report.coordinates[1].toFixed(4)}
-          {savedAt && <> · Draf tersimpan di perangkat ini {new Date(savedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}. Belum terkirim ke M.O.</>}
-        </p>
-      </div>
-      <Footer err={err} onClose={onClose}>
-        <button
-          type="button"
-          className={BTN_GOOD}
-          disabled={!ready || busy}
-          onClick={() =>
-            void submit(
-              [() => onRun({ action: 'SUBMIT_INSPECTION', verdict, cvReview: { accepted: true, correctedClass: null }, measuredDepthCm: num(depth), measuredAreaM2: num(area), severity, notes: notes.trim(), evidencePhotoUrl: photo })],
-              () => clearDraft(c.id)
-            )
-          }
-        >
-          {busy ? 'Mengirim…' : 'Kirim Bukti ke Operations Manager'}
-        </button>
-      </Footer>
-    </Modal>
-  );
-};
-
 /** M.O: compare citizen photo with F.E evidence, then verify or send back with a reason. */
 const VerifyModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) => Promise<ReportMutationOutcome>; onClose: () => void }> = ({ c, onRun, onClose }) => {
   const [reason, setReason] = useState('');
@@ -1155,6 +1121,7 @@ const VerifyModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) => Pr
     <Modal title="Verifikasi mutu hasil inspeksi oleh M.O" subtitle={<>Laporan: <span className="text-brand">{c.id}</span>{c.assignment && <> · Penugasan {c.assignment.id}</>}</>} icon={<ShieldCheck className="h-5 w-5" />} onClose={onClose} wide busy={busy} dirty={!!reason.trim()}>
       <div className="space-y-4">
         <BeforeAfter before={c.report.photoUrl} after={i?.evidencePhotoUrl} />
+        <InspectionCaseSummary c={c} />
         {i && (
           <div className="space-y-2 rounded-xl border border-line bg-canvas/60 p-3 text-xs">
             <div className="flex flex-wrap justify-between gap-2">
