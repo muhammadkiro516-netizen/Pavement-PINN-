@@ -50,6 +50,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--space", default="pavement-pinn")
     ap.add_argument("--reseed", action="store_true", help="overwrite the data backup with the local .data")
+    ap.add_argument("--no-data", action="store_true", help="do not upload the local .data (start empty; staff accounts must be created again)")
     args = ap.parse_args()
     token = get_token()
     if not token:
@@ -64,7 +65,9 @@ def main():
     print(f"Space {space_id}, data {data_id} (private)")
 
     existing = [f for f in api.list_repo_files(data_id, repo_type="dataset") if f != ".gitattributes"]
-    if not existing or args.reseed:
+    if args.no_data:
+        print("Data lokal tidak diunggah (--no-data)")
+    elif not existing or args.reseed:
         with tempfile.TemporaryDirectory() as tmp:
             src, dst = ROOT / ".data", Path(tmp)
             n = 0
