@@ -78,3 +78,10 @@ export async function runCvAnalysis(
   if (job.state === 'error') throw new CvClientError(job.error?.code ?? 'INFERENCE_FAILED', job.error?.message ?? 'Analisis gagal.');
   return job;
 }
+
+/** Server-side conversion for gallery files the browser cannot decode (HEIC, AVIF, TIFF, ...). */
+export async function normalizePhoto(file: Blob): Promise<string> {
+  const res = await fetch('/api/media/normalize', { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
+  if (!res.ok) throw await readError(res);
+  return (await res.json()).image as string;
+}

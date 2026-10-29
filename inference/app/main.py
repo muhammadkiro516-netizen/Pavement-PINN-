@@ -514,3 +514,19 @@ async def proposal(req: ProposalRequest) -> dict:
     out = await run_in_threadpool(slm_mod.draft, req.facts, req.values, model)
     out["slm_unavailable_reason"] = reason
     return out
+
+
+from . import imageconv  # noqa: E402
+
+
+@app.post("/v1/image/normalize")
+async def image_normalize(request: Request) -> dict:
+    """Any gallery photo the browser cannot decode (HEIC, AVIF, TIFF, ...) -> upright JPEG, no EXIF."""
+    import base64
+
+    data = await request.body()
+    try:
+        jpeg = await run_in_threadpool(imageconv.to_jpeg, data)
+    except imageconv.ConvertError as exc:
+        raise HTTPException(status_code=422, detail={"code": "UNREADABLE_IMAGE", "message": str(exc)}) from exc
+    return {"jpeg_b64": base64.b64encode(jpeg).decode("ascii"), "bytes": len(jpeg)}

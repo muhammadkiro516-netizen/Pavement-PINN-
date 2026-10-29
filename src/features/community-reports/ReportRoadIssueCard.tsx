@@ -40,7 +40,7 @@ import { AiPhotoScan } from './AiPhotoScan';
 import { LiveAiOverlay } from './LiveAiOverlay';
 import { useSpeedLock, SPEED_LIMIT_KMH } from '../location/speedLock';
 import { lastDeviceFix } from '../location/deviceLocation';
-import { CV_STAGE_LABELS, CvClientError, checkImageInput, runCvAnalysis } from './cvClient';
+import { CV_STAGE_LABELS, CvClientError, checkImageInput, normalizePhoto, runCvAnalysis } from './cvClient';
 
 /** Damage-type choice in step 3: from the model (with its taxonomy code) or picked by the reporter. */
 interface DamageChoice {
@@ -690,10 +690,18 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
       stopCameraStream();
     };
     probe.onerror = () => {
+      // HEIC/AVIF/TIFF etc.: let the server convert it, then decode the JPEG it returns.
       URL.revokeObjectURL(url);
       input.value = '';
-      setValidationError('Format foto tidak dapat dibaca browser ini. Gunakan JPEG/PNG atau ambil langsung dengan kamera.');
       if (currentState !== 'INPUT') setCurrentState('INPUT');
+      setValidationError('Mengonversi format foto…');
+      normalizePhoto(file)
+        .then((jpeg) => {
+          setSelectedImage(jpeg);
+          setValidationError(null);
+          stopCameraStream();
+        })
+        .catch((err) => setValidationError(err instanceof CvClientError ? `Foto tidak dapat dibaca: ${err.message}` : 'Foto tidak dapat dibaca. Coba file lain.'));
     };
     probe.src = url;
   };

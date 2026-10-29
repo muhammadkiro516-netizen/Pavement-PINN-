@@ -15,7 +15,8 @@ export const CV_PATHS = {
   overlay: "/api/cv/analyses/:id/overlay",
   mask: "/api/cv/analyses/:id/mask",
   video: "/api/cv/analyze-video",
-  live: "/api/cv/live"
+  live: "/api/cv/live",
+  normalize: "/api/media/normalize"
 } as const;
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -61,6 +62,19 @@ export function registerCvRoutes(router: Router, runtime: WorkflowRuntime): void
     if ("unavailable" in reply) return fail(res, 503, "INFERENCE_UNAVAILABLE", reply.message);
     if (!reply.ok) return fail(res, reply.status, inferenceError(reply.body).code, inferenceError(reply.body).message);
     res.json({ success: true, live: reply.body });
+  });
+
+  // Gallery photos the browser cannot decode (HEIC, AVIF, TIFF, ...) are converted to JPEG; nothing is stored.
+  const normLimit = rateLimit("media-normalize", 20, 60_000, (req) => actorFrom(req, runtime)?.id ?? null);
+  const anyRaw = express.raw({ type: () => true, limit: 25 * 1024 * 1024 });
+  router.post(CV_PATHS.normalize, normLimit, anyRaw, async (req: Request, res: Response) => {
+    res.setHeader("Cache-Control", "no-store");
+    if (!actorFrom(req, runtime)) return fail(res, 401, "UNAUTHENTICATED", "Sign in to upload a photo.");
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) return fail(res, 422, "INVALID_IMAGE", "No file received.");
+    const reply = await callInferenceBytes("/v1/image/normalize", req.body, "application/octet-stream", 30_000);
+    if ("unavailable" in reply) return fail(res, 503, "INFERENCE_UNAVAILABLE", reply.message);
+    if (!reply.ok) return fail(res, reply.status, inferenceError(reply.body).code, inferenceError(reply.body).message);
+    res.json({ success: true, image: `data:image/jpeg;base64,${(reply.body as { jpeg_b64: string }).jpeg_b64}` });
   });
 
   router.get(CV_PATHS.health, async (_req: Request, res: Response) => {
