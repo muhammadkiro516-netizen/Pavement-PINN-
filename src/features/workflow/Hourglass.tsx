@@ -2,7 +2,8 @@
  * SPEC M3.1-M3.3 for citizens: how long a report has waited, why (if the agency said so),
  * the public "> 14 hari" label, and from day 30 a complaint draft to send oneself.
  */
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { apiUrl } from '../../services/api/client';
 import { complaintDraft, escalationOf, PENDING_LABEL, reached, type PendingCode } from '../../domain/workflow/escalation';
 import type { WorkflowState } from '../../domain/workflow/model';
 import { WORKFLOW_STATE_LABEL } from './workflowLabels';
@@ -14,6 +15,20 @@ interface CaseLike {
   report: { damageTypeLabel: string; segmentName: string; coordinates: [number, number] };
   authority?: { name: string } | null;
   pending?: { code: string; until: string; note: string } | null;
+}
+
+/** SPEC M6.5: ids under technical review (no details). Fetched once per page load. */
+let reviewIds: Promise<Set<string>> | null = null;
+function useUnderReview(id: string): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    reviewIds ??= fetch(apiUrl('/api/public/under-review'), { credentials: 'same-origin' })
+      .then((r) => r.json())
+      .then((j) => new Set<string>(j?.caseIds ?? []))
+      .catch(() => new Set<string>());
+    void reviewIds.then((s) => setOn(s.has(id)));
+  }, [id]);
+  return on;
 }
 
 const fmt = (iso: string) => new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -35,8 +50,9 @@ async function savePdf(name: string, text: string) {
 }
 
 export const Hourglass: React.FC<{ c: CaseLike; allowComplaint?: boolean }> = ({ c, allowComplaint = false }) => {
+  const review = useUnderReview(c.id);
   const e = escalationOf({ state: c.state, createdAt: c.createdAt, pending: c.pending ? { ...c.pending, code: c.pending.code as PendingCode, by: '', at: '' } : null });
-  if (!e.open) return null;
+  if (!e.open) return review ? <p className="mt-2 rounded-xl bg-[#FFFFFF]/6 px-3 py-2 text-xs text-[#FFFFFF]/75">Sedang dalam pemeriksaan teknis.</p> : null;
   const draft = () =>
     complaintDraft({
       caseId: c.id,
@@ -53,6 +69,7 @@ export const Hourglass: React.FC<{ c: CaseLike; allowComplaint?: boolean }> = ({
     <div className="mt-2 space-y-1.5 text-xs">
       <div className="flex flex-wrap items-center gap-2">
         <span className="tabular rounded-full bg-[#FFFFFF]/8 px-2.5 py-1 font-bold text-[#FFFFFF]">⏳ Menunggu {e.waitingDays} hari</span>
+        {review && <span className="rounded-full bg-[#FFFFFF]/8 px-2.5 py-1 font-bold text-[#FFFFFF]/75">Sedang dalam pemeriksaan teknis</span>}
         {reached(e, 'PUBLIK') && <span className="rounded-full bg-[#FF4D5E]/15 px-2.5 py-1 font-bold text-[#FF6B6B]">Belum ditangani &gt; 14 hari</span>}
       </div>
       {c.pending && (

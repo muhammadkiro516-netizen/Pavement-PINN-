@@ -1,0 +1,24 @@
+{
+  "region": "Jabodetabek + Karawang",
+  "note": "Harga awal INDIKATIF (SPEC M6.2). Ganti dengan HSPK/SSH daerah atau AHSP Permen PUPR 1/2022 sebelum dipakai resmi. Setiap baris punya sumber, tanggal dan label.",
+  "label": "ASUMSI",
+  "items": [
+    { "id": "ASPAL-CURAH", "name": "Aspal curah Pertamina", "unit": "kg", "priceIdr": 11565, "source": "TimesIndonesia — harga aspal curah Pertamina, Cilacap", "date": "2026-04", "label": "ASUMSI" },
+    { "id": "ASPAL-DRUM", "name": "Aspal drum", "unit": "kg", "priceIdr": 13600, "source": "TimesIndonesia — harga aspal drum", "date": "2026-04", "label": "ASUMSI" },
+    { "id": "AC-WC-TON", "name": "AC-WC terhampar", "unit": "ton", "priceIdr": 1850000, "source": "Harga vendor, indikatif", "date": "2026-10", "label": "ASUMSI" },
+    { "id": "AC-WC-4CM-M2", "name": "AC-WC tebal 4 cm", "unit": "m2", "priceIdr": 215000, "source": "Harga vendor, indikatif", "date": "2026-10", "label": "ASUMSI" }
+  ],
+  "materialPrice": {
+    "AC-WC": "AC-WC-TON",
+    "AC-BC": "AC-WC-TON",
+    "AC-BASE": "AC-WC-TON",
+    "HRS-WC": "AC-WC-TON",
+    "HRS-BASE": "AC-WC-TON"
+  },
+  "assumptions": {
+    "densityTPerM3": { "value": 2.3, "label": "ASUMSI", "source": "berat isi campuran beraspal padat tipikal" },
+    "tackCoatKgPerM2": { "value": 0.25, "label": "ASUMSI", "source": "lapis perekat tipikal, perlu disesuaikan spesifikasi" },
+    "workFactor": { "value": 1.15, "label": "ASUMSI", "source": "faktor pekerjaan (persiapan, mobilisasi, overhead) — ganti dengan AHSP" },
+    "flagThresholdPct": { "value": 20, "label": "DARI_INPUT", "source": "ambang klarifikasi (dapat disunting admin)" }
+  }
+}

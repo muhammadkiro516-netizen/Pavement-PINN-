@@ -8,6 +8,7 @@ import type { EngineeringAssessment, RiskLevel } from '../../domain/intelligence
 import { StructuralAssessmentPanel } from '../../features/road-intelligence/StructuralAssessmentPanel';
 import { StatusPill } from '../lean/CitizenPages';
 import { RepairHistory } from '../../features/road-intelligence/RepairHistory';
+import { RoadAuditPanel } from '../../features/audit/RoadAuditPanel';
 
 const RISK: Record<RiskLevel, { label: string; tone: 'red' | 'orange' | 'blue' | 'green' }> = {
   HIGH: { label: 'Perlu segera ditangani', tone: 'red' },
@@ -78,6 +79,7 @@ export const RoadDetailPage: React.FC<{ params: Record<string, string> }> = ({ p
       )}
 
       <RepairHistory segmentId={segment.id} title="Riwayat perbaikan ruas ini" />
+      <RoadAuditPanel segmentId={segment.id} role={currentAccount.role} />
 
       <h2 className="pt-2 text-lg font-extrabold">Laporan di ruas ini</h2>
       {cases.length === 0 ? (

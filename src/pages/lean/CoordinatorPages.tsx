@@ -11,8 +11,19 @@ import type { ReportCase } from '../../domain/workflow/model';
 import { apiUrl } from '../../services/api/client';
 import { WORKFLOW_API_PATHS, type AccountProfile } from '../../types';
 import { RepairHistory } from '../../features/road-intelligence/RepairHistory';
+import { AuditFlagsPanel, FairCostCalculator } from '../../features/audit/RoadAuditPanel';
 
 const pct = (a: number, b: number) => (b === 0 ? '–' : `${Math.round((a / b) * 100)}%`);
+
+const AuditPanels: React.FC = () => {
+  const { currentAccount } = useSession();
+  return (
+    <>
+      <AuditFlagsPanel role={currentAccount.role} />
+      <FairCostCalculator />
+    </>
+  );
+};
 
 export const StatsPage: React.FC = () => {
   const { workflow } = useAppState();
@@ -43,6 +54,7 @@ export const StatsPage: React.FC = () => {
         />
       </div>
       <RepairHistory title="Umur perbaikan (semua ruas)" />
+      <AuditPanels />
       <h2 className="pt-3 text-lg font-extrabold">Kualitas AI</h2>
       <div className="grid grid-cols-2 gap-3">
         <Stat value={pct(s.aiAutoPassed, s.aiScreened)} label="Lolos otomatis" hint={`${s.aiAutoPassed} dari ${s.aiScreened} laporan yang dianalisis AI`} />

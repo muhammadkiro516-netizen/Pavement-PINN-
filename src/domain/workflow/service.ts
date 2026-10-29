@@ -58,6 +58,19 @@ export interface WorkflowSnapshot {
   repairConfirmations?: RepairConfirmation[];
   /** SPEC M3.4: "Saya juga melihat ini" — one per account per report, optional photo. */
   witnesses?: WitnessRecord[];
+  /** SPEC M5.1/M6: Koordinator decisions on PINN-2 diagnoses, audit flag responses, project data. */
+  diagnosisDecisions?: LedgerRecord[];
+  auditResponses?: LedgerRecord[];
+  projects?: LedgerRecord[];
+}
+
+/** Append-only ledgers next to the cases; every record has an id, a time and an author. */
+export type LedgerKey = 'diagnosisDecisions' | 'auditResponses' | 'projects';
+export interface LedgerRecord {
+  id: string;
+  at: string;
+  by: string;
+  [field: string]: unknown;
 }
 
 export interface WitnessRecord {
@@ -370,6 +383,29 @@ export class WorkflowService {
       }
       return { ok: true, value: { record, count: witnesses.filter((w) => w.caseId === input.caseId).length } };
     });
+  }
+
+  /** Append a ledger record (or replace the one with the same id, e.g. a verified project). */
+  putRecord(key: LedgerKey, input: Omit<LedgerRecord, 'id' | 'at'> & { id?: string }): Promise<ServiceResult<LedgerRecord>> {
+    return this.serialize(async () => {
+      const snapshot = await this.store.load();
+      const list = snapshot[key] ?? [];
+      const prev = input.id ? list.find((r) => r.id === input.id) : undefined;
+      if (input.id && !prev) return { ok: false, code: 'NOT_FOUND', message: 'Data tidak ditemukan.' };
+      const record = { ...prev, ...input, id: prev?.id ?? this.deps.newId(key.slice(0, 3).toUpperCase()), at: prev?.at ?? this.deps.now() } as LedgerRecord;
+      const next = prev ? list.map((r) => (r.id === record.id ? record : r)) : [...list, record];
+      try {
+        await this.store.commit({ ...snapshot, revision: snapshot.revision + 1, [key]: next });
+      } catch (error) {
+        if (error instanceof StoreConflictError) throw error;
+        return { ok: false, code: 'STORAGE', message: `Tidak tersimpan: ${(error as Error).message}` };
+      }
+      return { ok: true, value: record };
+    });
+  }
+
+  async listRecords(key: LedgerKey): Promise<LedgerRecord[]> {
+    return (await this.store.load())[key] ?? [];
   }
 
   async witnessedBy(accountId: string): Promise<string[]> {

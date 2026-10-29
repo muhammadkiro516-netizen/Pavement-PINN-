@@ -413,3 +413,78 @@ async def decide(req: DecideRequest) -> dict:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     out["engine"] = {"solver": METHOD, "elapsed_ms": round((time.perf_counter() - t) * 1000, 1)}
     return out
+
+
+# ------------------------------------------------------------------ PINN-2 diagnosis (SPEC M5.1)
+import numpy as _np  # noqa: E402
+
+from . import diagnose as diagnose_mod  # noqa: E402
+from .surrogate import features as _sur_features  # noqa: E402
+
+DIAG_MAX_EXACT = 120  # samples solved with PyMastic when outside the surrogate domain
+
+
+def _strain_batch(h1, h2, E1, E2, E3, axle_t, q, d):
+    """Surrogate inside its domain; PyMastic for the rest (capped). Reports what was used."""
+    n = len(h1)
+    s = load_surrogate()
+    et, ev = _np.full(n, _np.nan), _np.full(n, _np.nan)
+    inside = _np.zeros(n, bool)
+    if s is not None:
+        F = _sur_features(_np.full(n, axle_t), _np.full(n, q), h1, h2, E1, E2, E3, _np.full(n, d))
+        inside = s.in_domain(F)
+        if inside.any():
+            Y = s.predict(F[inside])
+            et[inside] = _np.exp(Y[:, 0]) * q / E3[inside] * 1e6
+            ev[inside] = _np.exp(Y[:, 1]) * q / E3[inside] * 1e6
+    out = _np.flatnonzero(~inside)
+    if len(out) > n // 4:
+        raise ValueError(f"{len(out)} of {n} samples are outside the surrogate domain; enter measured layers (project data or core).")
+    exact, dropped = out[:DIAG_MAX_EXACT], out[DIAG_MAX_EXACT:]
+    for i in exact:
+        r = mlet_strains(axle_t, [float(h1[i]), float(h2[i])], [float(E1[i]), float(E2[i]), float(E3[i])], [0.35, 0.35, 0.45], q_mpa=q, dual_spacing_mm=d, allow_compressive_et=True)
+        et[i], ev[i] = max(r["et_ue"], 1e-3), r["ev_ue"]
+    # Samples beyond the exact-solve budget stay NaN: diagnose() gives them zero weight and reports the share.
+    return et, ev, {"surrogate": int(inside.sum()), "pymastic": int(len(exact)), "dropped_out_of_domain": int(len(dropped)), "device": getattr(s, "device", None), "openvino": getattr(s, "openvino_version", None)}
+
+
+class DiagnosePrior(Strict):
+    h1: float = Field(gt=10, le=500)
+    h2: float = Field(gt=20, le=1000)
+    E1: float = Field(gt=200, le=20000)
+    E2: float = Field(gt=20, le=3000)
+    cbr: float = Field(gt=0.5, le=60)
+
+
+class DiagnoseObservations(Strict):
+    alligator: bool | None = None
+    years_since_overlay: float | None = Field(default=None, ge=0, le=60)
+    repairs_observed: int = Field(default=0, ge=0, le=10000)
+    repairs_failed_90d: int = Field(default=0, ge=0, le=10000)
+    odol_share: float | None = Field(default=None, ge=0, le=1)
+
+
+class DiagnoseRequest(Strict):
+    segment_id: str = Field(min_length=1, max_length=64)
+    road_class: Literal["NASIONAL", "TOL", "PROVINSI", "KOTA", "KABUPATEN"] = "KABUPATEN"
+    prior: DiagnosePrior | None = None
+    esal_year: float = Field(gt=0, le=1e8)
+    growth: float = Field(default=0.035, ge=0, le=0.15)
+    wet_months: int = Field(default=5, ge=0, le=12)
+    axle_t: float = Field(default=8.16, ge=1, le=30)
+    q_mpa: float = Field(default=0.55, ge=0.3, le=1.2)
+    dual_spacing_mm: float = Field(default=330, ge=0, le=600)
+    criterion: Literal["AI", "AUS"] = "AI"
+    observations: DiagnoseObservations | None = None
+    n: int = Field(default=2000, ge=200, le=5000)
+
+
+@app.post("/v1/diagnose")
+async def diagnose(req: DiagnoseRequest) -> dict:
+    t = time.perf_counter()
+    try:
+        out = await run_in_threadpool(diagnose_mod.diagnose, req.model_dump(), _strain_batch)
+    except (ValueError, ArithmeticError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    out["elapsed_ms"] = round((time.perf_counter() - t) * 1000, 1)
+    return out
