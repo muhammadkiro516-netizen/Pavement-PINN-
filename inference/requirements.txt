@@ -5,3 +5,8 @@ uvicorn[standard]
 pydantic
 pytest
 httpx
+# PINN-1 (F4, SPEC M5.2) and the local SLM (F6, SPEC M7)
+torch  # CPU build: pip install torch --index-url https://download.pytorch.org/whl/cpu
+openvino-genai==2026.4.1.0
+openvino-tokenizers==2026.4.1.0
+huggingface_hub
