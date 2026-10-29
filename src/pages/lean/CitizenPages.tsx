@@ -3,7 +3,8 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pavi } from '../../components/brand/Pavi';
-import { readPaviHelmet } from '../../components/brand/paviPrefs';
+import { readPavi, readPaviHelmet } from '../../components/brand/paviPrefs';
+import { downloadCertificatePdf } from '../../features/share/certificate';
 import { apiUrl } from '../../services/api/client';
 import { RepairConfirmPrompts } from '../../features/road-intelligence/RepairHistory';
 import { Hourglass } from '../../features/workflow/Hourglass';
@@ -70,20 +71,9 @@ async function downloadCertificate() {
   const j = await r.json().catch(() => null);
   if (!j?.success) return alert(j?.error?.message ?? 'Sertifikat belum tersedia.');
   const name = window.prompt('Nama yang dicetak di sertifikat (tidak disimpan di server):') ?? '';
-  const [{ jsPDF }, QR] = await Promise.all([import('jspdf'), import('qrcode')]);
-  const url = `${window.location.origin}/api/public/certificate/${j.code}`;
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  doc.setFontSize(26);
-  doc.text('Relawan Pengawal Jalan', 148, 45, { align: 'center' });
-  doc.setFontSize(14);
-  doc.text(name || 'Warga PavementPINN', 148, 65, { align: 'center' });
-  doc.setFontSize(11);
-  doc.text(`Level ${j.level} · ${j.verified} laporan dibenarkan petugas · ${j.repaired} sudah diperbaiki · ±${j.areaM2} m² jalan`, 148, 78, { align: 'center' });
-  doc.text(`Kode verifikasi ${j.code} · ${new Date().toLocaleDateString('id-ID')}`, 148, 88, { align: 'center' });
-  doc.addImage(await QR.toDataURL(url, { margin: 1, width: 240 }), 'PNG', 128, 100, 40, 40);
-  doc.setFontSize(8);
-  doc.text('Pindai QR untuk memeriksa keaslian. Dihitung dari laporan terverifikasi, bukan dari jumlah laporan.', 148, 150, { align: 'center' });
-  doc.save(`sertifikat-${j.code}.pdf`);
+  const pv = readPavi();
+  const svg = (paviMarkerHtml(pv.helmet, pv.vest).match(/<svg[\s\S]*<\/svg>/) ?? [''])[0].replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
+  await downloadCertificatePdf({ name, code: j.code, level: j.level, verified: j.verified, repaired: j.repaired, areaM2: j.areaM2, verifyUrl: `${window.location.origin}/api/public/certificate/${j.code}`, paviSvg: svg });
 }
 
 const BADGE_TONE: Record<string, string> = { first: '#FFD60A', verified5: '#4C8DFF', water: '#38BDF8', witness: '#2BD67B' };

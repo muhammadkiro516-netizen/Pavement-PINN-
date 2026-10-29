@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Pavi, PAVI_HELMETS } from '../../components/brand/Pavi';
-import { readPaviHelmet, savePaviHelmet } from '../../components/brand/paviPrefs';
+import { Pavi, PAVI_HELMETS, PAVI_VESTS } from '../../components/brand/Pavi';
+import { PAVI_FACES, readPavi, savePavi, type PaviAvatar } from '../../components/brand/paviPrefs';
 import { Glyph } from '../../components/ui/brand';
 import { Pill, SnapButton, SnapCard, SnapPage } from '../../components/ui/snap';
 import { usePageHost } from '../../app/pageContext';
@@ -14,13 +14,14 @@ export const ProfilePage: React.FC = () => {
   const { currentAccount, expiresAt } = useSession();
   const { logout } = usePageHost();
   const { navigateTo } = useRouter();
-  const [helmet, setHelmet] = useState(readPaviHelmet);
+  const [avatar, setAvatar] = useState<PaviAvatar>(readPavi);
+  const update = (next: Partial<PaviAvatar>) => setAvatar((a) => { const v = { ...a, ...next }; savePavi(v); return v; });
   return (
     <SnapPage title="Profil">
       <SnapCard>
         <div className="flex items-center gap-4">
           <div className="flex h-20 w-20 shrink-0 items-end justify-center overflow-hidden rounded-full bg-[#1E2229] ring-2 ring-[#FFD60A]/60">
-            <Pavi size={58} helmet={helmet} />
+            <Pavi size={58} helmet={avatar.helmet} vest={avatar.vest} mood={avatar.mood} />
           </div>
           <div className="min-w-0">
             <p className="truncate text-xl font-extrabold">{currentAccount.name}</p>
@@ -35,12 +36,31 @@ export const ProfilePage: React.FC = () => {
         </div>
       </SnapCard>
       <SnapCard>
-        <p className="font-extrabold">Warna helm Pavi</p>
-        <p className="text-sm text-[#A1A1AA]">Pavi menandai posisi Anda di peta.</p>
-        <div className="mt-3 flex gap-3">
-          {PAVI_HELMETS.map((c) => (
-            <button key={c} type="button" aria-label={`Helm ${c}`} onClick={() => { setHelmet(c); savePaviHelmet(c); }}
-              className={`h-10 w-10 cursor-pointer rounded-full transition ${helmet === c ? 'scale-110 ring-2 ring-[#FFFFFF] ring-offset-2 ring-offset-[#15181D]' : ''}`} style={{ background: c }} />
+        <div className="flex items-center gap-4">
+          <div className="pp-rise grid h-28 w-24 shrink-0 place-items-end rounded-3xl bg-gradient-to-b from-[#1E2229] to-[#0B0D10]"><Pavi size={84} helmet={avatar.helmet} vest={avatar.vest} mood={avatar.mood} /></div>
+          <div className="min-w-0">
+            <p className="font-extrabold">Avatar Pavi</p>
+            <p className="text-sm text-[#A1A1AA]">Opsional. Pavi menandai posisi Anda di peta dan ikut di kartu dampak.</p>
+          </div>
+        </div>
+        {([['Helm', PAVI_HELMETS, 'helmet'], ['Rompi', PAVI_VESTS, 'vest']] as const).map(([label, colors, key]) => (
+          <div key={key} className="mt-3">
+            <p className="text-xs font-bold text-[#FFFFFF]/55">{label}</p>
+            <div className="mt-1.5 flex gap-3">
+              {colors.map((c) => (
+                <button key={c} type="button" aria-label={`${label} ${c}`} onClick={() => update({ [key]: c })}
+                  className={`h-10 w-10 cursor-pointer rounded-full border border-[#FFFFFF]/15 transition ${avatar[key] === c ? 'scale-110 ring-2 ring-[#FFFFFF] ring-offset-2 ring-offset-[#15181D]' : ''}`} style={{ background: c }} />
+              ))}
+            </div>
+          </div>
+        ))}
+        <p className="mt-3 text-xs font-bold text-[#FFFFFF]/55">Ekspresi</p>
+        <div className="mt-1.5 flex gap-2">
+          {PAVI_FACES.map((m) => (
+            <button key={m} type="button" aria-label={`Ekspresi ${m}`} onClick={() => update({ mood: m })}
+              className={`grid h-14 w-12 cursor-pointer place-items-end rounded-2xl bg-[#FFFFFF]/5 transition ${avatar.mood === m ? 'scale-110 ring-2 ring-[#FFFFFF] ring-offset-2 ring-offset-[#15181D]' : ''}`}>
+              <Pavi size={36} helmet={avatar.helmet} vest={avatar.vest} mood={m} />
+            </button>
           ))}
         </div>
       </SnapCard>

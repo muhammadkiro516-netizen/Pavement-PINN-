@@ -332,7 +332,7 @@ export const ReportDetailBottomSheet: React.FC<ReportDetailBottomSheetProps> = (
               onClick={() => onUpvoteReport(report.id)}
               className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
                 report.userUpvoted
-                  ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-md font-bold'
+                  ? 'bg-[#FFD60A] text-[#0B0D10] border-[#FFD60A] shadow-md font-bold'
                   : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
               }`}
             >
@@ -349,7 +349,7 @@ export const ReportDetailBottomSheet: React.FC<ReportDetailBottomSheetProps> = (
                 title="Mulai Panduan Rute Navigasi Langsung"
               >
                 <Navigation className="w-3.5 h-3.5 text-sky-200 shrink-0" />
-                <span className="truncate">Rute Navigasi</span>
+                <span className="truncate">Arahkan</span>
               </button>
             ) : (
               <a
@@ -359,7 +359,7 @@ export const ReportDetailBottomSheet: React.FC<ReportDetailBottomSheetProps> = (
                 className="py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 text-xs font-semibold flex items-center justify-center space-x-2 transition-all cursor-pointer truncate shadow-sm"
               >
                 <Navigation className="w-3.5 h-3.5 text-[#F5BC24] shrink-0" />
-                <span className="truncate">Rute Navigasi</span>
+                <span className="truncate">Arahkan</span>
               </a>
             )}
           </div>
@@ -423,19 +423,19 @@ export const ReportDetailBottomSheet: React.FC<ReportDetailBottomSheetProps> = (
               }`}
             >
               <Bookmark className="w-4 h-4 shrink-0" />
-              <span>{isSaved ? 'Saved' : 'Save'}</span>
+              <span>{isSaved ? 'Diikuti' : 'Ikuti'}</span>
             </button>
 
             <button
               onClick={() => onUpvoteReport(report.id)}
               className={`py-2 rounded-xl border text-xs font-bold flex items-center justify-center space-x-1 cursor-pointer transition-all truncate ${
                 report.userUpvoted
-                  ? 'bg-amber-400 text-slate-950 border-amber-400 font-semibold'
+                  ? 'bg-[#FFD60A] text-[#0B0D10] border-[#FFD60A] font-semibold'
                   : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300'
               }`}
             >
               <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>{report.userUpvoted ? 'Upvoted' : 'Upvote'}</span>
+              <span>{report.userUpvoted ? 'Didukung' : 'Dukung'}</span>
             </button>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { MapCoach } from '../../features/onboarding/MapCoach';
 import { HazardRadar } from '../../features/location/RadarToggle';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Glyph } from '../../components/ui/brand';
@@ -155,6 +156,7 @@ export const MapPage: React.FC = () => {
           </div>
         </div>
       )}
+      {currentAccount.role === 'PUBLIC_REPORTER' && <MapCoach />}
       <div className="absolute bottom-[214px] left-4 z-30">
         <HazardRadar cases={Object.values(app.workflow.views).map((v) => v.case as never)} />
       </div>

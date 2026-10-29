@@ -1,3 +1,5 @@
+import { Pavi } from '../../components/brand/Pavi';
+import { readPavi } from '../../components/brand/paviPrefs';
 import { nearestSegment } from '../../domain/geo/nearestSegment';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -649,35 +651,51 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
 
   // Handle image file selection from gallery: validate, then show the preview in step 1.
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
-    const invalid = checkImageInput(file.type, file.size);
-    if (invalid) {
-      setValidationError(invalid);
+    if (file.size === 0) {
+      setValidationError('File foto kosong.');
+      input.value = '';
       return;
     }
     setImageFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string | undefined;
-      if (!dataUrl) return;
-      const probe = new Image();
-      probe.onload = () => {
-        if (Math.min(probe.naturalWidth, probe.naturalHeight) < 160) {
-          setValidationError(`Resolusi foto terlalu kecil (${probe.naturalWidth}×${probe.naturalHeight}); minimal 160 px pada sisi pendek.`);
-          return;
-        }
-        setSelectedImage(dataUrl);
-        setValidationError(null);
-        stopCameraStream();
-        if (currentState !== 'INPUT') setCurrentState('INPUT');
-      };
-      probe.onerror = () => setValidationError('Foto tidak dapat dibaca. Coba file lain.');
-      probe.src = dataUrl;
+    // Phone photos are often > 5 MB or HEIC; decode whatever the browser can read, then
+    // re-encode as JPEG (long side <= 1920 px) so the CV service always gets a valid input.
+    const url = URL.createObjectURL(file);
+    const probe = new Image();
+    probe.onload = () => {
+      URL.revokeObjectURL(url);
+      input.value = '';
+      if (currentState !== 'INPUT') setCurrentState('INPUT');
+      const w = probe.naturalWidth;
+      const h = probe.naturalHeight;
+      if (Math.min(w, h) < 160) {
+        setValidationError(`Resolusi foto terlalu kecil (${w}×${h}); minimal 160 px pada sisi pendek.`);
+        return;
+      }
+      const k = Math.min(1, 1920 / Math.max(w, h));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(w * k);
+      canvas.height = Math.round(h * k);
+      canvas.getContext('2d')!.drawImage(probe, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const invalid = checkImageInput('image/jpeg', Math.ceil((dataUrl.length - 23) * 0.75));
+      if (invalid) {
+        setValidationError(invalid);
+        return;
+      }
+      setSelectedImage(dataUrl);
+      setValidationError(null);
+      stopCameraStream();
     };
-    reader.onerror = () => setValidationError('Foto tidak dapat dibaca. Coba file lain.');
-    reader.readAsDataURL(file);
+    probe.onerror = () => {
+      URL.revokeObjectURL(url);
+      input.value = '';
+      setValidationError('Format foto tidak dapat dibaca browser ini. Gunakan JPEG/PNG atau ambil langsung dengan kamera.');
+      if (currentState !== 'INPUT') setCurrentState('INPUT');
+    };
+    probe.src = url;
   };
 
   // Reset form
@@ -862,7 +880,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
     (selectedSegment ? `${selectedSegment.corridor}, ${selectedSegment.province}` : `${coordinates[0].toFixed(4)}, ${coordinates[1].toFixed(4)}`);
 
   const effectiveSeverity: ReportSeverity | null = customSeverity || modelSeverity;
-  const processingStageText = cvJob?.stage ?? 'Memeriksa foto...';
+  const processingStageText = cvJob ? CV_STAGE_LABELS[cvJob.stage] ?? cvJob.stage : 'Memeriksa foto...';
   const progressPercent = 65;
 
   return (
@@ -873,7 +891,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
         data-testid="report-photo-input"
         ref={fileInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/*"
         onChange={handleFileUpload}
         className="hidden"
       />
@@ -1352,6 +1370,23 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                   ) : (
                     <div className="space-y-3">
                       {selectedImage && <AiPhotoScan src={selectedImage} scanning />}
+                      {/* Pavi analyses: the real pipeline stages reported by the server, in order. */}
+                      <div className={`${CARD} flex items-center gap-4 p-4`}>
+                        <Pavi size={64} mood="scan" helmet={readPavi().helmet} vest={readPavi().vest} />
+                        <ol className="min-w-0 flex-1 space-y-1 text-xs">
+                          {(() => {
+                            const keys: string[] = (Object.keys(CV_STAGE_LABELS) as Array<keyof typeof CV_STAGE_LABELS>).filter((k) => k !== 'queued');
+                            const stages = keys.map((k) => CV_STAGE_LABELS[k as keyof typeof CV_STAGE_LABELS]);
+                            const at = Math.max(0, cvJob ? keys.indexOf(cvJob.stage) : 0);
+                            return stages.map((label, i) => (
+                              <li key={label} className={`flex items-center gap-2 transition-colors ${i < at ? 'text-[#2BD67B]' : i === at ? 'font-bold text-[#FFD60A]' : 'text-white/35'}`}>
+                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i < at ? 'bg-[#2BD67B]' : i === at ? 'animate-pulse bg-[#FFD60A]' : 'bg-white/20'}`} />
+                                {label}
+                              </li>
+                            ));
+                          })()}
+                        </ol>
+                      </div>
                       <div className={`${CARD} p-4 space-y-3`}>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-slate-200 truncate pr-3">{processingStageText}</span>

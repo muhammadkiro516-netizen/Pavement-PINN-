@@ -8,7 +8,7 @@ import { AlertTriangle } from 'lucide-react';
 import { LeafletMap, type LeafletMapProps, createActivePinMarkerHtml } from './LeafletMap';
 import { prefersReducedMotion } from '../ui/motion';
 import { paviMarkerHtml } from '../brand/Pavi';
-import { readPaviHelmet } from '../brand/paviPrefs';
+import { readPaviHelmet, readPavi } from '../brand/paviPrefs';
 import type { DamageReport, RoadSegment } from '../../types';
 import {
   LocationSelection,
@@ -1248,7 +1248,7 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
     const element = document.createElement('div');
     element.className = 'user-location-marker';
     element.title = 'Lokasi Anda';
-    element.innerHTML = paviMarkerHtml(readPaviHelmet());
+    element.innerHTML = paviMarkerHtml(readPavi().helmet, readPavi().vest);
     userMarkerRef.current = new maplibregl.Marker({ element, anchor: 'bottom' })
       .setLngLat(toLngLat(userLocation.coordinates))
       .addTo(map);
