@@ -172,12 +172,16 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
 
   // Camera Live Video Stream State
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
-  // SPEC M1.3: live AI aiming help is opt-in (saves data); remembered per device.
+  // Live AI aiming help: on by default so people see the AI work before they shoot, except when the
+  // phone asks to save data (Data Saver / 2G). The choice is remembered per device.
   const [assist, setAssist] = useState<boolean>(() => {
+    const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    const saveData = !!conn?.saveData || conn?.effectiveType === '2g' || conn?.effectiveType === 'slow-2g';
     try {
-      return localStorage.getItem('pp-aim-assist') === '1';
+      const stored = localStorage.getItem('pp-aim-assist');
+      return stored === null ? !saveData : stored === '1';
     } catch {
-      return false;
+      return !saveData;
     }
   });
   const toggleAssist = () =>
@@ -900,7 +904,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
 
           {isCameraActive && currentState === 'CAMERA_CAPTURE' && (
             <button type="button" onClick={toggleAssist} className={`absolute left-1/2 top-20 z-30 -translate-x-1/2 rounded-full px-4 py-2 text-xs font-bold backdrop-blur ${assist ? 'bg-[#FFD60A] text-[#0B0D10]' : 'bg-black/55 text-white'}`}>
-              {assist ? 'Bantu bidik AI: aktif' : 'Bantu bidik AI: mati (hemat kuota)'}
+              {assist ? 'AI live: aktif (ketuk untuk hemat kuota)' : 'AI live: mati — ketuk untuk menyalakan'}
             </button>
           )}
 
