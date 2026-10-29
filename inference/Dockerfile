@@ -6,8 +6,8 @@ FROM python:3.11.9-slim-bookworm
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 COPY inference/requirements.lock /tmp/requirements.lock
-RUN pip install --no-cache-dir -r /tmp/requirements.lock \
- && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+# PyTorch is not needed to serve (only for PINN-1 research training/eval), so it is left out.
+RUN pip install --no-cache-dir -r /tmp/requirements.lock
 COPY inference ./inference
 COPY eval ./eval
 COPY bench ./bench
