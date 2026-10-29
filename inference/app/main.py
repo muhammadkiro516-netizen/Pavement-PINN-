@@ -488,3 +488,29 @@ async def diagnose(req: DiagnoseRequest) -> dict:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     out["elapsed_ms"] = round((time.perf_counter() - t) * 1000, 1)
     return out
+
+
+# ------------------------------------------------------------------ SLM draft proposal (SPEC M7)
+from . import slm as slm_mod  # noqa: E402
+
+
+class ProposalRequest(Strict):
+    facts: dict
+    values: dict[str, str]
+
+
+@app.post("/v1/proposal")
+async def proposal(req: ProposalRequest) -> dict:
+    bad = [k for k in req.values if "{" + k + "}" not in slm_mod.PLACEHOLDERS]
+    if bad:
+        raise HTTPException(status_code=422, detail=f"unknown placeholders: {bad}")
+    try:
+        model = await run_in_threadpool(slm_mod.load_slm)
+    except RuntimeError as exc:
+        model = None
+        reason = str(exc)
+    else:
+        reason = None if model else "SLM model not installed (inference/scripts/fetch_slm.py)"
+    out = await run_in_threadpool(slm_mod.draft, req.facts, req.values, model)
+    out["slm_unavailable_reason"] = reason
+    return out

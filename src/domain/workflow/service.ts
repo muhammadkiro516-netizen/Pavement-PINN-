@@ -62,10 +62,12 @@ export interface WorkflowSnapshot {
   diagnosisDecisions?: LedgerRecord[];
   auditResponses?: LedgerRecord[];
   projects?: LedgerRecord[];
+  /** SPEC M7: approved road treatment proposals (SLM draft + human approval). */
+  proposals?: LedgerRecord[];
 }
 
 /** Append-only ledgers next to the cases; every record has an id, a time and an author. */
-export type LedgerKey = 'diagnosisDecisions' | 'auditResponses' | 'projects';
+export type LedgerKey = 'diagnosisDecisions' | 'auditResponses' | 'projects' | 'proposals';
 export interface LedgerRecord {
   id: string;
   at: string;

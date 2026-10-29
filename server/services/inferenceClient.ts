@@ -16,13 +16,13 @@ export type InferenceReply =
   | { ok: false; status: number; body: unknown }
   | { ok: false; status: 503; unavailable: true; message: string };
 
-export async function callInference(method: "GET" | "POST", path: string, payload?: unknown): Promise<InferenceReply> {
+export async function callInference(method: "GET" | "POST", path: string, payload?: unknown, timeoutMs: number = TIMEOUT_MS): Promise<InferenceReply> {
   try {
     const res = await fetch(`${inferenceUrl()}${path}`, {
       method,
       headers: payload === undefined ? undefined : { "Content-Type": "application/json" },
       body: payload === undefined ? undefined : JSON.stringify(payload),
-      signal: AbortSignal.timeout(TIMEOUT_MS)
+      signal: AbortSignal.timeout(timeoutMs)
     });
     const body = await res.json().catch(() => null);
     return { ok: res.ok, status: res.status, body };

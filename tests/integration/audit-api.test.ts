@@ -67,3 +67,13 @@ test('fair cost over HTTP keeps labels and refuses citizens', async () => {
   assert.ok(r.body.result.breakdown.every((b: { label: string }) => b.label));
   assert.equal((await call('POST', '/api/audit/fair-cost', { materialId: 'AC-WC', thicknessCm: 4, areaM2: 100 }, citizen)).status, 403);
 });
+
+test('treatment proposals: only the Koordinator or Pimpinan approve, with a note; engineers and citizens cannot', async () => {
+  const [ops, policy, eng, citizen] = await Promise.all(['USR-008', 'USR-007', 'USR-006', 'USR-004'].map(session));
+  const body = { text: 'Ruas uji memerlukan lapis ulang. Disarankan uji core dan DCP sebelum pekerjaan dimulai.', note: 'Disetujui untuk anggaran perubahan', source: 'SLM', device: 'CPU' };
+  assert.equal((await call('POST', '/api/roads/S1/proposal/approve', body, eng)).status, 403);
+  assert.equal((await call('POST', '/api/roads/S1/proposal/approve', body, citizen)).status, 403);
+  assert.equal((await call('POST', '/api/roads/S1/proposal/approve', { ...body, note: '' }, ops)).status, 422);
+  assert.equal((await call('POST', '/api/roads/S1/proposal/approve', body, policy)).status, 201);
+  assert.equal((await call('POST', '/api/roads/S1/proposal', {}, eng)).status, 403);
+});

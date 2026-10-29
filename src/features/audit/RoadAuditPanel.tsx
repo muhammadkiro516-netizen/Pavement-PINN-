@@ -54,7 +54,7 @@ const DiagnosisCard: React.FC<{ segmentId: string; role: Role }> = ({ segmentId,
   const decide = async () => {
     if (!d || !decision) return;
     try {
-      await call('POST', `/api/roads/${encodeURIComponent(segmentId)}/diagnosis-decision`, { decision: decision.kind, modelVerdict: d.verdict, overrideVerdict: decision.kind === 'TIMPA' ? decision.override : null, reason: decision.reason, remainingLife: d.remaining_life_years });
+      await call('POST', `/api/roads/${encodeURIComponent(segmentId)}/diagnosis-decision`, { decision: decision.kind, modelVerdict: d.verdict, overrideVerdict: decision.kind === 'TIMPA' ? decision.override : null, reason: decision.reason, remainingLife: d.remaining_life_years, title: d.title, dominantFactor: d.dominant_factor, confidence: d.confidence });
       setSaved('Keputusan tersimpan untuk kalibrasi model.'); setDecision(null);
     } catch (e) { setErr((e as Error).message); }
   };
@@ -242,6 +242,68 @@ export const FairCostCalculator: React.FC = () => {
   );
 };
 
+interface Draft { text: string; source: 'SLM' | 'TEMPLAT'; device: string | null; model: string | null; label: string; attempts: Array<{ tokens_per_s: number; ttft_ms: number; problems: string[] }>; slm_unavailable_reason: string | null }
+
+/** SPEC M7: SLM draft of the road treatment proposal; a person edits, exports and approves it. */
+const ProposalCard: React.FC<{ segmentId: string; role: Role }> = ({ segmentId, role }) => {
+  const [d, setD] = useState<Draft | null>(null);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  const [done, setDone] = useState<string | null>(null);
+  if (role !== 'OPERATIONS_MANAGER' && role !== 'POLICY_MAKER') return null;
+  const make = async () => {
+    setBusy(true); setErr(null); setDone(null);
+    try {
+      const j = await call<{ draft: Draft }>('POST', `/api/roads/${encodeURIComponent(segmentId)}/proposal`, {});
+      setD(j.draft); setText(j.draft.text);
+    } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  };
+  const pdf = async () => {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    doc.setFontSize(9);
+    doc.setTextColor(180, 0, 0);
+    doc.text(`DRAF — ${d?.label ?? ''}`, 15, 12);
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(14);
+    doc.text('Usulan Penanganan Ruas', 15, 22);
+    doc.setFontSize(11);
+    doc.text(doc.splitTextToSize(text, 180), 15, 32);
+    doc.setFontSize(8);
+    doc.text(`Sumber teks: ${d?.source === 'SLM' ? `SLM lokal ${d.model ?? ''} (${d.device ?? '-'})` : 'templat'}; angka diisi dari data tercatat. Dibuat ${new Date().toLocaleString('id-ID')}.`, 15, 285);
+    doc.save(`usulan-${segmentId}.pdf`);
+  };
+  const approve = async () => {
+    try {
+      await call('POST', `/api/roads/${encodeURIComponent(segmentId)}/proposal/approve`, { text, note, source: d?.source, device: d?.device });
+      setDone('Usulan disetujui dan tercatat.'); setNote('');
+    } catch (e) { setErr((e as Error).message); }
+  };
+  const a = d?.attempts.at(-1);
+  return (
+    <div className={box}>
+      <div className="flex items-center justify-between"><p className="font-extrabold">Usulan Penanganan Ruas</p><Tag tone="#FF6B2C">DRAF</Tag></div>
+      <p className="mt-1 text-xs text-[#FFFFFF]/55">Ditulis model bahasa lokal (OpenVINO GenAI, data tidak keluar server). Model hanya menulis kalimat; semua angka diisi dari data tercatat.</p>
+      <button type="button" disabled={busy} onClick={() => void make()} className={`${btn} mt-3 w-full bg-[#FFD60A] text-[#0B0D10]`}>{busy ? 'Menyusun draf… (±1 menit di CPU)' : 'Buat draf usulan'}</button>
+      {err && <p className="mt-2 text-sm text-[#FF6B6B]">{err}</p>}
+      {d && (
+        <div className="mt-3 space-y-2 text-xs">
+          <p className="text-[#FFFFFF]/55">
+            {d.source === 'SLM' ? `SLM ${d.model} di ${d.device}${a ? ` · ${a.tokens_per_s} token/detik · TTFT ${Math.round(a.ttft_ms)} ms` : ''}` : `Templat dipakai${d.slm_unavailable_reason ? ` (${d.slm_unavailable_reason})` : ' (draf SLM tidak lolos pemeriksa 2×)'}`}
+          </p>
+          <textarea className={input} rows={10} value={text} onChange={(e) => setText(e.target.value)} />
+          <button type="button" onClick={() => void pdf()} className={`${btn} w-full bg-[#FFFFFF]/10`}>Ekspor PDF (DRAF)</button>
+          <textarea className={input} rows={2} placeholder="Catatan persetujuan (wajib)" value={note} onChange={(e) => setNote(e.target.value)} />
+          <button type="button" disabled={note.trim().length < 5} onClick={() => void approve()} className={`${btn} w-full bg-[#2BD67B] text-[#0B0D10]`}>Setujui usulan</button>
+          {done && <p className="text-[#2BD67B]">{done}</p>}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const RoadAuditPanel: React.FC<{ segmentId: string; role: Role }> = ({ segmentId, role }) => {
   if (role !== 'FIELD_ENGINEER' && role !== 'OPERATIONS_MANAGER' && role !== 'POLICY_MAKER') return null;
   return (
@@ -249,6 +311,7 @@ export const RoadAuditPanel: React.FC<{ segmentId: string; role: Role }> = ({ se
       <DiagnosisCard segmentId={segmentId} role={role} />
       <AuditFlagsPanel segmentId={segmentId} role={role} />
       <ProjectsCard segmentId={segmentId} role={role} />
+      <ProposalCard segmentId={segmentId} role={role} />
     </div>
   );
 };

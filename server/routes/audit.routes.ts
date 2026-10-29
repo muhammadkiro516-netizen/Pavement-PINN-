@@ -122,7 +122,7 @@ export function registerAuditRoutes(router: Router, runtime: WorkflowRuntime): v
     if ((decision !== "SETUJU" && decision !== "TIMPA") || reason.length < 5 || !["RED", "YELLOW", "GREEN"].includes(verdict) || (decision === "TIMPA" && !["RED", "YELLOW", "GREEN"].includes(override))) {
       return fail(res, 422, "VALIDATION", "decision SETUJU|TIMPA, modelVerdict, overrideVerdict (untuk TIMPA) dan alasan wajib.");
     }
-    const r = await service.putRecord("diagnosisDecisions", { by: actor.id, segmentId: req.params.segmentId, decision, modelVerdict: verdict, overrideVerdict: override, reason, remainingLife: req.body?.remainingLife ?? null });
+    const r = await service.putRecord("diagnosisDecisions", { by: actor.id, segmentId: req.params.segmentId, decision, modelVerdict: verdict, overrideVerdict: override, reason, remainingLife: req.body?.remainingLife ?? null, title: typeof req.body?.title === "string" ? req.body.title.slice(0, 60) : null, dominantFactor: typeof req.body?.dominantFactor === "string" ? req.body.dominantFactor.slice(0, 60) : null, confidence: typeof req.body?.confidence === "string" ? req.body.confidence.slice(0, 20) : null });
     if (r.ok === false) return fail(res, 500, r.code, r.message);
     res.status(201).json({ success: true, record: r.value });
   });
@@ -131,6 +131,56 @@ export function registerAuditRoutes(router: Router, runtime: WorkflowRuntime): v
     await runtime.ready;
     if (!isStaff(actorFrom(req, runtime)) && !isLeader(actorFrom(req, runtime))) return fail(res, 403, "FORBIDDEN", "Staf instansi saja.");
     res.json({ success: true, items: (await service.listRecords("diagnosisDecisions")).filter((d) => d.segmentId === req.params.segmentId) });
+  });
+
+  // SPEC M7: draft "Usulan Penanganan Ruas" — facts from records, prose from the local SLM, numbers from code.
+  router.post("/api/roads/:segmentId/proposal", limit, json, async (req: Request, res: Response) => {
+    await runtime.ready;
+    const actor = actorFrom(req, runtime);
+    if (!isLeader(actor)) return fail(res, 403, "FORBIDDEN", "Koordinator atau Pimpinan saja.");
+    const segmentId = req.params.segmentId;
+    const all = (await service.listCases()).filter((c) => c.segmentId === segmentId && c.dataStatus !== "SYNTHETIC");
+    const open = all.filter((c) => !["RESOLVED", "CLOSED"].includes(c.state));
+    const lives = repairLives(all, await service.listRepairConfirmations());
+    const failed = lives.filter((l) => !l.censored && l.days <= 91).length;
+    const observed = lives.filter((l) => (!l.censored && l.days <= 91) || l.days >= 91).length;
+    const decision = (await service.listRecords("diagnosisDecisions")).filter((d) => d.segmentId === segmentId).at(-1);
+    const flags = auditFlags(all, await service.listRepairConfirmations(), loadPrices(), (await service.listRecords("auditResponses")) as never, MIN_THICKNESS);
+    const life = decision?.remainingLife as { p10: number; p50: number; p90: number } | undefined;
+    const TITLE: Record<string, string> = { RED: "Perlu lapis ulang", YELLOW: "Pantau", GREEN: "Tambal cukup" };
+    const verdict = decision ? String(decision.decision === "TIMPA" ? decision.overrideVerdict : decision.modelVerdict) : null;
+    const facts = {
+      damage_types: [...new Set(open.map((c) => c.report.damageTypeLabel.toLowerCase()))].slice(0, 5),
+      diagnosis: decision ? { title: TITLE[verdict!] ?? decision.title, confidence: decision.confidence ?? "-", dominant_factor: decision.dominantFactor ?? "-", decision: decision.decision === "TIMPA" ? "ditimpa Koordinator dengan alasan" : "disetujui Koordinator" } : null,
+      recurrence_known: observed > 0,
+      flags: [...new Set(flags.map((f) => f.title))],
+      fair_cost_known: false,
+      hazard_missing: open.some((c) => !c.hazard && ["SEVERE", "CRITICAL"].includes(c.inspection?.severity ?? c.report.severity))
+    };
+    const values: Record<string, string> = {
+      RUAS: open[0]?.report.segmentName ?? all[0]?.report.segmentName ?? segmentId,
+      INSTANSI: all.find((c) => c.authority)?.authority?.name ?? "instansi berwenang",
+      LAPORAN_TERBUKA: String(open.length),
+      ...(life ? { SISA_UMUR: `${life.p10}–${life.p90} tahun (P10–P90, median ${life.p50})` } : {}),
+      ...(observed ? { BERULANG: `${failed} dari ${observed} perbaikan` } : {})
+    };
+    // Two SLM attempts on a CPU can take over a minute.
+    const reply = await callInference("POST", "/v1/proposal", { facts, values }, 180_000);
+    if ("unavailable" in reply) return fail(res, 503, "INFERENCE_UNAVAILABLE", reply.message);
+    if (!reply.ok) return fail(res, reply.status, "INFERENCE_ERROR", JSON.stringify((reply.body as { detail?: unknown })?.detail ?? reply.body).slice(0, 300));
+    res.json({ success: true, draft: reply.body, facts, values });
+  });
+
+  router.post("/api/roads/:segmentId/proposal/approve", limit, json, async (req: Request, res: Response) => {
+    await runtime.ready;
+    const actor = actorFrom(req, runtime);
+    if (!isLeader(actor)) return fail(res, 403, "FORBIDDEN", "Koordinator atau Pimpinan saja.");
+    const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+    const note = typeof req.body?.note === "string" ? req.body.note.trim() : "";
+    if (text.length < 40 || text.length > 8000 || note.length < 5) return fail(res, 422, "VALIDATION", "Teks usulan dan catatan persetujuan (min. 5 karakter) wajib.");
+    const r = await service.putRecord("proposals", { by: actor!.id, segmentId: req.params.segmentId, text, note, source: req.body?.source === "SLM" ? "SLM" : "TEMPLAT", device: typeof req.body?.device === "string" ? req.body.device : null });
+    if (r.ok === false) return fail(res, 500, r.code, r.message);
+    res.status(201).json({ success: true, record: r.value });
   });
 
   // SPEC M6.6: project data (manual form + photo of the project board); verified by a Koordinator.
