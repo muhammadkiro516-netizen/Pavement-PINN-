@@ -11,6 +11,7 @@ import { useRouter } from '../../app/router';
 import { apiUrl } from '../../services/api/client';
 import { WORKFLOW_API_PATHS } from '../../types';
 import summary from '../../data/measurements/summary.json';
+import { MeasuredEvidence } from '../../features/evidence/MeasuredEvidence';
 
 interface LatencyRow { model: string; precision: string; device: string; p50Ms: number; p90Ms: number; fps: number }
 interface Accuracy { dataset: string; images: number; map50: number; precision: number; recall: number; f1: number; note: string }
@@ -106,6 +107,9 @@ export const EvidencePage: React.FC = () => {
           Akurasi lapangan dihitung terus dari koreksi petugas pada setiap inspeksi (human-in-the-loop) dan tampil di Statistik Koordinator.
         </p>
       </SnapCard>
+
+      <h2 className="pt-2 text-lg font-extrabold">Bukti terukur (measurements/*.json)</h2>
+      <MeasuredEvidence />
 
       <h2 className="pt-2 text-lg font-extrabold">Privasi & etika</h2>
       <SnapCard>

@@ -1,0 +1,29 @@
+{
+  "measuredAt": "2026-10-29T04:02:12.338774+00:00",
+  "commit": "86e7861",
+  "label": "TERUKUR",
+  "hostLabel": "HOST_NON_INTEL",
+  "model": "qwen2.5-1.5b-instruct-int4-ov",
+  "device": "CPU",
+  "availableDevices": [
+    "CPU",
+    "GPU"
+  ],
+  "deviceNotes": {
+    "NPU": "not available",
+    "GPU": "skipped: non-Intel device (gfx90c (iGPU))"
+  },
+  "cpu": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD",
+  "cases": 10,
+  "acceptedFirstTryPct": 20.0,
+  "slmUsedPct": 40.0,
+  "templateFallbackPct": 60.0,
+  "tokensPerSecMean": 10.17,
+  "ttftMsMedian": 2118.5,
+  "rejectReasons": {
+    "no recommendation": 7,
+    "contains digits": 4,
+    "unknown": 9,
+    "missing": 2
+  }
+}

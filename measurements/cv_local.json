@@ -1,0 +1,9 @@
+{
+  "measuredAt": "2026-10-29T03:56:18.551159+00:00",
+  "commit": "86e7861",
+  "status": "BELUM_DIUKUR",
+  "label": "BELUM_DIUKUR",
+  "labelledImages": 0,
+  "required": 100,
+  "howTo": "Isi eval/local_test/images + labels (format YOLO), minimal 100 foto lokal (30% basah/malam), lalu jalankan ulang."
+}

@@ -1,0 +1,10 @@
+{
+  "measuredAt": "2026-10-29T03:53:36.302Z",
+  "commit": "86e7861",
+  "label": "TERUKUR",
+  "source": "data pilot nyata (.data), tanpa data contoh",
+  "n": 0,
+  "mean": null,
+  "byRole": {},
+  "note": "SUS 0-100; > 68 di atas rata-rata (Sauro 2011). Kosong sampai pengguna nyata mengisi."
+}

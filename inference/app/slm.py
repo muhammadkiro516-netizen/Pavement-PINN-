@@ -22,13 +22,16 @@ PLACEHOLDERS = ("{RUAS}", "{INSTANSI}", "{SISA_UMUR}", "{BERULANG}", "{LAPORAN_T
 BANNED = [r"korup", r"mark-?up", r"nakal", r"lalai", r"maling", r"penipu", r"pungli", r"bohong", r"bodoh"]
 
 SYSTEM = (
-    "Anda membantu insinyur dinas menulis draf usulan penanganan jalan. Tulis dalam bahasa Indonesia formal dan netral. "
-    "ATURAN: jangan menulis angka atau digit apa pun; untuk nilai gunakan placeholder persis seperti diberikan "
-    "({RUAS}, {INSTANSI}, {SISA_UMUR}, {BERULANG}, {LAPORAN_TERBUKA}, {BIAYA_WAJAR}). Jangan menyebut nama orang, "
-    "jangan menuduh siapa pun, jangan mengarang fakta yang tidak diberikan. Jangan menilai nilai dengan kata-kata "
-    "(misalnya 'masih cukup' atau 'tinggi'); tulis placeholder-nya saja dan biarkan pembaca menilai. Tulis dua paragraf singkat "
-    "tanpa judul dan tanpa daftar butir, jangan mengulang daftar fakta, total paling banyak delapan kalimat: "
-    "(1) kondisi dan diagnosis, (2) alasan rekomendasi dan uji teknis yang disarankan."
+    "Anda membantu insinyur dinas menulis draf usulan penanganan jalan dalam bahasa Indonesia formal dan netral. "
+    "Aturan mutlak: jangan menulis angka atau digit sama sekali. Setiap nilai ditulis sebagai placeholder persis seperti "
+    "di fakta, misalnya {RUAS}, {SISA_UMUR}, {BERULANG}; jangan menilai nilai itu dengan kata-kata. Jangan menyebut nama "
+    "orang, jangan menuduh, jangan mengarang fakta. Tulis dua paragraf prosa tanpa judul, tanpa penomoran dan tanpa daftar "
+    "butir. Paragraf pertama: kondisi dan diagnosis. Paragraf kedua: alasan rekomendasi dan uji teknis yang disarankan.\n\n"
+    "Contoh gaya (bukan fakta untuk ruas ini):\n"
+    "Ruas {RUAS} yang dikelola {INSTANSI} menunjukkan lubang dan retak buaya. Diagnosis struktur menyimpulkan perlu dipantau, "
+    "dengan sisa umur {SISA_UMUR}; perbaikan yang rusak lagi dalam tiga bulan tercatat {BERULANG}.\n\n"
+    "Karena faktor dominannya tanah dasar basah, perbaikan permukaan saja kemungkinan tidak bertahan lama. Disarankan uji DCP "
+    "tanah dasar, uji core untuk tebal lapisan, dan pemeriksaan drainase sebelum menetapkan penanganan."
 )
 
 
@@ -168,8 +171,10 @@ def draft(facts: dict, values: dict[str, str], slm: Slm | None) -> dict:
     text, source = None, "TEMPLAT"
     if slm is not None:
         prompt = qualitative(facts)
-        for _ in range(2):
-            out = slm.generate(prompt)
+        for attempt in range(2):
+            # Decoding is greedy, so a retry must change the prompt: say exactly what was wrong.
+            p = prompt if attempt == 0 else prompt + "\n\nDraf sebelumnya ditolak karena: " + "; ".join(attempts[-1]["problems"]) + ". Tulis ulang dan patuhi aturan."
+            out = slm.generate(p)
             problems = check(out["text"], required(facts))
             attempts.append({**{k: out[k] for k in ("ttft_ms", "tokens_per_s", "new_tokens", "seconds")}, "problems": problems})
             if not problems:

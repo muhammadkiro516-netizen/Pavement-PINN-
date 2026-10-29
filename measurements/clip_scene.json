@@ -1,0 +1,9 @@
+{
+  "measuredAt": "2026-10-29T03:56:19.039453+00:00",
+  "commit": "86e7861",
+  "status": "BELUM_DIUKUR",
+  "label": "BELUM_DIUKUR",
+  "photosPerClass": {},
+  "requiredPerClass": 20,
+  "howTo": "Isi eval/local_test/scenes/<kelas>/*.jpg (min. 20 foto per kelas), lalu jalankan ulang."
+}

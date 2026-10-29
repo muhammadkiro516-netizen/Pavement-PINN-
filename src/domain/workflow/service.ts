@@ -64,10 +64,12 @@ export interface WorkflowSnapshot {
   projects?: LedgerRecord[];
   /** SPEC M7: approved road treatment proposals (SLM draft + human approval). */
   proposals?: LedgerRecord[];
+  /** SPEC M10: in-app SUS questionnaire answers (one per account). */
+  sus?: LedgerRecord[];
 }
 
 /** Append-only ledgers next to the cases; every record has an id, a time and an author. */
-export type LedgerKey = 'diagnosisDecisions' | 'auditResponses' | 'projects' | 'proposals';
+export type LedgerKey = 'diagnosisDecisions' | 'auditResponses' | 'projects' | 'proposals' | 'sus';
 export interface LedgerRecord {
   id: string;
   at: string;

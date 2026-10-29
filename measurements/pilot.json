@@ -1,0 +1,22 @@
+{
+  "measuredAt": "2026-10-29T03:53:36.302Z",
+  "commit": "86e7861",
+  "label": "TERUKUR",
+  "source": "data pilot nyata (.data), tanpa data contoh",
+  "reports": 2,
+  "uniqueReportingAccounts": 1,
+  "verified": 1,
+  "resolved": 0,
+  "medianDaysToResolve": null,
+  "witnesses": 1,
+  "repairConfirmations": 0,
+  "repairs": 0,
+  "recurrence3m": {
+    "windowMonths": 3,
+    "recurred": 0,
+    "observed": 0,
+    "tooRecent": 0,
+    "pct": null
+  },
+  "byMethod": []
+}
