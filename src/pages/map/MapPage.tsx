@@ -145,9 +145,10 @@ export const MapPage: React.FC = () => {
         <div className="absolute inset-x-0 bottom-[104px] z-30">
           <p className="mb-1.5 px-4 text-xs font-extrabold uppercase tracking-wider text-[#FFFFFF]/70 drop-shadow">Sekitar Anda</p>
           <div className="flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-            {nearby.map(({ r, d }) => (
+            {nearby.map(({ r, d }, i) => (
               <button key={r.id} type="button" onClick={() => { setTarget({ coords: r.coordinates, zoom: 17, timestamp: Date.now() }); openReport(r); }}
-                className="pp-rise flex w-[68px] shrink-0 cursor-pointer flex-col items-center gap-1">
+                style={{ animationDelay: `${120 + i * 70}ms` }}
+                className="pp-rise flex w-[68px] shrink-0 cursor-pointer flex-col items-center gap-1 transition-transform hover:-translate-y-0.5 active:scale-95">
                 <span className="rounded-full p-[3px]" style={{ background: ringFor(r) }}>
                   <img src={r.photoUrl} alt="" className="h-[58px] w-[58px] rounded-full border-2 border-[#0B0D10] object-cover" loading="lazy" />
                 </span>

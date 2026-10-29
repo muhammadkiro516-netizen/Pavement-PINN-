@@ -150,7 +150,7 @@ export const PavementMap: React.FC<PavementMapProps> = ({ compact = false, engin
                 <button
                   type="button"
                   onClick={() => props.onLaunchSimulation?.(props.selectedSegment!)}
-                  className="shrink-0 h-9 px-3 rounded-[10px] bg-[#E8B52B] hover:bg-[#f3be48] text-[#11110F] text-sm font-semibold cursor-pointer"
+                  className="shrink-0 h-9 px-3 rounded-[10px] bg-[#FFD60A] hover:bg-[#FFE14D] text-[#11110F] text-sm font-semibold cursor-pointer"
                 >
                   Jalankan PINN
                 </button>

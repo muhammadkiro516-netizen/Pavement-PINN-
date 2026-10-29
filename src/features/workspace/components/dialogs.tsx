@@ -61,7 +61,7 @@ export const CorrectionDialog: React.FC<{
       {error && <p className="mt-2 text-[12px] text-[#F59AA3]">{error}</p>}
       <div className="mt-4 flex justify-end gap-2">
         <button type="button" onClick={onClose} className="rounded-lg border border-[#273244] px-3 py-1.5 text-[12px]">{t('cancel')}</button>
-        <button type="button" data-testid="correction-submit" disabled={busy || reason.trim().length < 5 || !valid} onClick={submit} className="rounded-lg bg-[#E8B52B] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:opacity-40" title={reason.trim().length < 5 ? t('reasonRequired') : undefined}>
+        <button type="button" data-testid="correction-submit" disabled={busy || reason.trim().length < 5 || !valid} onClick={submit} className="rounded-lg bg-[#FFD60A] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:opacity-40" title={reason.trim().length < 5 ? t('reasonRequired') : undefined}>
           {t('submit')}
         </button>
       </div>
@@ -102,7 +102,7 @@ export const PolygonEditor: React.FC<{
         onPointerMove={(e) => drag !== null && onChange(value.map((p, i) => (i === drag ? toLocal(e) : p)))}
         onPointerUp={() => setDrag(null)}
       >
-        {value.length > 1 && <polygon points={value.map((p) => p.join(',')).join(' ')} fill="rgba(232,181,43,0.18)" stroke="#E8B52B" strokeWidth={handle / 3} />}
+        {value.length > 1 && <polygon points={value.map((p) => p.join(',')).join(' ')} fill="rgba(232,181,43,0.18)" stroke="#FFD60A" strokeWidth={handle / 3} />}
         {value.map((p, i) => (
           <circle
             key={i}
@@ -110,7 +110,7 @@ export const PolygonEditor: React.FC<{
             cy={p[1]}
             r={handle}
             fill="#0A0F14"
-            stroke="#E8B52B"
+            stroke="#FFD60A"
             strokeWidth={handle / 3}
             onPointerDown={(e) => {
               e.stopPropagation();

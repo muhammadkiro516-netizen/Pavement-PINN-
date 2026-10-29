@@ -100,7 +100,7 @@ export const DamagePanel: React.FC = () => {
           <p className="mb-2 text-[11px] text-[#9AA8BC]">Klik peta untuk posisi titik. Nilai sistem dibaca server dari permukaan tersimpan.</p>
           <div className="relative mx-auto max-w-[320px]" style={{ aspectRatio: '1 / 1' }} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setPt((p) => ({ ...p, x: Math.round(((e.clientX - r.left) / r.width) * surface.cols * surface.cellSize), y: Math.round(((e.clientY - r.top) / r.height) * surface.rows * surface.cellSize) })); }}>
             <DepthImage g={surface} />
-            <span className="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#E8B52B]" style={{ left: `${(pt.x / (surface.cols * surface.cellSize)) * 100}%`, top: `${(pt.y / (surface.rows * surface.cellSize)) * 100}%` }} />
+            <span className="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#FFD60A]" style={{ left: `${(pt.x / (surface.cols * surface.cellSize)) * 100}%`, top: `${(pt.y / (surface.rows * surface.cellSize)) * 100}%` }} />
           </div>
           <div className="mt-2 grid grid-cols-2 gap-2 text-[12px]">
             <label>x (mm)<input type="number" value={pt.x} onChange={(e) => setPt({ ...pt, x: Number(e.target.value) })} className="w-full rounded border border-[#273244] bg-[#0A0F14] p-1" /></label>
@@ -110,7 +110,7 @@ export const DamagePanel: React.FC = () => {
           </div>
           {err && <p className="mt-2 text-[12px] text-[#F59AA3]">{err}</p>}
           <div className="mt-3 flex justify-end">
-            <button type="button" data-testid="gt-submit" disabled={pt.ref === '' || !Number.isFinite(Number(pt.ref))} onClick={async () => { const r = await run((g) => g.groundTruth(reportId, { objectId: o.objectId, xMm: pt.x, yMm: pt.y, referenceMm: Number(pt.ref), tool: pt.tool })); if ('message' in r) setErr(r.message); else setDialog(null); }} className="rounded-lg bg-[#E8B52B] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:opacity-40">OK</button>
+            <button type="button" data-testid="gt-submit" disabled={pt.ref === '' || !Number.isFinite(Number(pt.ref))} onClick={async () => { const r = await run((g) => g.groundTruth(reportId, { objectId: o.objectId, xMm: pt.x, yMm: pt.y, referenceMm: Number(pt.ref), tool: pt.tool })); if ('message' in r) setErr(r.message); else setDialog(null); }} className="rounded-lg bg-[#FFD60A] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:opacity-40">OK</button>
           </div>
         </Modal>
       )}

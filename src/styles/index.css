@@ -10,16 +10,16 @@
    * Brand (from src/assets/pavement-pinn-logo.jpg): golden yellow for identity, primary actions,
    * active states and highlights only; navy from the logo mark.
    */
-  --color-brand: #E8B52B;
-  --color-brand-hover: #f3be48;
-  --color-brand-press: #cc9624;
+  --color-brand: #FFD60A;
+  --color-brand-hover: #FFE14D;
+  --color-brand-press: #E6C000;
   --color-navy: #1C1C1A;
 
   /* Surfaces, lines and text (dark GIS UI - Unified with M.O Operations Dashboard Design System). */
-  --color-canvas: #0D0F12;
-  --color-surface: #12151A;
-  --color-elevated: #181B20;
-  --color-line: #292D33;
+  --color-canvas: #0B0D10;
+  --color-surface: #15181D;
+  --color-elevated: #1E2229;
+  --color-line: #2A2F37;
   --color-fg: #F0F1F3;
   --color-fg-muted: #A0A6AF;
   --color-fg-subtle: #747C87;
@@ -28,15 +28,15 @@
    * Road condition status: calm, professional, never neon; identical on map, markers, legend, badges,
    * charts and reports (map code uses src/design/statusColors.ts with the same values).
    */
-  --color-status-good: #50A878;
+  --color-status-good: #2BD67B;
   --color-status-watch: #D7A84B;
-  --color-status-light: #D88A45;
-  --color-status-heavy: #D96B5F;
+  --color-status-light: #FF6B2C;
+  --color-status-heavy: #FF4D5E;
 
-  --color-risk-high: #D96B5F;
-  --color-risk-watch: #D88A45;
+  --color-risk-high: #FF4D5E;
+  --color-risk-watch: #FF6B2C;
   --color-risk-moderate: #D7A84B;
-  --color-risk-good: #50A878;
+  --color-risk-good: #2BD67B;
   --color-info: #8296b0;
 
   /*
@@ -55,16 +55,16 @@
   --color-ink-2: #A0A6AF;
   --color-ink-3: #747C87;
   --color-simulation: #8296b0;
-  --color-focus: #E8B52B;
+  --color-focus: #FFD60A;
 
   /*
    * Tailwind palette remapped to the calm GIS system:
    */
-  --color-amber-50: #fef8e7; --color-amber-100: #fdefc4; --color-amber-200: #fae08a; --color-amber-300: #f3be48;
-  --color-amber-400: #E8B52B; --color-amber-500: #cc9624; --color-amber-600: #a37516; --color-amber-700: #7d570f;
+  --color-amber-50: #fef8e7; --color-amber-100: #fdefc4; --color-amber-200: #fae08a; --color-amber-300: #FFE14D;
+  --color-amber-400: #FFD60A; --color-amber-500: #cc9624; --color-amber-600: #a37516; --color-amber-700: #7d570f;
   --color-amber-800: #5c3e0a; --color-amber-900: #3e2805; --color-amber-950: #241602;
-  --color-yellow-50: #fef8e7; --color-yellow-100: #fdefc4; --color-yellow-200: #fae08a; --color-yellow-300: #f3be48;
-  --color-yellow-400: #E8B52B; --color-yellow-500: #cc9624; --color-yellow-600: #a37516; --color-yellow-700: #7d570f;
+  --color-yellow-50: #fef8e7; --color-yellow-100: #fdefc4; --color-yellow-200: #fae08a; --color-yellow-300: #FFE14D;
+  --color-yellow-400: #FFD60A; --color-yellow-500: #cc9624; --color-yellow-600: #a37516; --color-yellow-700: #7d570f;
   --color-yellow-800: #5c3e0a; --color-yellow-900: #3e2805; --color-yellow-950: #241602;
 
   --color-slate-50: #f7f7f4; --color-slate-100: #eeeee9; --color-slate-200: #dcdbd4; --color-slate-300: #c2c1b9;
@@ -181,10 +181,10 @@
   --nav-text: #9AA8BC;
   --nav-text-selected: #E8EDF5;
   --nav-icon: #9AA8BC;
-  --nav-icon-selected: #E8B52B;
-  --nav-indicator: #E8B52B;
+  --nav-icon-selected: #FFD60A;
+  --nav-indicator: #FFD60A;
 
-  --accent-yellow: #f5bc24;
+  --accent-yellow: #FFD60A;
   --accent-yellow-hover: #ffd15a;
   --accent-yellow-muted: rgba(245, 189, 36, 0.12);
 
@@ -197,7 +197,7 @@
   --login-text-primary: #F5F5F7;
   --login-text-secondary: #A1A1AA;
   --login-text-muted: #858995;
-  --login-accent: #F5BC24;
+  --login-accent: #FFD60A;
   --login-accent-hover: #FFD052;
 
   --login-radius-card: 24px;
@@ -215,7 +215,7 @@
   --login-text-primary: #F5F5F7;
   --login-text-secondary: #A1A1AA;
   --login-text-muted: #858995;
-  --login-accent: #F5BC24;
+  --login-accent: #FFD60A;
   --login-accent-hover: #FFD052;
 
   --login-radius-card: 24px;
@@ -1288,7 +1288,7 @@ html, body, #root {
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.9s linear;
-  /* Transform violet/purple globe into PINN golden yellow (#E8B52B) */
+  /* Transform violet/purple globe into PINN golden yellow (#FFD60A) */
   filter: hue-rotate(142deg) saturate(1.45) brightness(1.12) contrast(1.08);
 }
 
@@ -1368,7 +1368,7 @@ html, body, #root {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #F5BC24;
+  color: #FFD60A;
   margin-bottom: 14px;
   line-height: 1.2;
 }
@@ -1533,4 +1533,15 @@ body { font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif; }
 /* Phones and narrow windows: pinch to zoom; the +/- buttons only cover the bottom bar. */
 @media (max-width: 640px) {
   .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group { display: none; }
+}
+
+/* Map motion: pins drop in (inner element only; MapLibre owns the root transform), severe open
+   reports pulse softly, everything off under reduced motion. */
+.pp-pin-inner { animation: pp-pin-in 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) backwards; }
+@keyframes pp-pin-in { 0% { transform: translateY(-16px) scale(0.4); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.pp-pin-pulse { position: absolute; inset: -7px; border-radius: 999px; border: 2px solid; pointer-events: none; animation: pp-pin-ring 2.4s ease-out infinite; }
+@keyframes pp-pin-ring { from { transform: scale(0.9); opacity: 0.85; } to { transform: scale(1.75); opacity: 0; } }
+.maplibregl-popup-content { border-radius: 14px !important; box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.6) !important; }
+@media (prefers-reduced-motion: reduce) {
+  .pp-pin-inner, .pp-pin-pulse, .pp-rise { animation: none !important; }
 }

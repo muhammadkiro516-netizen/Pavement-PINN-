@@ -27,8 +27,8 @@ test('missing required angles are listed', () => {
 });
 
 test('area and patch volume come from tape measurements', () => {
-  assert.equal(areaFromDimensions({ lengthCm: 120, widthCm: 80, depthCm: 6 }), 1);
-  assert.equal(volumeFromDimensions({ lengthCm: 120, widthCm: 80, depthCm: 6 }), 0.06);
+  assert.equal(areaFromDimensions({ lengthCm: 120, widthCm: 80, depthCm: 6 }), 0.96);
+  assert.equal(volumeFromDimensions({ lengthCm: 120, widthCm: 80, depthCm: 6 }), 0.058);
   assert.equal(areaFromDimensions({ lengthCm: 120, widthCm: null, depthCm: 6 }), null);
 });
 

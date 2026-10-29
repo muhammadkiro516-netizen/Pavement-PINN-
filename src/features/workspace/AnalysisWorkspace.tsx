@@ -82,7 +82,7 @@ export const AnalysisWorkspace: React.FC<{ onBack?: () => void; onOpenQueue?: ()
       {/* Header */}
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[#1A2430] px-4 py-2.5">
         {onBack && (
-          <button type="button" onClick={onBack} className="inline-flex items-center gap-1.5 rounded-lg border border-[#273244] px-2.5 py-1 text-[12px] text-[#C9D4E3] hover:border-[#E8B52B]/60">
+          <button type="button" onClick={onBack} className="inline-flex items-center gap-1.5 rounded-lg border border-[#273244] px-2.5 py-1 text-[12px] text-[#C9D4E3] hover:border-[#FFD60A]/60">
             <ArrowLeft className="h-3.5 w-3.5" /> {t('back')}
           </button>
         )}
@@ -117,7 +117,7 @@ export const AnalysisWorkspace: React.FC<{ onBack?: () => void; onOpenQueue?: ()
               aria-selected={active}
               data-testid={`tab-${x.id}`}
               onClick={() => ws.setTab(x.id)}
-              className={`rounded-xl border px-2 py-1.5 text-center transition-colors ${active ? 'border-[#E8B52B] bg-[#E8B52B] text-[#0A0F14]' : 'border-[#1E2A38] bg-[#0F1720] text-[#C9D4E3] hover:border-[#E8B52B]/50'}`}
+              className={`rounded-xl border px-2 py-1.5 text-center transition-colors ${active ? 'border-[#FFD60A] bg-[#FFD60A] text-[#0A0F14]' : 'border-[#1E2A38] bg-[#0F1720] text-[#C9D4E3] hover:border-[#FFD60A]/50'}`}
             >
               <div className="text-[13px] font-semibold leading-5">{t(x.label)}</div>
               <div className={`text-[11px] leading-4 ${active ? 'text-[#3A2C0B]' : 'text-[#8B9BB0]'}`}>{t(x.sub)}</div>
@@ -144,7 +144,7 @@ export const AnalysisWorkspace: React.FC<{ onBack?: () => void; onOpenQueue?: ()
             {panel[tab.id]}
           </aside>
         </div>
-        <button type="button" onClick={() => setPanelOpen(true)} className="fixed bottom-4 right-4 z-30 inline-flex items-center gap-1.5 rounded-full bg-[#E8B52B] px-3 py-2 text-[12px] font-semibold text-[#0A0F14] shadow-lg lg:hidden">
+        <button type="button" onClick={() => setPanelOpen(true)} className="fixed bottom-4 right-4 z-30 inline-flex items-center gap-1.5 rounded-full bg-[#FFD60A] px-3 py-2 text-[12px] font-semibold text-[#0A0F14] shadow-lg lg:hidden">
           <PanelRightOpen className="h-4 w-4" /> {t('indicatorPanel')}
         </button>
 

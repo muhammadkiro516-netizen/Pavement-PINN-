@@ -358,7 +358,7 @@ export const ReportDetailBottomSheet: React.FC<ReportDetailBottomSheetProps> = (
                 rel="noopener noreferrer"
                 className="py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 text-xs font-semibold flex items-center justify-center space-x-2 transition-all cursor-pointer truncate shadow-sm"
               >
-                <Navigation className="w-3.5 h-3.5 text-[#F5BC24] shrink-0" />
+                <Navigation className="w-3.5 h-3.5 text-[#FFD60A] shrink-0" />
                 <span className="truncate">Arahkan</span>
               </a>
             )}

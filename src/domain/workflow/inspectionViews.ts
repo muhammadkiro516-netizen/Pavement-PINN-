@@ -95,7 +95,7 @@ export function summarizeViews(views: InspectionView[]): ViewsSummary {
 /** Area (m²) from tape-measured length x width; null when either is missing. */
 export function areaFromDimensions(d: FieldDimensions): number | null {
   if (!d.lengthCm || !d.widthCm || d.lengthCm <= 0 || d.widthCm <= 0) return null;
-  return Math.round((d.lengthCm * d.widthCm) / 1000) / 10;
+  return Math.round((d.lengthCm * d.widthCm) / 100) / 100;
 }
 
 /** Repair volume (m³) for patching; null without depth. */

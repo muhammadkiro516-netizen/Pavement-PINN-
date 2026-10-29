@@ -7,6 +7,7 @@
  * action that unblocks it. No measurement is invented: the citizen's own estimate travels
  * as `reportedByCitizen`, never as a measurement.
  */
+import type { Measured } from './types';
 import type { ReportCase } from '../workflow/model';
 import type { DamageClass, DamageObject, StageRun, Workspace } from './types';
 import { emptyMeasurements, unavailable } from './measured';
@@ -26,8 +27,12 @@ export function trackingCodeFor(reportId: string): string {
   return `${h.slice(0, 3)}-${h.slice(3, 7)}`;
 }
 
-export function workspaceFromCase(c: ReportCase): Workspace {
+/** Road-segment attributes used for the automatic first estimate of the structure. */
+export interface SegmentHint { defaultAsphaltThicknessCm: number; defaultCbrPercent: number }
+
+export function workspaceFromCase(c: ReportCase, seg?: SegmentHint): Workspace {
   return workspaceFromReport(c.report, {
+    seg,
     createdAt: c.createdAt,
     screening: c.screening,
     demo: c.dataStatus === 'DEMO' || c.history.some((h) => h.action === 'SEED_IMPORT')
@@ -35,7 +40,7 @@ export function workspaceFromCase(c: ReportCase): Workspace {
 }
 
 /** Same mapping from a bare report (the offline static build has reports, not server cases). */
-export function workspaceFromReport(r: ReportCase['report'], meta: { createdAt: string; screening: ReportCase['screening']; demo: boolean }): Workspace {
+export function workspaceFromReport(r: ReportCase['report'], meta: { createdAt: string; screening: ReportCase['screening']; demo: boolean; seg?: SegmentHint }): Workspace {
   const at = meta.createdAt;
   const screening = meta.screening;
   const realModel = screening?.modelStatus === 'REAL';
@@ -100,13 +105,17 @@ export function workspaceFromReport(r: ReportCase['report'], meta: { createdAt: 
     corrections: [],
     versions: [],
     groundTruth: [],
-    layers: (['AC', 'Base', 'Subbase', 'Subgrade'] as const).map((name) => ({
-      name,
-      thicknessMm: unavailable('mm', 'T7_structural', 'Data lapisan belum diisi'),
-      modulusMPa: unavailable('MPa', 'T7_structural', 'Data lapisan belum diisi'),
-      poisson: unavailable('', 'T7_structural', 'Data lapisan belum diisi'),
-      source: 'MISSING' as const
-    })),
+    layers: (['AC', 'Base', 'Subbase', 'Subgrade'] as const).map((name, i) => {
+      // Photos see only the surface: without a segment record the layers stay empty. With one,
+      // a first estimate (segment design AC + typical MDP 2017 base/subbase, subgrade E = 10 x CBR)
+      // is filled, labelled ASSUMED, and replaced as soon as the engineer measures.
+      const seg = meta.seg;
+      if (!seg) return { name, thicknessMm: unavailable('mm', 'T7_structural', 'Data lapisan belum diisi'), modulusMPa: unavailable('MPa', 'T7_structural', 'Data lapisan belum diisi'), poisson: unavailable('', 'T7_structural', 'Data lapisan belum diisi'), source: 'MISSING' as const };
+      const h = [seg.defaultAsphaltThicknessCm * 10, 250, 200, null][i];
+      const e = [3000, 300, 150, Math.round(10 * seg.defaultCbrPercent)][i];
+      const est = (value: number | null, unit: string): Measured => (value === null ? unavailable(unit, 'T7_structural', 'Tanah dasar dianggap tak hingga') : { value, unit, uncertainty: null, provenance: 'provisional', source: { stage: 'T7_structural', method: 'perkiraan otomatis: data ruas + tipikal MDP 2017' }, reasonUnavailable: null });
+      return { name, thicknessMm: est(h, 'mm'), modulusMPa: est(e, 'MPa'), poisson: est([0.35, 0.35, 0.35, 0.45][i], ''), source: 'ASSUMED' as const };
+    }),
     structuralRuns: [],
     surfaces: [],
     audit: [{ at, by: 'system', role: 'SYSTEM', action: 'workspace_created', version: null, detail: `dari laporan ${r.id}` }],

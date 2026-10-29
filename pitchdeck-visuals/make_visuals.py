@@ -158,6 +158,7 @@ def training_visuals(data):
     ]
     model, hist, secs = train_logged(F[tr], Y[tr], F[te], Y[te], signs, steps, 0.1, 0, log)
     plain, hist_plain, _ = train_logged(F[tr], Y[tr], F[te], Y[te], signs, steps, 0.0, 0, None)
+    (WORK / "train_history.json").write_text(json.dumps({"pinn": hist, "plain": hist_plain}))
     pred = tps.predict(model, F[te])
     err = np.abs(np.exp(pred - Y[te]) - 1) * 100
     viol = tps.violation_share(model, torch.tensor(F[tr]), torch.tensor(signs, dtype=torch.float32))
@@ -397,6 +398,39 @@ def diagram_visuals() -> None:
     save(fig, "16_peran_pengguna.png", "Hak akses dijaga RBAC di server")
 
 
+# ----------------------------------------------------------------------------- 6. weather (Open-Meteo)
+def weather_visuals() -> None:
+    """Monthly rainfall of the last 12 complete months at two pilot sites (ERA5 via Open-Meteo),
+    the wet-month count PINN uses (Oldeman: >= 200 mm), and the 7-day forecast."""
+    import datetime as dt
+    sites = [("Karawang", -6.31, 107.30), ("Jakarta Selatan", -6.29, 106.80)]
+    today = dt.date.today()
+    end = dt.date(today.year, today.month, 1) - dt.timedelta(days=1)
+    end = dt.date(end.year, end.month, 1) - dt.timedelta(days=1)
+    start = dt.date(end.year - 1, end.month, 1) + dt.timedelta(days=32)
+    start = dt.date(start.year, start.month, 1)
+    fig, axs = plt.subplots(1, 2, figsize=(16, 6), sharey=True)
+    for ax, (name, lat, lon) in zip(axs, sites):
+        url = f"https://archive-api.open-meteo.com/v1/archive?latitude={lat}&longitude={lon}&start_date={start}&end_date={end}&daily=precipitation_sum&timezone=Asia%2FJakarta"
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "PAVEMENT-PINN pitch visuals"}), timeout=30) as r:
+            d = json.loads(r.read())
+        months: dict[str, float] = {}
+        for t, v in zip(d["daily"]["time"], d["daily"]["precipitation_sum"]):
+            months[t[:7]] = months.get(t[:7], 0.0) + (v or 0.0)
+        keys = sorted(months)
+        vals = [months[m] for m in keys]
+        wet = sum(v >= 200 for v in vals)
+        ax.bar([dt.date(int(m[:4]), int(m[5:]), 1).strftime("%b %y") for m in keys], vals, color=[CYAN if v >= 200 else LINE for v in vals])
+        ax.axhline(200, color=YEL, lw=1.5, ls="--")
+        ax.text(0, 205, "bulan basah ≥ 200 mm (Oldeman)", color=YEL, fontsize=10, va="bottom")
+        ax.set_title(f"{name}: {wet} bulan basah · {sum(vals):,.0f} mm/tahun".replace(",", "."))
+        ax.grid(alpha=0.3, axis="y")
+    axs[0].set_ylabel("Curah hujan bulanan (mm)")
+    fig.suptitle("Cuaca nyata masuk ke PINN: jumlah bulan basah → porsi tanah dasar jenuh air", fontsize=16, fontweight="bold")
+    fig.tight_layout(rect=(0, 0.05, 1, 0.92))
+    save(fig, "18_cuaca_open_meteo_bulan_basah.png", f"Open-Meteo ERA5 reanalysis, {start:%b %Y}–{end:%b %Y} · CC BY 4.0 · dipakai otomatis di kartu PINN & ringkasan kasus")
+
+
 def main() -> None:
     data = np.load(WORK / "mlet_dual_v1.npz", allow_pickle=True)
     dataset_visuals(data)
@@ -407,6 +441,10 @@ def main() -> None:
     except Exception as exc:  # the AI service must be running for this part
         print("CV visuals skipped:", exc)
     diagram_visuals()
+    try:
+        weather_visuals()
+    except Exception as exc:
+        print('weather visuals skipped:', exc)
     (WORK / "run_summary.json").write_text(json.dumps(summary, indent=1))
     print(json.dumps(summary, indent=1))
 

@@ -36,3 +36,6 @@ eval/local_test/scenes/
 # docker compose volumes (SPEC §6)
 /data/
 /backups/
+
+~$*
+.e2e-tmp/

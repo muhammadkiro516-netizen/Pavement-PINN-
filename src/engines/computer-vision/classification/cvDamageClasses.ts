@@ -25,7 +25,7 @@ export const CV_DAMAGE_CLASSES: Record<string, CVDamageClassInfo> = {
   pothole: {
     modelClass: 'pothole',
     damageType: 'POTHOLE',
-    label: 'Pothole',
+    label: 'Lubang',
     icon: '🕳',
     characteristics: [
       'Localized surface hole',
@@ -49,7 +49,7 @@ export const CV_DAMAGE_CLASSES: Record<string, CVDamageClassInfo> = {
   alligator_cracking: {
     modelClass: 'alligator_cracking',
     damageType: 'ALLIGATOR_CRACK',
-    label: 'Alligator Cracking',
+    label: 'Retak Buaya',
     icon: '🐊',
     characteristics: [
       'Interconnected cracking',
@@ -73,7 +73,7 @@ export const CV_DAMAGE_CLASSES: Record<string, CVDamageClassInfo> = {
   crack: {
     modelClass: 'crack',
     damageType: 'CRACK',
-    label: 'Surface Crack',
+    label: 'Retak Permukaan',
     icon: '〰',
     characteristics: [
       'Linear surface cracking',
@@ -96,7 +96,7 @@ export const CV_DAMAGE_CLASSES: Record<string, CVDamageClassInfo> = {
   rutting: {
     modelClass: 'rutting',
     damageType: 'RUTTING',
-    label: 'Rutting',
+    label: 'Alur Roda (Rutting)',
     icon: '🛞',
     characteristics: [
       'Wheel-path deformation',
@@ -119,7 +119,7 @@ export const CV_DAMAGE_CLASSES: Record<string, CVDamageClassInfo> = {
   surface_damage: {
     modelClass: 'surface_damage',
     damageType: 'SURFACE_DAMAGE',
-    label: 'Surface Damage',
+    label: 'Pelepasan Butir',
     icon: '▧',
     characteristics: [
       'Surface deterioration',
@@ -142,7 +142,7 @@ export const CV_DAMAGE_CLASSES: Record<string, CVDamageClassInfo> = {
   road_deformation: {
     modelClass: 'road_deformation',
     damageType: 'ROAD_DEFORMATION',
-    label: 'Road Deformation',
+    label: 'Deformasi Jalan',
     icon: '≋',
     characteristics: [
       'Road profile deformation',
@@ -165,7 +165,7 @@ export const CV_DAMAGE_CLASSES: Record<string, CVDamageClassInfo> = {
   depression: {
     modelClass: 'depression',
     damageType: 'DEPRESSION',
-    label: 'Depression',
+    label: 'Ambles Lokal',
     icon: '↓',
     characteristics: [
       'Localized surface depression',
@@ -188,7 +188,7 @@ export const CV_DAMAGE_CLASSES: Record<string, CVDamageClassInfo> = {
   patching: {
     modelClass: 'patching',
     damageType: 'PATCHING',
-    label: 'Patching',
+    label: 'Tambalan',
     icon: '▦',
     characteristics: [
       'Previously repaired area',
@@ -211,7 +211,7 @@ export const CV_DAMAGE_CLASSES: Record<string, CVDamageClassInfo> = {
   corrugation: {
     modelClass: 'corrugation',
     damageType: 'CORRUGATION',
-    label: 'Corrugation',
+    label: 'Keriting / Bergelombang',
     icon: '≈',
     characteristics: [
       'Regular transverse ripples',
@@ -229,7 +229,7 @@ export const CV_DAMAGE_CLASSES: Record<string, CVDamageClassInfo> = {
   subsidence: {
     modelClass: 'subsidence',
     damageType: 'SUBSIDENCE',
-    label: 'Subsidence',
+    label: 'Amblas',
     icon: '⤓',
     characteristics: [
       'Road section has sunk or collapsed',
@@ -247,7 +247,7 @@ export const CV_DAMAGE_CLASSES: Record<string, CVDamageClassInfo> = {
   flooding: {
     modelClass: 'flooding',
     damageType: 'FLOODING',
-    label: 'Flooding / Standing Water',
+    label: 'Genangan / Banjir',
     icon: '≋',
     characteristics: [
       'Standing water covers the carriageway',

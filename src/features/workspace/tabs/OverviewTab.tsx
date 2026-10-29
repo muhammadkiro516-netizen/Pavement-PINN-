@@ -127,7 +127,7 @@ export const OverviewPanel: React.FC = () => {
           <p className="text-[12px] text-[#9AA8BC]">Permintaan dicatat di riwayat audit laporan. Objek: {activeObject?.objectId ?? '—'}. Instruksi slot: konteks, nadir, sekuens memutar 15–30 foto overlap 60–80 %, penanda skala sebidang.</p>
           <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder={t('reasonRequired')} className="mt-2 w-full rounded-lg border border-[#273244] bg-[#0A0F14] p-2 text-[13px] text-white" />
           <div className="mt-3 flex justify-end">
-            <button type="button" disabled={reason.trim().length < 5} onClick={async () => { await run((g) => g.requestPhotos(reportId, { objectId: activeObject?.objectId, slots: ['konteks', 'nadir', 'sekuens memutar', 'penanda skala'], reason })); setAssign(false); setReason(''); }} className="rounded-lg bg-[#E8B52B] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:opacity-40">OK</button>
+            <button type="button" disabled={reason.trim().length < 5} onClick={async () => { await run((g) => g.requestPhotos(reportId, { objectId: activeObject?.objectId, slots: ['konteks', 'nadir', 'sekuens memutar', 'penanda skala'], reason })); setAssign(false); setReason(''); }} className="rounded-lg bg-[#FFD60A] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:opacity-40">OK</button>
           </div>
         </Modal>
       )}

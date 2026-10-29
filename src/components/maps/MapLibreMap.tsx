@@ -530,8 +530,9 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
           : '0 2px 6px rgba(0,0,0,0.22)';
 
         element.innerHTML = `
-          <div style="position:relative;display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.3));transform-origin:50% 100%;${isHighlighted ? 'transform:scale(1.15);' : ''}">
+          <div class="pp-pin-inner" style="position:relative;display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.3));transform-origin:50% 100%;${isHighlighted ? 'transform:scale(1.15);' : ''}">
             <div style="position:relative;width:40px;height:40px;border-radius:50%;background:#ffffff;border:3px solid ${isHighlighted ? '#f59e0b' : color};box-shadow:${markerShadow};display:flex;align-items:center;justify-content:center;">
+              ${report.status !== 'REPAIRED' && (report.severity === 'SEVERE' || report.severity === 'CRITICAL') ? `<span class="pp-pin-pulse" style="border-color:${color}"></span>` : ''}
               <img src="${report.photoUrl}" alt="${report.damageTypeLabel}" decoding="async" onerror="this.onerror=null;this.src='${NO_PHOTO_URL}'" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;" />
               ${badge ? `<div title="${badge.title}" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:999px;background-color:${badge.bg};color:${badge.fg};font-size:11px;font-weight:900;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;border:2px solid #0B0D10;box-shadow:0 2px 4px rgba(0,0,0,0.3);z-index:10;line-height:1;">${badge.text}</div>` : ''}
             </div>

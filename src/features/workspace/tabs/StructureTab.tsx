@@ -159,7 +159,7 @@ export const StructurePanel: React.FC = () => {
           <p className="mt-2 text-[11px] text-[#8B9BB0]">Jalankan ulang: T7_structural (run lama menjadi stale).</p>
           {err && <p className="mt-2 text-[12px] text-[#F59AA3]">{err}</p>}
           <div className="mt-3 flex justify-end">
-            <button type="button" data-testid="layer-save" disabled={form.reason.trim().length < 5 || (form.thickness === '' && form.modulus === '' && form.poisson === '')} onClick={save} className="rounded-lg bg-[#E8B52B] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:opacity-40">{t('submit')}</button>
+            <button type="button" data-testid="layer-save" disabled={form.reason.trim().length < 5 || (form.thickness === '' && form.modulus === '' && form.poisson === '')} onClick={save} className="rounded-lg bg-[#FFD60A] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:opacity-40">{t('submit')}</button>
           </div>
         </Modal>
       )}

@@ -65,12 +65,12 @@ function doneText(action: WorkflowAction, c: ReportCase): string {
 
 const TAB_LABEL = (t: Tab) => (t === 'ALL' ? 'Semua' : CANONICAL_STATUS_META[t]?.label ?? t);
 
-const BTN = 'inline-flex items-center justify-center gap-2 rounded-control px-3.5 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8B52B]/60 disabled:opacity-50';
-const BTN_BRAND = `${BTN} bg-[#E8B52B] text-slate-950 hover:bg-[#F3C442] shadow-sm cursor-pointer`;
+const BTN = 'inline-flex items-center justify-center gap-2 rounded-control px-3.5 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A]/60 disabled:opacity-50';
+const BTN_BRAND = `${BTN} bg-[#FFD60A] text-slate-950 hover:bg-[#FFD60A] shadow-sm cursor-pointer`;
 const BTN_GOOD = `${BTN} bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm cursor-pointer`;
 const BTN_GHOST = `${BTN} border border-line-subtle bg-card text-ink hover:bg-raised cursor-pointer`;
 const BTN_DANGER = `${BTN} border border-rose-500/50 text-rose-300 hover:bg-rose-500/10 cursor-pointer`;
-const INPUT = 'w-full rounded-control border border-line-subtle bg-card px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:border-[#E8B52B]';
+const INPUT = 'w-full rounded-control border border-line-subtle bg-card px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:border-[#FFD60A]';
 const LABEL = 'block text-[11px] font-semibold uppercase tracking-wide text-ink-3 mb-1.5';
 
 const PRIORITY = { HIGH: 'Tinggi', MEDIUM: 'Sedang', LOW: 'Rendah' } as const;
@@ -106,7 +106,7 @@ export const LegacyCaseBoard: React.FC<LegacyCaseBoardProps> = ({ role, views, m
   const [tab, setTab] = useState<Tab>(role === 'OPS' ? 'MENUNGGU_PENINJAUAN' : 'MENUNGGU_FE');
   const listTop = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (!focus) return;
+    if (!focus || focus.nonce === 0) return;
     setTab(focus.tab);
     listTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [focus]);
@@ -200,24 +200,24 @@ export const LegacyCaseBoard: React.FC<LegacyCaseBoardProps> = ({ role, views, m
                 <ClipboardList className="h-6 w-6 text-brand" /> Tugas Saya
                 <span className="rounded-full bg-status-good/15 px-2 py-0.5 text-xs font-bold text-emerald-300">{mine.length} Tugas</span>
               </h1>
-              <p className="mt-1 text-sm text-fg-muted">Daftar penugasan inspeksi dari Operations Manager yang ditugaskan kepada Anda.</p>
+              <p className="mt-1 text-sm text-fg-muted">Kasus yang ditugaskan koordinator kepada Anda.</p>
             </div>
             <RefreshButton loading={loading} onRefresh={onRefresh} />
           </div>
-          <AccountContext role="FE" account={account} cases={mine.map((v) => v.case)} mode={mode} syncedAt={syncedAt} onTab={setTab} />
+          {!focus && <AccountContext role="FE" account={account} cases={mine.map((v) => v.case)} mode={mode} syncedAt={syncedAt} onTab={setTab} />}
         </header>
       ) : (
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold">Tim &amp; Tugas</h1>
             <p className="mt-1 text-sm text-fg-muted">
-              Laporan warga dan penugasan F.E ({mode === 'SERVER' ? 'tersimpan di server, dimuat ulang tiap 15 detik' : 'DEMO OFFLINE di browser ini'}). AI hanya menyaring; keputusan tetap di tangan petugas.
+              Semua laporan warga dan penugasan petugas. AI menyaring; keputusan di tangan Anda.
             </p>
           </div>
           <RefreshButton loading={loading} onRefresh={onRefresh} />
         </header>
       )}
-      {role === 'OPS' && <AccountContext role="OPS" account={account} cases={mine.map((v) => v.case)} mode={mode} syncedAt={syncedAt} onTab={setTab} />}
+      {role === 'OPS' && !focus && <AccountContext role="OPS" account={account} cases={mine.map((v) => v.case)} mode={mode} syncedAt={syncedAt} onTab={setTab} />}
 
       <div ref={listTop} className="scroll-mt-4" />
       <nav className="flex items-center gap-2 overflow-x-auto no-scrollbar rounded-panel border border-line-subtle bg-panel p-2" aria-label="Filter status">
@@ -232,7 +232,7 @@ export const LegacyCaseBoard: React.FC<LegacyCaseBoardProps> = ({ role, views, m
               aria-pressed={isSelected}
               className={`inline-flex shrink-0 items-center gap-2 rounded-control px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-[#E8B52B] text-slate-950 shadow-sm ring-1 ring-[#E8B52B]/40'
+                  ? 'bg-[#FFD60A] text-slate-950 shadow-sm ring-1 ring-[#FFD60A]/40'
                   : 'text-ink-2 hover:bg-raised hover:text-ink'
               }`}
             >
@@ -272,14 +272,15 @@ export const LegacyCaseBoard: React.FC<LegacyCaseBoardProps> = ({ role, views, m
               <div className="flex flex-wrap items-baseline justify-between gap-2 pt-1">
                 <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
                   <span>{g.title}</span>
-                  <span className="rounded-md bg-[#E8B52B]/15 px-2 py-0.5 text-xs text-[#E8B52B] tabular-nums font-mono">
+                  <span className="rounded-md bg-[#FFD60A]/15 px-2 py-0.5 text-xs text-[#FFD60A] tabular-nums font-mono">
                     {g.items.length}
                   </span>
                 </h2>
                 <span className="text-xs text-slate-400">{g.hint}</span>
               </div>
             )}
-            {g.items.map((c) => (
+            {g.items.map((c, ci) => (
+              <div key={c.id} className="pp-rise" style={{ animationDelay: `${Math.min(ci, 8) * 60}ms` }}>
               <CaseCard
                 key={c.id}
                 c={c}
@@ -294,6 +295,7 @@ export const LegacyCaseBoard: React.FC<LegacyCaseBoardProps> = ({ role, views, m
                   await run({ action: 'REVIEW_ACCEPT', reason: 'Laporan divalidasi dan siap ditugaskan' });
                 }}
               />
+              </div>
             ))}
           </section>
         ))
@@ -600,7 +602,7 @@ const CaseCard: React.FC<{
               <div className="flex flex-wrap justify-between gap-2">
                 <span>
                   <b>SPK {c.assignment.id}</b> · Petugas: <b>{actorName(c.assignment.engineerId)}</b> · Prioritas:{' '}
-                  <b className="text-[#E8B52B]">{PRIORITY[PRIORITY_OF[r.severity] ?? 'MEDIUM']}</b>
+                  <b className="text-[#FFD60A]">{PRIORITY[PRIORITY_OF[r.severity] ?? 'MEDIUM']}</b>
                 </span>
                 <span className={isOverdue(c) ? 'font-bold text-rose-300' : 'text-slate-400'}>Batas: {fmt(c.assignment.dueAt)}</span>
               </div>
@@ -1295,7 +1297,7 @@ const WorkVerifyModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) =
   const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null);
 
   return (
-    <Modal busy={busy} dirty={!!reason.trim()} title="Verifikasi Mutu Perbaikan oleh O.M" subtitle={<>Laporan: <span className="text-[#E8B52B] font-mono">{c.id}</span>{wo && <> · Perintah Kerja <span className="font-mono">{wo.id}</span></>}</>} icon={<ShieldCheck className="h-5 w-5 text-[#E8B52B]" />} onClose={onClose} wide>
+    <Modal busy={busy} dirty={!!reason.trim()} title="Verifikasi Mutu Perbaikan oleh O.M" subtitle={<>Laporan: <span className="text-[#FFD60A] font-mono">{c.id}</span>{wo && <> · Perintah Kerja <span className="font-mono">{wo.id}</span></>}</>} icon={<ShieldCheck className="h-5 w-5 text-[#FFD60A]" />} onClose={onClose} wide>
       <div className="space-y-4">
         {/* 1. INFORMASI TUGAS */}
         <div className="rounded-xl border border-line-subtle bg-card p-3 text-xs space-y-1.5">
@@ -1306,7 +1308,7 @@ const WorkVerifyModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) =
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-slate-300">
             <span>Petugas Pelaksana: <b className="text-emerald-400">{wo?.completedBy ? actorName(wo.completedBy) : (c.assignment?.engineerId ? actorName(c.assignment.engineerId) : '—')}</b></span>
             {c.recommendation && <span>Metode SPK: <b className="text-slate-100">{c.recommendation.treatment}</b></span>}
-            {c.recommendation && <span>Urgensi: <b className="text-[#E8B52B]">{({ ROUTINE: 'Rutin', PRIORITY: 'Prioritas', URGENT: 'Mendesak' } as Record<string, string>)[c.recommendation.urgency] ?? c.recommendation.urgency}</b></span>}
+            {c.recommendation && <span>Urgensi: <b className="text-[#FFD60A]">{({ ROUTINE: 'Rutin', PRIORITY: 'Prioritas', URGENT: 'Mendesak' } as Record<string, string>)[c.recommendation.urgency] ?? c.recommendation.urgency}</b></span>}
             {wo?.contractor && <span>Pelaksana: <b className="text-slate-100">{wo.contractor}</b></span>}
           </div>
           {c.assignment?.instructions && (
@@ -1363,7 +1365,7 @@ const WorkVerifyModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) =
         <div className="space-y-2 rounded-xl border border-line-subtle bg-card p-3 text-xs">
           <div className="flex items-center justify-between">
             <p className="font-semibold text-slate-200 flex items-center gap-1.5">
-              <ClipboardCheck className="h-4 w-4 text-[#E8B52B]" /> Checklist Verifikasi Mutu Lapangan
+              <ClipboardCheck className="h-4 w-4 text-[#FFD60A]" /> Checklist Verifikasi Mutu Lapangan
             </p>
             <button
               type="button"

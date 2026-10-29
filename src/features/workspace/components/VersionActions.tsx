@@ -66,7 +66,7 @@ export const VersionActions: React.FC = () => {
           {error && <p className="mt-2 text-[12px] text-[#F59AA3]" data-testid="version-error">{error}</p>}
           <div className="mt-3 flex justify-end gap-2">
             <button type="button" onClick={close} className="rounded-lg border border-[#273244] px-3 py-1.5 text-[12px]">{t('cancel')}</button>
-            <button type="button" data-testid="version-confirm" onClick={go} className="rounded-lg bg-[#E8B52B] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14]">OK</button>
+            <button type="button" data-testid="version-confirm" onClick={go} className="rounded-lg bg-[#FFD60A] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14]">OK</button>
           </div>
         </Modal>
       )}

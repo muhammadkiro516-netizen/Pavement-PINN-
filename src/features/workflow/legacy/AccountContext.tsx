@@ -152,7 +152,7 @@ export const AccountContext: React.FC<{
       <div className="flex items-start gap-3">
         {account?.avatarUrl && <img src={account.avatarUrl} alt="" className="h-12 w-12 shrink-0 rounded-full border border-[#202B3B] object-cover" />}
         <div className="min-w-0">
-          <span className="rounded-md border border-[#E8B52B]/40 bg-[#E8B52B]/10 px-2 py-0.5 font-mono text-[10px] font-bold text-[#E8B52B]">
+          <span className="rounded-md border border-[#FFD60A]/40 bg-[#FFD60A]/10 px-2 py-0.5 font-mono text-[10px] font-bold text-[#FFD60A]">
             {role === 'OPS' ? 'OPERATIONS MANAGER · M.O' : 'FIELD ENGINEER · F.E'}
           </span>
           <p className="mt-1.5 truncate font-bold text-slate-100">{account?.name ?? '—'}</p>
@@ -170,7 +170,7 @@ export const AccountContext: React.FC<{
             key={t.label}
             type="button"
             onClick={() => t.tab && onTab(t.tab)}
-            className="rounded-xl border border-[#202B3B] bg-[#0E1726] hover:bg-[#131F33] p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8B52B]/60 cursor-pointer"
+            className="rounded-xl border border-[#202B3B] bg-[#0E1726] hover:bg-[#131F33] p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD60A]/60 cursor-pointer"
           >
             <span className="block text-[11px] font-semibold text-slate-400 truncate">{t.label}</span>
             <span className={`mt-1 block text-2xl font-bold tabular-nums ${TONE[t.tone ?? 'neutral']}`}>{t.value}</span>

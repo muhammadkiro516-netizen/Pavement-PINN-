@@ -82,7 +82,7 @@ export const CameraMain: React.FC = () => {
                   {/* Mask mode without a polygon mask: shade the annotation box, labelled as a box, not a mask. */}
                   {box && !mask && mode === 'mask' && <rect x={box[0]} y={box[1]} width={box[2] - box[0]} height={box[3] - box[1]} fill="rgba(233,75,214,0.55)" stroke="#E94BD6" strokeDasharray="8 6" strokeWidth={2} />}
                   {box && !mask && mode === 'mask' && <text x={box[0] + 4} y={box[3] + 20} fill="#F5D0FE" fontSize={16} stroke="#000" strokeWidth={3} paintOrder="stroke">area bbox (belum ada mask poligon)</text>}
-                  {box && mode !== 'mask' && <rect x={box[0]} y={box[1]} width={box[2] - box[0]} height={box[3] - box[1]} fill="transparent" stroke={active ? '#E8B52B' : '#EF4444'} strokeWidth={3} />}
+                  {box && mode !== 'mask' && <rect x={box[0]} y={box[1]} width={box[2] - box[0]} height={box[3] - box[1]} fill="transparent" stroke={active ? '#FFD60A' : '#EF4444'} strokeWidth={3} />}
                   {box && mode !== 'mask' && (
                     <text x={box[0] + 4} y={box[1] - 6} fill="#fff" fontSize={18} fontWeight={700} stroke="#000" strokeWidth={3} paintOrder="stroke">
                       {o.objectId} · {classLabel(o.class.value)}{o.severity.value ? ` · ${o.severity.value}` : ''}{!mask ? ' · bbox' : ''}{o.class.confidence !== null ? ` ${o.class.confidence.toFixed(2)}` : ''}
@@ -226,7 +226,7 @@ export const CameraPanel: React.FC = () => {
           <ul className="mt-1 list-disc pl-5 text-[12px] text-[#C9D4E3]">{slots.map(([s, h]) => <li key={s}><b>{s}</b>: {h}</li>)}</ul>
           <textarea value={photoReason} onChange={(e) => setPhotoReason(e.target.value)} rows={2} placeholder={t('reasonRequired')} className="mt-2 w-full rounded-lg border border-[#273244] bg-[#0A0F14] p-2 text-[13px] text-white" />
           <div className="mt-3 flex justify-end">
-            <button type="button" disabled={photoReason.trim().length < 5} onClick={async () => { await run((g) => g.requestPhotos(reportId, { objectId: o?.objectId, slots: slots.map(([s]) => s), reason: photoReason })); setDialog(null); setPhotoReason(''); }} className="rounded-lg bg-[#E8B52B] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:opacity-40">OK</button>
+            <button type="button" disabled={photoReason.trim().length < 5} onClick={async () => { await run((g) => g.requestPhotos(reportId, { objectId: o?.objectId, slots: slots.map(([s]) => s), reason: photoReason })); setDialog(null); setPhotoReason(''); }} className="rounded-lg bg-[#FFD60A] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:opacity-40">OK</button>
           </div>
         </Modal>
       )}

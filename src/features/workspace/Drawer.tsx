@@ -25,7 +25,7 @@ export const Drawer: React.FC<{ initial: DrawerTab; open: boolean }> = ({ initia
     <div className="px-4 pb-3" data-testid="drawer">
       <div role="tablist" className="flex gap-5 overflow-x-auto border-b border-[#1A2430]">
         {TABS.map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`whitespace-nowrap pb-2 text-[13px] ${tab === id ? 'border-b-2 border-[#E8B52B] text-white' : 'text-[#8B9BB0]'}`}>
+          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`whitespace-nowrap pb-2 text-[13px] ${tab === id ? 'border-b-2 border-[#FFD60A] text-white' : 'text-[#8B9BB0]'}`}>
             {t(label)}
           </button>
         ))}

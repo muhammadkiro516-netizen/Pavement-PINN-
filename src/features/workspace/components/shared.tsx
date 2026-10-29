@@ -101,7 +101,7 @@ export const UnavailableCard: React.FC<{ title?: string; reason: string; action?
     {title && <div className="text-sm font-semibold text-[#E6EDF3]">{title}</div>}
     <div className="max-w-md text-[13px] text-[#9AA8BC]">{reason}</div>
     {action && (
-      <button type="button" onClick={action.onClick} disabled={action.disabled} title={action.title} className="rounded-lg border border-[#5C4512] bg-[#E8B52B] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:cursor-not-allowed disabled:opacity-40">
+      <button type="button" onClick={action.onClick} disabled={action.disabled} title={action.title} className="rounded-lg border border-[#5C4512] bg-[#FFD60A] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:cursor-not-allowed disabled:opacity-40">
         {action.label}
       </button>
     )}
@@ -183,7 +183,7 @@ export const ActionButton: React.FC<{ children: React.ReactNode; onClick?: () =>
       title={locked ?? undefined}
       aria-disabled={!!locked}
       className={`rounded-lg border px-2.5 py-1.5 text-[12px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-        primary ? 'border-[#5C4512] bg-[#E8B52B] text-[#0A0F14] hover:bg-[#F5C451]' : 'border-[#273244] bg-[#0F1720] text-[#C9D4E3] hover:border-[#E8B52B]/60'
+        primary ? 'border-[#5C4512] bg-[#FFD60A] text-[#0A0F14] hover:bg-[#F5C451]' : 'border-[#273244] bg-[#0F1720] text-[#C9D4E3] hover:border-[#FFD60A]/60'
       }`}
     >
       {children}

@@ -69,7 +69,7 @@ export const MiniMap: React.FC<{ objects: DamageObject[]; activeId: string | nul
       el.title = o.objectId;
       el.setAttribute('aria-label', o.objectId);
       const active = o.objectId === activeId;
-      el.style.cssText = `width:${active ? 18 : 13}px;height:${active ? 18 : 13}px;border-radius:9999px;background:${SEVERITY_COLOR[o.severity.value ?? ''] ?? '#94A3B8'};border:2px solid ${active ? '#E8B52B' : '#0A0F14'};cursor:pointer`;
+      el.style.cssText = `width:${active ? 18 : 13}px;height:${active ? 18 : 13}px;border-radius:9999px;background:${SEVERITY_COLOR[o.severity.value ?? ''] ?? '#94A3B8'};border:2px solid ${active ? '#FFD60A' : '#0A0F14'};cursor:pointer`;
       el.onclick = () => onSelect(o.objectId);
       return new maplibregl.Marker({ element: el }).setLngLat([o.location.lon, o.location.lat]).addTo(map);
     });

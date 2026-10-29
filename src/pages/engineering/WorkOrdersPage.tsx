@@ -22,7 +22,7 @@ export const WorkOrdersPage: React.FC = () => {
   const { workflow, startNavigation, roadSegments, selectSegment: onSelectSegment } = useAppState();
   const { navigateTo } = useRouter();
 
-  const [focus, setFocus] = useState<{ tab: Tab; nonce: number } | null>(null);
+  const [focus, setFocus] = useState<{ tab: Tab; nonce: number }>({ tab: 'ALL', nonce: 0 });
   const pick = (_s: unknown, first: ReportCase | null) => setFocus({ tab: first ? canonicalStatusOf(first) : 'ALL', nonce: Date.now() });
   const staffCases = Object.values(workflow.views).filter((v) => v.audience === 'STAFF').map((v) => v.case as ReportCase);
   const segmentOf = (segmentId: string) => roadSegments.find((s) => s.id === segmentId);

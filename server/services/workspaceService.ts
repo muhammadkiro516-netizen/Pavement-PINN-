@@ -16,6 +16,7 @@ import { addGroundTruth, applyCorrection, decideVersion, submitVersion, type Com
 import { buildDemoWorkspace, DEMO_REPORT_ID } from "../../src/domain/workspace/demo";
 import { buildCompletedWorkspace, COMPLETED_REPORT_ID } from "../../src/domain/workspace/demoCompleted";
 import { workspaceFromCase } from "../../src/domain/workspace/fromCase";
+import { segmentById } from "./segments";
 import { enforceScale, REASON } from "../../src/domain/workspace/measured";
 import { dependencyBlock, inputHash, updateRun, type Clock } from "../../src/domain/workspace/orchestrator";
 import { latestRuns } from "../../src/domain/workspace/rerun";
@@ -73,7 +74,10 @@ export class WorkspaceService {
     else if (reportId === COMPLETED_REPORT_ID && this.seedDemo) ws = buildCompletedWorkspace();
     else {
       const c = await this.workflow.getCase(reportId);
-      if (c) ws = workspaceFromCase(c);
+      if (c) {
+        const seg = segmentById(c.segmentId);
+        ws = workspaceFromCase(c, seg ? { defaultAsphaltThicknessCm: seg.defaultAsphaltThicknessCm, defaultCbrPercent: seg.defaultCbrPercent } : undefined);
+      }
     }
     if (ws) await this.repo.put(ws);
     return ws;

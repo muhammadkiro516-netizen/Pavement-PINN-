@@ -71,7 +71,7 @@ const SKIN = {
     ghost: 'text-slate-300 hover:bg-white/5',
     chip: 'bg-white/[0.04] border-white/15 text-slate-100 hover:bg-white/[0.08]',
     chipOn: 'bg-brand/15 border-brand/60 text-brand-hover',
-    link: 'text-[#F5BC24] hover:text-[#F5BC24]/80',
+    link: 'text-[#FFD60A] hover:text-[#FFD60A]/80',
     line: 'border-white/10',
     ok: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30',
     err: 'text-rose-300 bg-rose-500/10 border-rose-500/30',
@@ -281,7 +281,7 @@ const ActionForm: React.FC<{
   return (
     <form onSubmit={submit} className={`space-y-2 rounded-xl border p-3.5 bg-black/40 border-white/10 ${skin.form}`}>
       <div className="flex items-center justify-between pb-1 border-b border-white/10">
-        <p className={`text-xs font-bold text-[#F5BC24]`}>{ACTION_LABEL[action]}</p>
+        <p className={`text-xs font-bold text-[#FFD60A]`}>{ACTION_LABEL[action]}</p>
         <span className="text-[10px] text-[#A6A8AE]">Form Tindakan</span>
       </div>
 
@@ -462,7 +462,7 @@ const ActionForm: React.FC<{
         <button type="button" onClick={onCancel} disabled={busy} className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${skin.ghost} ${FOCUS}`}>
           Batal
         </button>
-        <button type="submit" disabled={busy} aria-busy={busy} className={`px-3 py-1.5 rounded-lg text-xs font-bold bg-[#F5BC24] text-black hover:bg-[#F5BC24]/90 disabled:opacity-60 transition-colors ${FOCUS}`}>
+        <button type="submit" disabled={busy} aria-busy={busy} className={`px-3 py-1.5 rounded-lg text-xs font-bold bg-[#FFD60A] text-black hover:bg-[#FFD60A]/90 disabled:opacity-60 transition-colors ${FOCUS}`}>
           {busy ? 'Menyimpan…' : 'Simpan & Kirim'}
         </button>
       </div>
@@ -563,7 +563,7 @@ export const ReportWorkflowPanel: React.FC<ReportWorkflowPanelProps> = ({
           </span>
           <StateBadge state={state} tone={tone} />
         </div>
-        <InfoRow label="ID Laporan" value={view.case.id} mono valueClass="text-[#F5BC24] font-bold" />
+        <InfoRow label="ID Laporan" value={view.case.id} mono valueClass="text-[#FFD60A] font-bold" />
         <InfoRow label="Waktu Masuk" value={fmt(view.case.report.createdAt)} />
         <InfoRow
           label="Sumber Data"
@@ -587,7 +587,7 @@ export const ReportWorkflowPanel: React.FC<ReportWorkflowPanelProps> = ({
             <button
               type="button"
               onClick={onShowOnMap}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#F5BC24]/10 border border-[#F5BC24]/30 text-[#F5BC24] hover:bg-[#F5BC24]/20 text-[11px] font-semibold transition-colors flex-shrink-0"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#FFD60A]/10 border border-[#FFD60A]/30 text-[#FFD60A] hover:bg-[#FFD60A]/20 text-[11px] font-semibold transition-colors flex-shrink-0"
             >
               <MapPin className="w-3.5 h-3.5" />
               <span>Lihat di peta</span>
@@ -615,7 +615,7 @@ export const ReportWorkflowPanel: React.FC<ReportWorkflowPanelProps> = ({
                   title: `Foto Bukti Laporan — ${view.case.id}`
                 })
               }
-              className="text-[11px] text-[#F5BC24] hover:underline inline-flex items-center gap-1 font-medium"
+              className="text-[11px] text-[#FFD60A] hover:underline inline-flex items-center gap-1 font-medium"
             >
               <Maximize2 className="w-3 h-3" /> Perbesar Foto
             </button>
@@ -750,7 +750,7 @@ export const ReportWorkflowPanel: React.FC<ReportWorkflowPanelProps> = ({
             <InfoRow
               label="Tingkat Keparahan"
               value={staffCase.inspection.severity}
-              valueClass="text-[#F5BC24] font-bold"
+              valueClass="text-[#FFD60A] font-bold"
             />
             <InfoRow
               label="Dimensi Terukur"
@@ -887,7 +887,7 @@ export const ReportWorkflowPanel: React.FC<ReportWorkflowPanelProps> = ({
         {/* SPK / Perintah Kerja */}
         {staffCase?.workOrder && (
           <div className="pt-2 border-t border-white/5 space-y-1">
-            <InfoRow label="Perintah Kerja (SPK)" value={staffCase.workOrder.id} mono valueClass="text-[#F5BC24] font-semibold" />
+            <InfoRow label="Perintah Kerja (SPK)" value={staffCase.workOrder.id} mono valueClass="text-[#FFD60A] font-semibold" />
             <InfoRow
               label="Status Pekerjaan"
               value={
@@ -1006,7 +1006,7 @@ export const ReportWorkflowPanel: React.FC<ReportWorkflowPanelProps> = ({
       <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3.5 flex-1 min-h-[200px] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/5 flex-shrink-0">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-[#A6A8AE] flex items-center gap-1.5">
-            <History className="w-3.5 h-3.5 text-[#F5BC24]" />
+            <History className="w-3.5 h-3.5 text-[#FFD60A]" />
             <span>Riwayat Tindakan ({staffCase ? staffCase.history.length : (publicCase?.timeline?.length ?? 0)})</span>
           </p>
         </div>
@@ -1032,7 +1032,7 @@ export const ReportWorkflowPanel: React.FC<ReportWorkflowPanelProps> = ({
               }))
           ).map((entry) => (
             <div key={entry.key} className="relative pl-3.5 border-l border-white/15 text-xs pb-1">
-              <span className="absolute -left-[4.5px] top-1 w-2 h-2 rounded-full bg-[#F5BC24] ring-2 ring-[#12141A]" />
+              <span className="absolute -left-[4.5px] top-1 w-2 h-2 rounded-full bg-[#FFD60A] ring-2 ring-[#12141A]" />
               <div className="flex items-center justify-between gap-1.5">
                 <span className="font-mono text-[10.5px] text-[#A6A8AE]">{fmt(entry.at)}</span>
                 <StateBadge state={entry.state} tone={tone} />
@@ -1061,7 +1061,7 @@ export const ReportWorkflowPanel: React.FC<ReportWorkflowPanelProps> = ({
             DETAIL LAPORAN
           </h2>
           <span className="text-[#A6A8AE] shrink-0">·</span>
-          <span className="font-mono text-xs font-semibold text-[#F5BC24] bg-[#F5BC24]/10 px-2 py-0.5 rounded border border-[#F5BC24]/20 select-all truncate max-w-[130px] sm:max-w-[180px]">
+          <span className="font-mono text-xs font-semibold text-[#FFD60A] bg-[#FFD60A]/10 px-2 py-0.5 rounded border border-[#FFD60A]/20 select-all truncate max-w-[130px] sm:max-w-[180px]">
             {view.case.id}
           </span>
           {staffCase && staffCase.dataStatus === 'SYNTHETIC' && (
@@ -1098,7 +1098,7 @@ export const ReportWorkflowPanel: React.FC<ReportWorkflowPanelProps> = ({
           onClick={() => setMobileTab('A')}
           className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-colors text-center truncate ${
             mobileTab === 'A'
-              ? 'bg-[#F5BC24] text-black font-bold shadow-sm'
+              ? 'bg-[#FFD60A] text-black font-bold shadow-sm'
               : 'text-[#A6A8AE] hover:text-slate-100 hover:bg-white/5'
           }`}
         >
@@ -1109,7 +1109,7 @@ export const ReportWorkflowPanel: React.FC<ReportWorkflowPanelProps> = ({
           onClick={() => setMobileTab('B')}
           className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-colors text-center truncate ${
             mobileTab === 'B'
-              ? 'bg-[#F5BC24] text-black font-bold shadow-sm'
+              ? 'bg-[#FFD60A] text-black font-bold shadow-sm'
               : 'text-[#A6A8AE] hover:text-slate-100 hover:bg-white/5'
           }`}
         >
@@ -1120,7 +1120,7 @@ export const ReportWorkflowPanel: React.FC<ReportWorkflowPanelProps> = ({
           onClick={() => setMobileTab('C')}
           className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-colors text-center truncate ${
             mobileTab === 'C'
-              ? 'bg-[#F5BC24] text-black font-bold shadow-sm'
+              ? 'bg-[#FFD60A] text-black font-bold shadow-sm'
               : 'text-[#A6A8AE] hover:text-slate-100 hover:bg-white/5'
           }`}
         >
@@ -1203,7 +1203,7 @@ export const ReportWorkflowPanel: React.FC<ReportWorkflowPanelProps> = ({
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${
                 openAction === action
                   ? 'bg-amber-400 text-black border border-amber-300 ring-2 ring-amber-400/30'
-                  : 'bg-[#F5BC24] text-black hover:bg-[#F5BC24]/90 active:scale-95'
+                  : 'bg-[#FFD60A] text-black hover:bg-[#FFD60A]/90 active:scale-95'
               }`}
             >
               {ACTION_LABEL[action]}

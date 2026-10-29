@@ -42,23 +42,23 @@ export const VehiclePanel: React.FC<{ scenario: VehicleScenario | null; onScenar
         <div className="space-y-2 text-[12px]">
           <div className="flex flex-wrap gap-1.5">
             {(Object.keys(VEHICLE_PRESETS) as VehicleType[]).map((k) => (
-              <button key={k} type="button" data-testid={`vehicle-${k}`} onClick={() => { setV(VEHICLE_PRESETS[k]); onScenario(null); }} className={`rounded-md px-2.5 py-1 ${v.type === k ? 'bg-[#E8B52B] text-[#0A0F14]' : 'bg-[#16202C] text-[#C9D4E3]'}`}>
+              <button key={k} type="button" data-testid={`vehicle-${k}`} onClick={() => { setV(VEHICLE_PRESETS[k]); onScenario(null); }} className={`rounded-md px-2.5 py-1 ${v.type === k ? 'bg-[#FFD60A] text-[#0A0F14]' : 'bg-[#16202C] text-[#C9D4E3]'}`}>
                 {VEHICLE_PRESETS[k].label}
               </button>
             ))}
           </div>
           <label className="block">
             Massa total {fmt(total, 0)} kg <span className="text-[#6B7A90]">(kosong {fmt(v.emptyMassKg, 0)} + muatan)</span>
-            <input type="range" className="w-full accent-[#E8B52B]" min={range[v.type][0]} max={range[v.type][1]} step={v.type === 'truck' ? 500 : 10} value={total} onChange={(e) => { setV({ ...v, payloadKg: Math.max(0, Number(e.target.value) - v.emptyMassKg) }); onScenario(null); }} data-testid="vehicle-mass" />
+            <input type="range" className="w-full accent-[#FFD60A]" min={range[v.type][0]} max={range[v.type][1]} step={v.type === 'truck' ? 500 : 10} value={total} onChange={(e) => { setV({ ...v, payloadKg: Math.max(0, Number(e.target.value) - v.emptyMassKg) }); onScenario(null); }} data-testid="vehicle-mass" />
           </label>
           <label className="block">
             Kecepatan {v.speedKmh} km/jam
-            <input type="range" className="w-full accent-[#E8B52B]" min={0} max={100} value={v.speedKmh} onChange={(e) => setV({ ...v, speedKmh: Number(e.target.value) })} />
+            <input type="range" className="w-full accent-[#FFD60A]" min={0} max={100} value={v.speedKmh} onChange={(e) => setV({ ...v, speedKmh: Number(e.target.value) })} />
             <span className="text-[11px] text-[#8B9BB0]">Beban dinamis tidak dimodelkan: MLET statis-linear, kecepatan tidak mengubah hasil.</span>
           </label>
           <label className="block">
             Tekanan ban {fmt(v.tyrePressureMPa)} MPa
-            <input type="range" className="w-full accent-[#E8B52B]" min={0.15} max={1} step={0.01} value={v.tyrePressureMPa} onChange={(e) => { setV({ ...v, tyrePressureMPa: Number(e.target.value) }); onScenario(null); }} />
+            <input type="range" className="w-full accent-[#FFD60A]" min={0.15} max={1} step={0.01} value={v.tyrePressureMPa} onChange={(e) => { setV({ ...v, tyrePressureMPa: Number(e.target.value) }); onScenario(null); }} />
           </label>
           <div className="rounded-lg bg-[#0F1720] p-2">
             <div className="text-[11px] text-[#8B9BB0]">Beban gravitasi total (massa × g)</div>
@@ -93,7 +93,7 @@ export const VehiclePanel: React.FC<{ scenario: VehicleScenario | null; onScenar
           </table>
           <div className="mt-1 text-[11px] text-[#8B9BB0]">Σ beban sumbu − berat total = {fmt(loads.balanceKn, 6)} kN{loads.warnings.length ? ` · ${loads.warnings.join('; ')}` : ''}</div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="button" onClick={run} disabled={busy} data-testid="run-vehicle" className="rounded-lg bg-[#E8B52B] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:opacity-50">
+            <button type="button" onClick={run} disabled={busy} data-testid="run-vehicle" className="rounded-lg bg-[#FFD60A] px-3 py-1.5 text-[12px] font-semibold text-[#0A0F14] disabled:opacity-50">
               {busy ? 'Menjalankan MLET…' : 'Jalankan MLET untuk kendaraan ini'}
             </button>
             {scenario && <button type="button" onClick={() => onScenario(null)} className="rounded-lg border border-[#273244] px-3 py-1.5 text-[12px]">Kembali ke run tersimpan</button>}

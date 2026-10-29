@@ -57,14 +57,14 @@ export const WorkflowGuide: React.FC<{ title: string; steps: GuideStep[]; cases:
       </div>
       <ol className="mt-3 flex gap-2 overflow-x-auto pb-1">
         {steps.map((s, i) => (
-          <li key={s.key} className="min-w-[170px] flex-1">
+          <li key={s.key} className="pp-rise min-w-[170px] flex-1" style={{ animationDelay: `${i * 55}ms` }}>
             <button type="button" onClick={() => onPick?.(s, cases.find(s.match) ?? null)} className={`h-full w-full cursor-pointer rounded-2xl border p-3 text-left transition-colors hover:border-white/30 ${i === next ? 'border-[#FFD60A] bg-[#FFD60A]/10' : 'border-white/8 bg-white/[0.03]'}`}>
             <div className="flex items-center justify-between">
               <span className="grid h-6 w-6 place-items-center rounded-full text-[11px] font-extrabold text-[#0B0D10]" style={{ background: s.color }}>{i + 1}</span>
               <span className="tabular text-xl font-extrabold">{counts[i]}</span>
             </div>
             <p className="mt-2 text-[13px] font-extrabold leading-tight">{s.title}</p>
-            <p className="mt-1 text-[11px] leading-snug text-[#A1A1AA]">{s.what}</p>
+            <p className="mt-1 line-clamp-3 text-[11px] leading-snug text-[#A1A1AA]" title={s.what}>{s.what}</p>
             <p className="mt-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: s.color }}>{s.who === 'Anda' ? 'Tugas Anda' : `Oleh ${s.who}`}{counts[i] > 0 ? ' · lihat →' : ''}</p>
             </button>
           </li>

@@ -118,7 +118,7 @@ const Scene: React.FC<{ g: SurfaceGrid; sectionRow: number; resetKey: number }> 
       )}
       {layers.contour && (
         <lineLoop geometry={contour}>
-          <lineBasicMaterial color="#E8B52B" />
+          <lineBasicMaterial color="#FFD60A" />
         </lineLoop>
       )}
       {layers.section && (
@@ -189,7 +189,7 @@ const DamageTab: React.FC = () => {
           </div>
           <label className="mt-2 block text-[11px] text-[#9AA8BC]">
             Geser bidang potong (baris {row + 1}/{surface.rows})
-            <input type="range" min={0} max={surface.rows - 1} value={row} onChange={(e) => setSection('x', Number(e.target.value))} className="w-full accent-[#E8B52B]" data-testid="section-slider" />
+            <input type="range" min={0} max={surface.rows - 1} value={row} onChange={(e) => setSection('x', Number(e.target.value))} className="w-full accent-[#FFD60A]" data-testid="section-slider" />
           </label>
           <p className="mt-1 text-[11px] text-[#8B9BB0]">Garis hijau: bidang referensi RANSAC (d = 0). Area berarsir: defisit di bawah bidang. {metric ? 'Satuan mm.' : 'Tanpa skala metrik.'}</p>
         </div>
