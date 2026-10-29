@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Deploy PavementPINN to an Oracle Cloud Always Free VM from this laptop (Git Bash).
-#   bash scripts/deploy_oracle.sh <PUBLIC_IP> [--with-data]
-# Uses the key ~/.ssh/pavement_oracle (its .pub was added to the VM at creation).
+# Deploy PavementPINN to any Ubuntu VM (Azure for Students, Oracle, local VPS) from this laptop (Git Bash).
+#   SSH_USER=azureuser bash scripts/deploy_vm.sh <PUBLIC_IP> [--with-data]
+# Uses the key ~/.ssh/pavement_oracle (its .pub was added to the VM at creation). SSH_USER defaults to ubuntu.
 # URL: https://pavement-pinn.<ip-with-dashes>.sslip.io  (HTTPS by Caddy + Let's Encrypt; no domain needed)
 set -euo pipefail
-IP="${1:?usage: deploy_oracle.sh <PUBLIC_IP> [--with-data]}"
+IP="${1:?usage: deploy_vm.sh <PUBLIC_IP> [--with-data]}"
 WITH_DATA="${2:-}"
 KEY="$HOME/.ssh/pavement_oracle"
-SSH="ssh -i $KEY -o StrictHostKeyChecking=accept-new ubuntu@$IP"
+SSH="ssh -i $KEY -o StrictHostKeyChecking=accept-new ${SSH_USER:-ubuntu}@$IP"
 cd "$(dirname "$0")/.."
 DOMAIN="pavement-pinn.${IP//./-}.sslip.io"
 
 echo "== 1/5 VM setup (Docker, firewall)"
-$SSH 'bash -s' < scripts/oracle_vm_setup.sh
+$SSH 'bash -s' < scripts/vm_setup.sh
 
 echo "== 2/5 code (git HEAD)"
 git archive --format=tar HEAD | $SSH 'mkdir -p ~/pavement-pinn && tar -x -C ~/pavement-pinn'

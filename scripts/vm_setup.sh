@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Runs ON the Oracle Cloud VM (Ubuntu 22.04/24.04, ARM A1 or x86): Docker + open ports 80/443.
-# Called by scripts/deploy_oracle.sh; safe to run more than once.
+# Runs ON the VM (Ubuntu 22.04/24.04, x86 or ARM): Docker + open ports 80/443.
+# Called by scripts/deploy_vm.sh; safe to run more than once.
 set -euo pipefail
 if ! command -v docker >/dev/null; then
   sudo apt-get update -y
@@ -8,7 +8,7 @@ if ! command -v docker >/dev/null; then
   curl -fsSL https://get.docker.com | sudo sh
   sudo usermod -aG docker "$USER"
 fi
-# Oracle's Ubuntu images block everything except SSH in iptables; open HTTP/HTTPS for Caddy.
+# Some images (Oracle) block everything except SSH in iptables; open HTTP/HTTPS for Caddy.
 for port in 80 443; do
   sudo iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null || sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport "$port" -j ACCEPT
 done
