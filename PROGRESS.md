@@ -22,6 +22,9 @@ Branch `v4` dari `lean-real` 3165218. Riwayat lama: `git show 3165218:PROGRESS.m
 - SLM (10 kasus, CPU AMD): SLM 40%, templat 60%, 10 tok/dtk. CV/CLIP lokal BELUM_DIUKUR. Nav warga 5 tab (Notifikasi dipertahankan).
 - Docker belum diuji di mesin ini. Tes `session-lifecycle` flaky saat CPU penuh. Disk C ±3 GB.
 
+## Alamat publik
+- https://avlfelo.tail8b73d2.ts.net (Tailscale Funnel → laptop :3100; hidup selama laptop menyala). Start: `powershell -ExecutionPolicy Bypass -File scripts\start-local.ps1`. Server permanen: `scripts/deploy_vm.sh` (butuh VM).
+
 ## Blocker (manusia)
 - Tunnel sementara: `~/bin/cloudflared.exe tunnel --url http://localhost:3100`. §7: VM Xeon/Core Ultra, foto lokal, data proyek, wawancara, SUS.
 
