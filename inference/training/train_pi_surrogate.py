@@ -83,7 +83,7 @@ def verify_signs(X, n=300, seed=1):
         b = base.copy()
         b[:, col] *= 1.05
         rows.append(b)
-    with Pool(os.cpu_count()) as pool:
+    with Pool(int(os.environ.get("MLET_WORKERS", os.cpu_count()))) as pool:
         res = np.array(pool.map(_solve, list(np.concatenate(rows)), chunksize=32)).reshape(len(rows), n, 2)
     signs, report = np.zeros((len(FEATURES), 2)), {}
     for i, name in enumerate(PERTURB):

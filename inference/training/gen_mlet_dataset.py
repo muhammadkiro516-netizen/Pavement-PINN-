@@ -56,7 +56,7 @@ def main() -> None:
     a = ap.parse_args()
     X = sample(a.n, a.seed)
     t0 = time.time()
-    with Pool(os.cpu_count()) as pool:
+    with Pool(int(os.environ.get("MLET_WORKERS", os.cpu_count()))) as pool:
         out = np.array(pool.map(solve, list(X), chunksize=64))
     seconds = time.time() - t0
     ok = np.isfinite(out).all(1) & (out[:, 1] > 0) & (out[:, 2] > 0)
