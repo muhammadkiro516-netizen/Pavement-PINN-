@@ -8,6 +8,7 @@ import { AlertTriangle } from 'lucide-react';
 import { LeafletMap, type LeafletMapProps, createActivePinMarkerHtml } from './LeafletMap';
 import { prefersReducedMotion } from '../ui/motion';
 import { paviMarkerHtml } from '../brand/Pavi';
+import { distanceMeters } from '../../domain/workflow/screening';
 import { readPaviHelmet, readPavi } from '../brand/paviPrefs';
 import type { DamageReport, RoadSegment } from '../../types';
 import {
@@ -156,6 +157,8 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
   const healthRef = useRef<TileHealth>(INITIAL_TILE_HEALTH);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const userMarkerRef = useRef<maplibregl.Marker | null>(null);
+  // A report at the user's own spot is held by Pavi instead of drawn as a separate pin.
+  const heldRef = useRef<{ photoUrl: string; color: string } | null>(null);
   const pickPopupRef = useRef<maplibregl.Popup | null>(null);
   const pickMarkerRef = useRef<maplibregl.Marker | null>(null);
   const pickAbortControllerRef = useRef<AbortController | null>(null);
@@ -199,6 +202,7 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
     bottomInsetPx,
     activePinCoordinates,
     onActivePinChange,
+    userLocation,
     signedReportIds
   });
   latest.current = {
@@ -217,6 +221,7 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
     bottomInsetPx,
     activePinCoordinates,
     onActivePinChange,
+    userLocation,
     signedReportIds
   };
 
@@ -505,6 +510,13 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
         });
       } else {
         const report = cluster.items[0];
+        const here = latest.current.userLocation?.coordinates;
+        if (here && distanceMeters(here, report.coordinates) <= 30) {
+          heldRef.current = { photoUrl: report.photoUrl, color: report.status === 'REPAIRED' ? '#2BD67B' : SEVERITY_COLOR[report.severity] };
+          element.style.display = 'none';
+          const um = userMarkerRef.current?.getElement();
+          if (um) um.innerHTML = paviMarkerHtml(readPavi().helmet, readPavi().vest, heldRef.current);
+        }
         const color = report.status === 'REPAIRED' ? '#57ae78' : SEVERITY_COLOR[report.severity];
         const isHighlighted = report.id === effectiveHighlightId;
         // The badge says something true about the report: repaired, warning sign on site, or water.
@@ -1249,7 +1261,7 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
     const element = document.createElement('div');
     element.className = 'user-location-marker';
     element.title = 'Lokasi Anda';
-    element.innerHTML = paviMarkerHtml(readPavi().helmet, readPavi().vest);
+    element.innerHTML = paviMarkerHtml(readPavi().helmet, readPavi().vest, heldRef.current);
     userMarkerRef.current = new maplibregl.Marker({ element, anchor: 'bottom' })
       .setLngLat(toLngLat(userLocation.coordinates))
       .addTo(map);

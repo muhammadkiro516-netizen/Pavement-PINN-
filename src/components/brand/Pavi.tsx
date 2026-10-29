@@ -70,11 +70,19 @@ export const Pavi: React.FC<{ size?: number; mood?: PaviMood; helmet?: string; v
 };
 
 /** HTML for a MapLibre marker element (no React inside the map canvas). */
-export function paviMarkerHtml(helmet: string = PAVI_HELMETS[0], vest: string = PAVI_VESTS[0]): string {
-  return `<div class="pavi-marker"><span class="pavi-halo"></span><svg width="44" height="51" viewBox="0 0 72 83" class="pavi pavi-idle">
+/** Pavi map marker. With `held`, Pavi raises an arm holding that report's photo card, so a report
+ * at the user's own position becomes part of the character instead of a pin on top of it. */
+export function paviMarkerHtml(helmet: string = PAVI_HELMETS[0], vest: string = PAVI_VESTS[0], held?: { photoUrl: string; color: string } | null): string {
+  const card = held
+    ? `<span class="pavi-card" style="border-color:${held.color}"><img src="${held.photoUrl}" alt=""/></span>`
+    : '';
+  const arms = held
+    ? '<path d="M18 50 q-8 4 -9 12" stroke="#2A2F37" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M54 48 q10 -6 14 -18" stroke="#2A2F37" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="68" cy="29" r="3.5" fill="#2A2F37"/>'
+    : '<path d="M18 50 q-8 4 -9 12" stroke="#2A2F37" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M54 50 q8 4 9 12" stroke="#2A2F37" stroke-width="4" fill="none" stroke-linecap="round"/>';
+  return `<div class="pavi-marker${held ? ' pavi-holding' : ''}"><span class="pavi-halo"></span>${card}<svg width="44" height="51" viewBox="0 0 72 83" overflow="visible" class="pavi pavi-idle">
 <ellipse cx="36" cy="80" rx="18" ry="3" fill="#000" opacity="0.35" class="pavi-shadow"/>
 <g class="pavi-body"><line x1="36" y1="9" x2="36" y2="2" stroke="#2A2F37" stroke-width="2.5" stroke-linecap="round"/><circle cx="36" cy="2.5" r="2.5" fill="#FFD60A" class="pavi-antenna"/>
 <path d="M30 9 h12 l15 55 a4 4 0 0 1 -4 5 H19 a4 4 0 0 1 -4 -5 Z" fill="${helmet}"/><path d="M24 40 h24 l3 10 H21 Z" fill="${vest}" opacity="0.92"/>
 <rect x="22" y="27" width="28" height="15" rx="7.5" fill="#0B0D10"/><rect x="27" y="31" width="6" height="6" rx="3" fill="#7DD3FC" class="pavi-blink"/><rect x="39" y="31" width="6" height="6" rx="3" fill="#7DD3FC" class="pavi-blink"/>
-<rect x="10" y="66" width="52" height="8" rx="4" fill="#2A2F37"/></g></svg></div>`;
+<rect x="10" y="66" width="52" height="8" rx="4" fill="#2A2F37"/>${arms}</g></svg></div>`;
 }
