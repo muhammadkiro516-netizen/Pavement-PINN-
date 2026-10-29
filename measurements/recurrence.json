@@ -1,6 +1,6 @@
 {
-  "measuredAt": "2026-10-29T04:15:01.141Z",
-  "commit": "86e7861",
+  "measuredAt": "2026-10-29T15:19:46.522Z",
+  "commit": "f4275c4",
   "label": "TERUKUR",
   "definition": "Perbaikan = RESOLVE terverifikasi. Berulang = laporan baru <= 10 m atau konfirmasi warga 'berlubang lagi'. Penyebut = perbaikan yang sudah teramati selama jendela penuh atau gagal di dalamnya.",
   "repairs": 0,

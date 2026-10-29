@@ -1,0 +1,32 @@
+C:\Users\Salma\Documents\Pavement-PINN\pitchdeck-visuals\make_visuals.py:123: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:821.)
+  hist["phys"].append(float(phys))
+wrote 01_dataset_distribusi_input.png
+wrote 02_dataset_label_regangan.png
+wrote 03_dataset_contoh_baris.png
+wrote 04_training_terminal_log.png
+wrote 05_training_loss_curve.png
+wrote 06_training_ablation_physics.png
+wrote 07_evaluasi_parity_plot.png
+wrote 08_evaluasi_distribusi_galat.png
+wrote 09_kecepatan_pinn_vs_solver.png
+wrote 10_openvino_latensi_presisi.png
+wrote 11_cv_deteksi/ jalan-berlubang 710.3 ms
+wrote 11_cv_deteksi/ perbaikan-kebumen 291.9 ms
+wrote 11_cv_deteksi/ rambu-kebumen 254.2 ms
+wrote 11_cv_deteksi/ surabaya 413.4 ms
+wrote 11_cv_deteksi/ ubud-bali 281.5 ms
+wrote 12_cv_scene_probabilitas.png
+wrote 13_cv_pipeline_waktu.png
+wrote 14_arsitektur_sistem.png
+wrote 15_alur_laporan.png
+wrote 16_peran_pengguna.png
+{
+ "viol": 0.002450518310070038,
+ "viol_plain": 0.006409048102796078,
+ "secs": 61.0550594329834,
+ "mape_et": 1.159966230392456,
+ "mape_ev": 0.6245884895324707,
+ "n_train": 15915,
+ "n_test": 3979
+}

@@ -1,0 +1,54 @@
+{
+  "file": "../pitchdeck-visuals/_work/mlet_dual_v1.npz",
+  "n_requested": 20000,
+  "n_valid": 19894,
+  "seed": 42,
+  "ranges": {
+    "P": [
+      6,
+      25
+    ],
+    "q": [
+      0.5,
+      0.8
+    ],
+    "h1": [
+      50,
+      250
+    ],
+    "h2": [
+      100,
+      400
+    ],
+    "E1": [
+      1000,
+      5000
+    ],
+    "E2": [
+      100,
+      500
+    ],
+    "CBR": [
+      1,
+      15
+    ],
+    "d": [
+      250,
+      400
+    ]
+  },
+  "k_cbr": 10.0,
+  "nu": [
+    0.35,
+    0.35,
+    0.45
+  ],
+  "seconds": 219.9,
+  "cpu_count": 16,
+  "cpu": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD",
+  "ms_per_case_per_core": 175.91
+}
+
+real	3m42.430s
+user	0m0.015s
+sys	0m0.016s
