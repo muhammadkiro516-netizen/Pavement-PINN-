@@ -69,3 +69,20 @@ test('multi-angle inspection travels from field engineer to coordinator as one c
   assert.ok(seen.body.report.availableActions.includes('VERIFY_INSPECTION'));
   await act(ops, { action: 'VERIFY_INSPECTION', reason: 'Foto 3 sisi dan ukuran sesuai.' });
 });
+
+test('a citizen report keeps the extra angles; forged AI on them is discarded', async () => {
+  const anon = await call('POST', '/api/auth/anonymous');
+  const { id: _i, status: _s, creatorAccountId: _c, creatorRole: _r, origin: _o, createdAt: _a, ...content } = INITIAL_COMMUNITY_REPORTS[0];
+  const extraViews = [
+    { angle: 'OVERVIEW', photoUrl: PNG, takenAt: new Date().toISOString(), analysisId: 'CVA-FFFFFFFFFFFFFFFF', ai: { primaryLabel: 'palsu', confidence: 1 } },
+    { angle: 'SIDE', photoUrl: PNG, takenAt: new Date().toISOString(), analysisId: null },
+    { angle: 'TOP', photoUrl: PNG, takenAt: new Date().toISOString(), analysisId: null }
+  ];
+  const created = await call('POST', '/api/workflow/reports', { report: { ...content, coordinates: [-6.3672, 107.4011], photoUrl: PNG, description: 'Lubang 3 sisi', extraViews } }, anon.body.token);
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  const ops = await session('USR-008');
+  const seen = await call('GET', `/api/workflow/reports/${created.body.report.case.id}`, undefined, ops);
+  const views = seen.body.report.case.report.extraViews;
+  assert.deepEqual(views.map((v: { angle: string }) => v.angle), ['OVERVIEW', 'SIDE'], 'at most 2, TOP is not a citizen extra angle');
+  assert.ok(views.every((v: { ai: unknown }) => v.ai === null));
+});

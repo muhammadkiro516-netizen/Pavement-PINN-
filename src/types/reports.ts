@@ -66,6 +66,13 @@ export interface DamageReport {
   cvAssessment?: CvAssessment;
   /** Draft-only: id of a server-stored CV analysis to attach. Never kept on the report. */
   cvAnalysisId?: string;
+  /** Extra angles from the reporter (overview / side), each with the server-side AI result. */
+  extraViews?: Array<{
+    angle: 'OVERVIEW' | 'TOP' | 'SIDE' | 'DETAIL' | 'SIGN';
+    photoUrl: string;
+    takenAt: string;
+    ai: { analysisId: string; status: string; primaryLabel: string | null; primaryType: string | null; confidence: number | null; detections: number; severity: string; surfaceIndex: number | null; flooded: boolean } | null;
+  }>;
 
   // Computer Vision AI Analysis Data
   aiAnalysis?: {

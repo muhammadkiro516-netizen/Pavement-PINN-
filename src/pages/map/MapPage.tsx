@@ -115,6 +115,7 @@ export const MapPage: React.FC = () => {
         theme="dark"
         showDensity
         mapCenterTarget={target}
+        belowHeader
       />
       {/* Snap-Map-style overlays: avatar, place title, filter chips */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-30 bg-gradient-to-b from-[#000000]/70 to-transparent px-4 pb-10 pt-[max(14px,env(safe-area-inset-top))]">

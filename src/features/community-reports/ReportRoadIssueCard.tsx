@@ -41,6 +41,7 @@ import { LiveAiOverlay } from './LiveAiOverlay';
 import { useSpeedLock, SPEED_LIMIT_KMH } from '../location/speedLock';
 import { lastDeviceFix } from '../location/deviceLocation';
 import { enqueueReport } from './offlineQueue';
+import { ReportExtraAngles, extraViewsPayload, type ExtraShots } from './ReportExtraAngles';
 import { CV_STAGE_LABELS, CvClientError, checkImageInput, normalizePhoto, runCvAnalysis } from './cvClient';
 
 /** Damage-type choice in step 3: from the model (with its taxonomy code) or picked by the reporter. */
@@ -300,6 +301,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
 
   // CV job (server-reported stages) and its stored analysis
   const [cvJob, setCvJob] = useState<CvJobView | null>(null);
+  const [extraShots, setExtraShots] = useState<ExtraShots>({});
   const [cvAnalysis, setCvAnalysis] = useState<CvAnalysis | null>(null);
   const [cvError, setCvError] = useState<{ code: string; message: string } | null>(null);
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
@@ -718,6 +720,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
     setValidationError(null);
     setCvJob(null);
     setCvAnalysis(null);
+    setExtraShots({});
     setCvError(null);
     setDamageChoice(null);
     setCustomSeverity(null);
@@ -848,7 +851,8 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
         severity: effectiveSeverity.toLowerCase(),
         characteristics: []
       },
-      ...(attachedAnalysis ? { cvAnalysisId: attachedAnalysis.analysisId } : {})
+      ...(attachedAnalysis ? { cvAnalysisId: attachedAnalysis.analysisId } : {}),
+      ...(Object.keys(extraShots).length ? { extraViews: extraViewsPayload(extraShots) as never } : {})
       }, currentAccount);
     } catch (error) {
       if (error instanceof ReportCreationError) {
@@ -1454,6 +1458,8 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
 
                   {selectedImage && <AiPhotoScan src={selectedImage} analysis={cvAnalysis} />}
 
+                  <ReportExtraAngles shots={extraShots} onChange={setExtraShots} />
+
                   {/* Damage type */}
                   <div className="space-y-2">
                     <label htmlFor="damage-type-select" className={LABEL}>Jenis kerusakan</label>
@@ -1545,7 +1551,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                 </div>
 
                 <div className="pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] space-y-3">
-                  <button type="button" onClick={handleSubmitReport} disabled={isSubmitting} aria-busy={isSubmitting} className={PRIMARY}>
+                  <button type="button" onClick={handleSubmitReport} disabled={isSubmitting || Object.values(extraShots).some((x) => x?.state === "analysing")} aria-busy={isSubmitting} className={PRIMARY}>
                     {isSubmitting ? 'Mengirim laporan…' : 'Kirim laporan'}
                   </button>
                   {submitError && (

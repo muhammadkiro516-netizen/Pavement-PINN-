@@ -11,6 +11,7 @@ import type { ReportMutationOutcome } from '../../../types/reports';
 import type { CvAnalysis } from '../../../types/cv';
 import { ANGLE_GUIDE, ANGLE_MEASURES, INSPECTION_ANGLES, MEASURE_LABEL, REQUIRED_ANGLES, areaFromDimensions, combineMeasurements, measureFromMarks, summarizeViews, volumeFromDimensions, type InspectionAngle, type InspectionView, type MeasureKind, type PhotoMarks } from '../../../domain/workflow/inspectionViews';
 import { MarksOverlay, PhotoMeasure } from './PhotoMeasure';
+import { ReporterAngles } from './InspectionCaseSummary';
 import { normalizePhoto, runCvAnalysis } from '../../community-reports/cvClient';
 import { friendlyError } from '../friendlyError';
 
@@ -20,7 +21,7 @@ const SEV_LABEL = { LIGHT: 'Ringan', MODERATE: 'Sedang', SEVERE: 'Berat', CRITIC
 const INPUT = 'w-full rounded-xl border border-white/10 bg-[#0B0D10] px-3 py-2.5 text-sm text-white outline-none focus:border-[#FFD60A]';
 
 /** Decode any photo the browser (or the server converter) can read; JPEG, long side <= 1280 px. */
-async function toJpeg(file: File): Promise<string> {
+export async function toJpeg(file: File): Promise<string> {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((ok, fail) => {
@@ -135,6 +136,7 @@ export const GuidedInspection: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCo
 
         <div className="flex-1 space-y-5 overflow-y-auto p-4">
           <section>
+            <div className="mb-3"><ReporterAngles c={c} /></div>
             <p className="mb-2 text-sm font-extrabold">1 · Foto dari segala sisi</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {INSPECTION_ANGLES.map((a) => {

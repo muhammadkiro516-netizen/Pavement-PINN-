@@ -12,7 +12,7 @@ export const SnapPage: React.FC<{ title: string; subtitle?: string; action?: Rea
   children
 }) => (
   <div className="h-full w-full overflow-y-auto bg-[#0B0D10] text-[#FFFFFF]">
-    <div className="mx-auto w-full max-w-2xl px-4 pb-32 pt-6">
+    <div className="mx-auto w-full max-w-2xl px-4 pb-32 pt-6 lg:max-w-6xl lg:px-8">
       <div className="mb-5 flex items-end justify-between gap-3 pp-rise">
         <div className="min-w-0">
           <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">{title}</h1>
@@ -20,7 +20,8 @@ export const SnapPage: React.FC<{ title: string; subtitle?: string; action?: Rea
         </div>
         {action}
       </div>
-      <div className="space-y-3">{children}</div>
+      {/* Phone: one column. Desktop: cards flow into two balanced columns. */}
+      <div className="space-y-3 lg:columns-2 lg:gap-4 lg:space-y-0 lg:[&>*]:mb-4 lg:[&>*]:break-inside-avoid">{children}</div>
     </div>
   </div>
 );

@@ -24,6 +24,8 @@ import { MapAnalyticsPanel } from './MapAnalyticsPanel';
 const MapLibreMap = React.lazy(() => import('./MapLibreMap'));
 
 export interface PavementMapProps extends LeafletMapProps {
+  /** The page draws its own header over the map (MapPage): start the staff toolbar below it; hide it on phones. */
+  belowHeader?: boolean;
   /** Dashboard tile: no report creation from the map. */
   compact?: boolean;
   isTabActive?: boolean;
@@ -34,7 +36,7 @@ export interface PavementMapProps extends LeafletMapProps {
 
 const PROVINCES = ['DKI Jakarta', 'Banten', 'Jawa Barat', 'Sumatera Selatan', 'Kalimantan Tengah', 'Papua Pegunungan', 'Bali'];
 
-export const PavementMap: React.FC<PavementMapProps> = ({ compact = false, engine, ...props }) => {
+export const PavementMap: React.FC<PavementMapProps> = ({ compact = false, engine, belowHeader = false, ...props }) => {
   // A page that passes no role (M.O. POS WIM view, policy/road-health tiles) draws its own
   // overlays; the engine must not add the staff cards on top (Leaflet would assume F.E.).
   const staffCards = Boolean(props.activeRole);
@@ -92,7 +94,7 @@ export const PavementMap: React.FC<PavementMapProps> = ({ compact = false, engin
 
       {showEngineerCards && (
         <>
-          <div className="absolute top-3 left-3 right-16 z-10 flex flex-wrap items-start gap-2 pointer-events-none">
+          <div className={`absolute z-10 flex-wrap items-start gap-2 pointer-events-none ${belowHeader ? 'top-[136px] left-3 right-3 hidden sm:flex' : 'top-3 left-3 right-16 flex'}`}>
             <div className="pointer-events-auto flex flex-wrap items-center gap-2 bg-[#12151A]/95 border border-[#292D33] p-2 rounded-2xl shadow-md max-w-full">
               <label className={`${control} relative flex items-center`}>
                 <Search className="w-3.5 h-3.5 absolute left-2.5 text-[#747C87]" />

@@ -36,7 +36,7 @@ export const WorkOrdersPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full overflow-y-auto custom-scrollbar bg-workspace text-ink">
+    <div className="w-full h-full overflow-y-auto custom-scrollbar bg-workspace text-ink pb-32">
       {isFieldEngineer ? (
         <WorkflowGuide title="Alur kerja petugas lapangan" steps={fieldSteps(workflow.actor?.id ?? currentAccount.id)} cases={staffCases} onPick={pick} />
       ) : (

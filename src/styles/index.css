@@ -1529,3 +1529,8 @@ body { font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif; }
 .sp-lane { animation: sp-lane 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .sp-edge { animation: sp-edge 0.9s ease-out both; }
 .sp-pavi { bottom: -120px; animation: sp-pavi 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both; }
+
+/* Phones and narrow windows: pinch to zoom; the +/- buttons only cover the bottom bar. */
+@media (max-width: 640px) {
+  .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group { display: none; }
+}

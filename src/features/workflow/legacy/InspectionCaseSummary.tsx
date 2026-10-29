@@ -80,3 +80,26 @@ export const InspectionCaseSummary: React.FC<{ c: ReportCase }> = ({ c }) => {
     </div>
   );
 };
+
+/** The reporter's own photos from other angles (citizen report), with the server-side AI result. */
+export const ReporterAngles: React.FC<{ c: ReportCase }> = ({ c }) => {
+  const views = c.report.extraViews ?? [];
+  if (!views.length) return null;
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-[#A1A1AA]">Foto dari pelapor · {views.length + 1} sisi</p>
+      <div className="grid grid-cols-3 gap-2">
+        <figure className="overflow-hidden rounded-lg bg-black">
+          <img src={c.report.photoUrl} alt="Foto utama pelapor" className="h-16 w-full object-cover" />
+          <figcaption className="p-1 text-[10px] text-[#A1A1AA]">Foto dekat</figcaption>
+        </figure>
+        {views.map((v) => (
+          <figure key={v.angle} className="overflow-hidden rounded-lg bg-black">
+            <img src={v.photoUrl} alt={ANGLE_GUIDE[v.angle].title} className="h-16 w-full object-cover" />
+            <figcaption className="truncate p-1 text-[10px] text-[#A1A1AA]">{ANGLE_GUIDE[v.angle].title}{v.ai?.primaryLabel ? ` · ${v.ai.primaryLabel} ${Math.round((v.ai.confidence ?? 0) * 100)}%` : ''}</figcaption>
+          </figure>
+        ))}
+      </div>
+    </div>
+  );
+};

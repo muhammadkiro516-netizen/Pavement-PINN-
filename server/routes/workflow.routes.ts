@@ -27,6 +27,7 @@ import { reportCards } from "../../src/domain/workflow/reportCard";
 import { CONFIRM_MILESTONES_MONTHS, dueConfirmations, recurrence, repairLives, statsByMethod } from "../../src/domain/roads/recurrence";
 import type { WorkflowRuntime } from "../services/workflowRuntime";
 import { CvAnalysisStore } from "../services/cvAnalysisStore";
+import type { InspectionView } from "../../src/domain/workflow/inspectionViews";
 import { createHash } from "node:crypto";
 import { actorFrom, clearSessionCookie, credentialFrom, sessionFrom, setSessionCookie } from "../auth/actor";
 import { verifyDemoLogin } from "../auth/demoLogin";
@@ -312,6 +313,19 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
     }
     // Privacy: camera metadata (EXIF GPS, device) is removed before storage, after the CV binding.
     if (typeof draft.photoUrl === "string") draft.photoUrl = stripPhotoMetadata(draft.photoUrl);
+    // Extra citizen angles (overview / side): byte-checked, AI copied from the server CV store
+    // only for the exact analysed bytes, EXIF stripped. At most 2; anything else is dropped.
+    const rawViews = (draft as { extraViews?: unknown }).extraViews;
+    const extraViews: InspectionView[] = [];
+    if (Array.isArray(rawViews)) {
+      for (const v of rawViews.slice(0, 2) as Array<Record<string, unknown>>) {
+        if (!v || !["OVERVIEW", "SIDE", "DETAIL"].includes(String(v.angle)) || extraViews.some((x) => x.angle === v.angle)) continue;
+        const ok = checkPhotoReference(v.photoUrl);
+        if (ok.ok === false || typeof v.photoUrl !== "string" || !v.photoUrl.startsWith("data:image/")) return sendError(res, "VALIDATION", `Foto ${String(v.angle)}: ${(ok as { message?: string }).message ?? "harus berupa foto."}`);
+        extraViews.push({ angle: v.angle as InspectionView["angle"], photoUrl: stripPhotoMetadata(v.photoUrl), takenAt: typeof v.takenAt === "string" ? v.takenAt : new Date().toISOString(), ai: await viewAi(v.analysisId, v.photoUrl) });
+      }
+    }
+    (draft as { extraViews?: InspectionView[] }).extraViews = extraViews.length ? extraViews : undefined;
     const claim = actor.kind === "ANONYMOUS" ? newClaimToken() : null;
     // Who handles this road: resolved from the reported position (OSM, cached; offline fallback).
     const coords = Array.isArray(draft.coordinates) && draft.coordinates.every((n: unknown) => Number.isFinite(n)) ? (draft.coordinates as [number, number]) : null;

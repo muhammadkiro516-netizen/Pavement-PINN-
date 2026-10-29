@@ -19,7 +19,7 @@ import { ReportWorkflowPanel, actorName } from '../ReportWorkflowPanel';
 import type { RoadSegment } from '../../../types';
 import { TaskNavigation } from './TaskNavigation';
 import { GuidedInspection } from './GuidedInspection';
-import { InspectionCaseSummary } from './InspectionCaseSummary';
+import { InspectionCaseSummary, ReporterAngles } from './InspectionCaseSummary';
 import { RepairResult } from './RepairResult';
 import { friendlyError } from '../friendlyError';
 import { fieldStage } from '../../work-orders/fieldStages';
@@ -968,6 +968,7 @@ const SpkModal: React.FC<{ c: ReportCase; engineers: EngineerSummary[]; onRun: (
       <div className="space-y-4">
         {/* SECTION 1 — INFORMASI LAPORAN */}
         <SpkSummary c={c} />
+        <ReporterAngles c={c} />
         {c.state === 'NEEDS_REVIEW' && (
           <p className="text-xs text-fg-muted -mt-1">
             Laporan ini akan <b className="text-fg">diterima</b> lalu <b className="text-fg">ditugaskan</b>; keduanya tercatat di riwayat dengan alasan di bawah.
@@ -1121,6 +1122,7 @@ const VerifyModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) => Pr
     <Modal title="Verifikasi mutu hasil inspeksi oleh M.O" subtitle={<>Laporan: <span className="text-brand">{c.id}</span>{c.assignment && <> · Penugasan {c.assignment.id}</>}</>} icon={<ShieldCheck className="h-5 w-5" />} onClose={onClose} wide busy={busy} dirty={!!reason.trim()}>
       <div className="space-y-4">
         <BeforeAfter before={c.report.photoUrl} after={i?.evidencePhotoUrl} />
+        <ReporterAngles c={c} />
         <InspectionCaseSummary c={c} />
         {i && (
           <div className="space-y-2 rounded-xl border border-line bg-canvas/60 p-3 text-xs">
