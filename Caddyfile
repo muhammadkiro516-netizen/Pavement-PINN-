@@ -1,0 +1,5 @@
+# SPEC §6: automatic HTTPS (Let's Encrypt) for the domain in .env (DOMAIN=lapor.contoh.id).
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3100
+}

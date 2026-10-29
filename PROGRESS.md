@@ -1,35 +1,31 @@
 # PROGRESS — PAVEMENT-PINN v4 (rujuk SPEC.md per ID)
 
-Branch `v4` (dari `lean-real` 3165218). Tes dasar: 327 Node + 51 pytest.
-Riwayat lama: `git show 3165218:PROGRESS.md`. Sengaja tidak di-commit: `docs/POST_STRUCTURE_AUDIT.md`, `docs/CLAUDE_PROJECT_STATUS_HANDOFF.md`.
+Branch `v4` dari `lean-real` 3165218. Riwayat lama: `git show 3165218:PROGRESS.md`. Tidak di-commit: `docs/POST_STRUCTURE_AUDIT.md`, `docs/CLAUDE_PROJECT_STATUS_HANDOFF.md`.
 
 ## Status fase
 | Fase | Status |
 |---|---|
-| F0 | SELESAI 788d179: 3D/Validation + T0–T8 disembunyikan (`VITE_SHOW_3D=1`), quick tunnel hidup (URL berganti tiap restart; lihat `.data/tunnel.log`) |
-| F1 | SELESAI 02d2c97: M2.1 data perbaikan wajib (+ katalog `config/materials.json`), M2.2 umur perbaikan nyata + riwayat di Ruas/Statistik, M2.3 konfirmasi 1-3-6 bln (Notifikasi), M2.4 flag masa pemeliharaan (internal), job harian → `measurements/recurrence.json` |
-| F2 | SELESAI 12150d8: M3.1 jam pasir, M3.2 tangga H+2/7/14/30 + draf pengaduan teks/PDF, M3.3 `SET_PENDING` (publik, menghentikan eskalasi), M3.4 "Saya juga melihat ini" tersimpan di server, M3.5 Rapor Instansi, peran Pimpinan (tab Eskalasi/Rapor) |
-| F3 | SELESAI d2ec705: M5.1 PINN-2 `/v1/diagnose` (2.000 struktur, surrogate OpenVINO + PyMastic, bobot observasi → P10–P90, 🔴🟡🟢, faktor dominan; Koordinator setuju/timpa beralasan), M6 Audit (buku harga berlabel, Kalkulator Kewajaran, flag BIAYA/RUSAK_CEPAT/PEMELIHARAAN + tanggapan wajib, label publik "Sedang dalam pemeriksaan teknis", form data proyek + verifikasi) |
-| F4 | SELESAI (target BELUM tercapai): PINN-1 PyTorch (Navier aksisimetris + BC + kontinuitas + 40 titik PyMastic). Error L2 vs PyMastic: w 28%, εzz 92%, εrr 186%; ablasi tanpa fisika lebih buruk (41%/181%/533%, residu 13×). Invers dari cekungan CONTOH gagal (33–41%). Perlu: lebih banyak iterasi + L-BFGS, skala per lapis |
-| F5 | SELESAI: kartu story 9:16 (canvas, foto selalu kabur, kotak AI, QR), 5 templat, share OS/fallback unduh+salin, caption 3 nada + checker, `/r/:code` OG + kunjungan unik, Kawal di halaman lacak |
-| F6 | SELESAI 0becd36: SLM Qwen2.5-1.5B INT4 di OpenVINO GenAI (CPU di laptop AMD; GPU AMD crash → hanya Intel), angka dari kode, checker, PDF DRAF, persetujuan |
-| F7–F9 | belum |
+| F0 | 788d179: 3D/Validation + T0–T8 disembunyikan (`VITE_SHOW_3D=1`); quick tunnel |
+| F1 | 02d2c97: data perbaikan wajib + katalog, umur perbaikan nyata, konfirmasi 1-3-6 bln, flag pemeliharaan, `measurements/recurrence.json` |
+| F2 | 12150d8: jam pasir, eskalasi H+2/7/14/30 + draf pengaduan, `SET_PENDING`, witness server, Rapor Instansi, Pimpinan |
+| F3 | d2ec705: PINN-2 `/v1/diagnose` + setuju/timpa; Audit (harga berlabel, kewajaran, flag + tanggapan, data proyek) |
+| F4 | 86e7861, target BELUM: PINN-1 L2 vs PyMastic w 28%, εzz 92% (ablasi 41%/181%); invers CONTOH gagal. Perlu L-BFGS + iterasi |
+| F5 | 821e716: kartu story 9:16, share, caption + checker, `/r/:code` OG + kunjungan unik |
+| F6 | 0becd36: SLM Qwen2.5-1.5B INT4 OpenVINO GenAI (CPU; GPU AMD crash), angka dari kode, PDF DRAF, persetujuan |
+| F7 | harness: `eval/` (pinn1, pinn2, slm, cv, clip), `bench/run_all.py` + `remote_setup.sh`, `/api/public/measurements` → /bukti, SUS in-app, `scripts/export-measurements.ts`, docs Intel + `docs/evidence/` |
+| F8 | sebagian: kunci kamera > 10 km/jam, "Bantu bidik" opt-in 1 dtk, Radar Bahaya, onboarding 3 layar, quests + XP cap + e-sertifikat QR, tab "Kawal". Belum: tema terang, avatar builder, triase aset CLIP (M1.2) |
+| F9 | sebagian: Dockerfile ×2, compose, Caddy, deploy.sh + backup, `.env.example`, GENAI_DISCLOSURE (otomatis), CORE_EXPLAINED, ROADMAP. Belum: VM/domain (butuh pengguna) |
 
-## Keputusan (yang tidak dijawab spec)
-- F0: Overview diringkas menjadi 3 langkah **Konfirmasi (T3) → Struktur (T7) → Usulan**. Spec menyebut "Ruas"; halaman Ruas baru dibangun di F1, jadi langkah ke-2 sementara menampilkan T7.
-- F0: kode 3D/Validation tidak dihapus, hanya disembunyikan (e2e lama perlu `VITE_SHOW_3D=1`).
-- F1: "job terjadwal" = job harian yang menulis metrik recurrence; pertanyaan 1-3-6 bulan dihitung saat diminta (`dueConfirmations`), tanpa push notification. Radius 300 m memakai posisi terakhir perangkat (dikirim klien).
-- F1: tombol "foto sampel hasil perbaikan" dihapus (§0.1).
-- F2: Pimpinan = role `POLICY_MAKER` yang sudah ada (identifier RBAC tidak diganti). Eskalasi dihitung murni dari case saat dibaca (tanpa state tersimpan). Setelah tanggal alasan tertunda lewat, hitungan tangga dimulai ulang dari tanggal itu.
-- F2: tombol "Dukung" lama hanya menghitung di browser; diganti witness tersimpan di server.
-- F3: "umur seharusnya" untuk tambalan = sebaran umur nyata metode yang sama (TERUKUR, min. 5 pembanding), bukan angka buatan; PINN-2 untuk struktur. Lalu lintas (ESAL) wajib diisi manusia. M5.3 (titik uji DCP) belum (P1).
-- Tes `session-lifecycle` (sesi 1 detik) flaky saat CPU penuh oleh training; lulus saat diulang.
-- Disk C tinggal ±3 GB setelah PyTorch + model SLM.
-- Trailer commit: `Assisted-by: Claude Code` (§0.9).
+## Keputusan
+- Overview 3 langkah; kode 3D disimpan. Pimpinan = `POLICY_MAKER`. Eskalasi & 1-3-6 bln dihitung saat dibaca. Dihapus: foto sampel, "Dukung" lokal.
+- Umur seharusnya tambalan = umur nyata metode sama (min. 5); ESAL diisi manusia. PINN-2 akurat (εt 0,67%, εv 0,49%, ±2.100× PyMastic).
+- SLM (10 kasus, CPU AMD): SLM 40%, templat 60%, 10 tok/dtk. CV/CLIP lokal BELUM_DIUKUR. Nav warga 5 tab (Notifikasi dipertahankan).
+- Docker belum diuji di mesin ini. Tes `session-lifecycle` flaky saat CPU penuh. Disk C ±3 GB.
 
-## Blocker (perlu manusia)
-- Tunnel quick (izin pengguna): `~/bin/cloudflared.exe tunnel --no-autoupdate --url http://localhost:3100`; URL tetap butuh VM/domain (F9).
-- §7: VM Xeon / Intel AI PC Cloud / laptop Core Ultra, foto uji lokal, data proyek, wawancara, SUS.
+## Blocker (manusia)
+- Tunnel sementara: `~/bin/cloudflared.exe tunnel --url http://localhost:3100`. §7: VM Xeon/Core Ultra, foto lokal, data proyek, wawancara, SUS.
 
 ## Langkah berikutnya
-1. F4: M5.2 PINN-1 medan (PyTorch, residu Navier aksisimetris + BC + data PyMastic, mode invers), eval vs PyMastic → `measurements/pinn1_*.json`.
+1. Manusia: VM Intel Xeon + domain → `bash scripts/deploy.sh --install-cron`; jalankan `bench/remote_setup.sh` di mesin Intel.
+2. Isi `eval/local_test/` (≥100 foto) → `eval/cv_eval.py`, `eval/clip_eval.py`; isi `docs/evidence/*.md`.
+3. PINN-1: L-BFGS + iterasi lebih banyak; M1.2 triase aset; tema terang; avatar builder.

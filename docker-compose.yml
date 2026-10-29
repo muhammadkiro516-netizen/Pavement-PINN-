@@ -1,0 +1,37 @@
+# SPEC §6: production on one Linux VM (target: Intel Xeon, >= 4 vCPU / 8 GB).
+#   cp .env.example .env   # set DOMAIN and SESSION_SECRET
+#   docker compose up -d --build
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      INFERENCE_URL: http://inference:8100
+    volumes:
+      - ./data:/data
+      - ./measurements:/app/measurements
+    depends_on: [inference]
+
+  inference:
+    build:
+      context: .
+      dockerfile: inference/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./models:/app/models
+
+  caddy:
+    image: caddy:2.8.4
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on: [app]
+
+volumes:
+  caddy_data:

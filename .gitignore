@@ -29,3 +29,10 @@ models/cv/clip/
 
 # SPEC M7: local SLM (OpenVINO IR, ~1 GB), fetched by inference/scripts/fetch_slm.py
 models/slm/
+eval/local_test/images/
+eval/local_test/labels/
+eval/local_test/scenes/
+
+# docker compose volumes (SPEC §6)
+/data/
+/backups/
