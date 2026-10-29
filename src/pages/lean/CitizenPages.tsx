@@ -7,6 +7,8 @@ import { readPaviHelmet } from '../../components/brand/paviPrefs';
 import { apiUrl } from '../../services/api/client';
 import { RepairConfirmPrompts } from '../../features/road-intelligence/RepairHistory';
 import { Hourglass } from '../../features/workflow/Hourglass';
+import { ShareSheet, type ShareCase } from '../../features/share/ShareSheet';
+import { paviMarkerHtml } from '../../components/brand/Pavi';
 import { Glyph } from '../../components/ui/brand';
 import { Empty, Pill, SnapButton, SnapCard, SnapPage } from '../../components/ui/snap';
 import { useAppState } from '../../app/providers/AppStateProvider';
@@ -62,6 +64,7 @@ const BADGE_TONE: Record<string, string> = { first: '#FFD60A', verified5: '#4C8D
 
 const ImpactCard: React.FC = () => {
   const [d, setD] = useState<ImpactData | null>(null);
+  const [share, setShare] = useState(false);
   useEffect(() => {
     fetch(apiUrl('/api/me/impact'), { credentials: 'same-origin', cache: 'no-store' })
       .then((r) => r.json())
@@ -92,6 +95,8 @@ const ImpactCard: React.FC = () => {
           </div>
         ))}
       </div>
+      <button type="button" onClick={() => setShare(true)} className="mt-3 min-h-10 w-full cursor-pointer rounded-xl bg-[#FFD60A] text-sm font-extrabold text-[#0B0D10]">Bagikan Kartu Dampakku</button>
+      {share && <ShareSheet impact={{ points: d.points, level: d.level.name, areaM2: d.repairedAreaM2, verified: d.verified }} paviSvg={(paviMarkerHtml(readPaviHelmet()).match(/<svg[\s\S]*<\/svg>/) ?? [''])[0].replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ')} onClose={() => setShare(false)} />}
       <div className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none]">
         {d.badges.map((bd) => (
           <span key={bd.id} title={bd.description} className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-extrabold ${bd.earned ? 'text-[#0B0D10]' : 'bg-[#FFFFFF]/5 text-[#FFFFFF]/35'}`} style={bd.earned ? { background: BADGE_TONE[bd.id] } : undefined}>
@@ -114,8 +119,10 @@ export const MyReportsPage: React.FC = () => {
     [workflow.views]
   );
 
+  const [sharing, setSharing] = useState<ShareCase | null>(null);
   return (
     <SnapPage title="Laporanku" subtitle="Laporan Anda dan sampai mana penanganannya.">
+      {sharing && <ShareSheet c={sharing} onClose={() => setSharing(null)} />}
       <ImpactCard />
       {mine.length === 0 ? (
         <Empty
@@ -148,6 +155,7 @@ export const MyReportsPage: React.FC = () => {
               </div>
               <StoryProgress state={v.case.state} closedInvalid={invalid} />
               <Hourglass c={v.case as never} allowComplaint />
+              <button type="button" onClick={() => setSharing({ ...(v.case as unknown as ShareCase), isMine: true })} className="mt-3 min-h-10 w-full cursor-pointer rounded-xl bg-[#FFFFFF]/8 text-sm font-bold">Bagikan story</button>
             </SnapCard>
           );
         })

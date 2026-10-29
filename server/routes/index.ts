@@ -8,6 +8,7 @@ import { registerIntelligenceRoutes } from "./intelligence.routes";
 import { registerCvRoutes } from "./cv.routes";
 import { registerWorkspaceRoutes } from "./workspace.routes";
 import { registerAuditRoutes } from "./audit.routes";
+import { registerShareRoutes } from "./share.routes";
 import type { WorkflowRuntime } from "../services/workflowRuntime";
 
 /**
@@ -31,6 +32,7 @@ export function createApiRouter(workflow: WorkflowRuntime): Router {
   registerCvRoutes(router, workflow);
   registerWorkspaceRoutes(router, workflow);
   registerAuditRoutes(router, workflow);
+  registerShareRoutes(router, workflow);
 
   // Anything else under /api is an API mistake, not a page: answer JSON 404 instead of
   // letting the request fall through to the SPA host (which replied with HTML, status 200).

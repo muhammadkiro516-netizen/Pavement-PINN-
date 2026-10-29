@@ -9,6 +9,7 @@ import { useWorkspaceDeps } from '../operations/useWorkspaceDeps';
 import { StatusBadge } from '../../features/workspace/components/shared';
 import type { PublicTrackView } from '../../domain/workspace/publicTrack';
 import { useRouter } from '../../app/router';
+import { PublicKawal } from '../../features/share/PublicKawal';
 
 const STATUS: Record<PublicTrackView['status'], [string, 'grey' | 'amber' | 'green']> = {
   received: ['Diterima', 'grey'],
@@ -44,6 +45,7 @@ export const TrackPage: React.FC<{ params: Record<string, string> }> = ({ params
           <StatusBadge tone={tone}>{label}</StatusBadge>
           {track.demo && <StatusBadge tone="violet">{t('demoBadge')}</StatusBadge>}
         </div>
+        <PublicKawal code={code} />
         <section className="rounded-2xl border border-[#1A2430] bg-[#0F1720] p-3">
           {track.sanitizedPhotoUri ? (
             <>

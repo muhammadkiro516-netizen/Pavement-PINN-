@@ -29,7 +29,8 @@ export function createApp(options: AppOptions = {}): Express {
     next();
   });
   // Report bodies may carry one photo (base64, max 5 MB decoded); every other route keeps the 100 kB default.
-  app.use([WORKFLOW_API_PATHS.reports, WORKFLOW_API_PATHS.content, "/api/reports"], express.json({ limit: "7mb" }));
+  // Photos travel as data URLs: report, evidence, project board and the story card (SPEC M4/M6.6).
+  app.use([WORKFLOW_API_PATHS.reports, WORKFLOW_API_PATHS.content, "/api/reports", "/api/projects", "/api/share"], express.json({ limit: "7mb" }));
   app.use(express.json());
   // A request that carries a session the server no longer honours (past its 2-hour deadline,
   // or logged out) is refused, never quietly served as a public visitor: the browser must sign
