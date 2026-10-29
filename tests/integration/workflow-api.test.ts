@@ -149,9 +149,15 @@ test('cross-role golden path over HTTP, with public tracking and audit', async (
 
   await act(ops2, { action: 'APPROVE_ACTION', reason: 'Disetujui sesuai prioritas.' });
   await act(ops2, { action: 'START_WORK', reason: 'Tim tersedia', contractorNote: 'Swakelola' });
-  const fakeAfter = await call('POST', `/api/workflow/reports/${id}/transitions`, { command: { action: 'COMPLETE_WORK_ORDER', reason: 'x', completionPhotoUrl: 'data:image/png;base64,QUFBQQ==' }, expectedVersion: version }, eng);
+  const fakeAfter = await call('POST', `/api/workflow/reports/${id}/transitions`, { command: { action: 'COMPLETE_WORK_ORDER', reason: 'x', completionPhotoUrl: 'data:image/png;base64,QUFBQQ==', repair: { method: 'TAMBAL_PANAS', materialId: 'AC-WC', thicknessCm: 5, areaM2: 1.2, compactor: 'STAMPER', category: 'PERMANEN', valueIdr: null } }, expectedVersion: version }, eng);
   assert.equal(fakeAfter.status, 400, 'repair evidence must be a real image');
-  await act(eng, { action: 'COMPLETE_WORK_ORDER', reason: 'Pekerjaan selesai', completionPhotoUrl: PNG_AFTER });
+  // SPEC M2.1: the repair record is required and the material must come from the catalogue.
+  const noRepair = await call('POST', `/api/workflow/reports/${id}/transitions`, { command: { action: 'COMPLETE_WORK_ORDER', reason: 'x', completionPhotoUrl: PNG_AFTER }, expectedVersion: version }, eng);
+  assert.equal(noRepair.status, 400);
+  const badMaterial = await call('POST', `/api/workflow/reports/${id}/transitions`, { command: { action: 'COMPLETE_WORK_ORDER', reason: 'x', completionPhotoUrl: PNG_AFTER, repair: { method: 'TAMBAL_PANAS', materialId: 'BUKAN-KATALOG', thicknessCm: 5, areaM2: 1, compactor: 'ROLLER', category: 'PERMANEN', valueIdr: null } }, expectedVersion: version }, eng);
+  assert.equal(badMaterial.status, 400);
+  assert.match(badMaterial.body.error.message, /katalog/);
+  await act(eng, { action: 'COMPLETE_WORK_ORDER', reason: 'Pekerjaan selesai', completionPhotoUrl: PNG_AFTER, repair: { method: 'TAMBAL_PANAS', materialId: 'AC-WC', thicknessCm: 5, areaM2: 1.2, compactor: 'STAMPER', category: 'PERMANEN', valueIdr: null } });
   await act(ops2, { action: 'RESOLVE', reason: 'Dicek di lapangan.' });
   const closed = await act(ops, { action: 'CLOSE_RESOLVED', reason: 'Selesai' });
   assert.equal(closed.case.state, 'CLOSED');

@@ -5,6 +5,8 @@ import { loadServerConfig, type ServerConfig } from "../config/env";
 import { attachFrontendHost } from "../middleware/frontendHost";
 import { FileCaseStore } from "../repositories/fileCaseStore";
 import { createWorkflowRuntime } from "../services/workflowRuntime";
+import { REPO_ROOT } from "./repoRoot";
+import { startRecurrenceJob } from "../jobs/recurrenceJob";
 import { AccountStore } from "../repositories/accountStore";
 import { setRuntimePorts, setRuntimeStore } from "./runtimeIdentity";
 import { resolveSessionSecret } from "../auth/sessionTokens";
@@ -79,6 +81,8 @@ export async function startServer(options: StartOptions = {}): Promise<StartedSe
     throw error;
   }
   setRuntimePorts(port, aliases);
+  // SPEC M2.2: daily recurrence metric for the evidence page (measurements/recurrence.json).
+  if (!process.env.NODE_TEST_CONTEXT) startRecurrenceJob(workflow.service, path.join(REPO_ROOT, "measurements", "recurrence.json"));
   setRuntimeStore("file", store.location, Boolean(config.sessionSecret));
   return {
     ports: [port, ...aliases],

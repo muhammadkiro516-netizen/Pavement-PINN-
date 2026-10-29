@@ -31,7 +31,10 @@ import {
   WorkflowState,
   type WorkOrder,
   type CaseAuthority,
-  type RepairCheck
+  type RepairCheck,
+  type RepairRecord,
+  REPAIR_METHODS,
+  COMPACTORS
 } from './model';
 
 export const SCREENING_CONFIDENCE_THRESHOLD = 0.6;
@@ -80,7 +83,7 @@ export type WorkflowCommand =
   | { action: 'BEGIN_SCREENING' }
   | { action: 'SCREENING_PASSED' | 'SCREENING_NEEDS_REVIEW'; screening: ScreeningResult }
   | { action: 'REVIEW_ACCEPT' | 'CLOSE_INVALID' | 'VERIFY_INSPECTION' | 'REQUEST_REINSPECTION' | 'CLOSE_NO_ACTION' | 'APPROVE_ACTION' | 'REJECT_ACTION' | 'REQUEST_REWORK' | 'RESOLVE' | 'CLOSE_RESOLVED'; reason: string }
-  | { action: 'COMPLETE_WORK_ORDER'; reason: string; completionPhotoUrl: string; repairCheck?: RepairCheck | null }
+  | { action: 'COMPLETE_WORK_ORDER'; reason: string; completionPhotoUrl: string; repair: RepairRecord; repairCheck?: RepairCheck | null }
   | { action: 'REQUEST_INSPECTION'; reason: string; engineerId: string; dueAt: string; instructions: string }
   | {
       action: 'SUBMIT_INSPECTION';
@@ -94,7 +97,7 @@ export type WorkflowCommand =
       evidencePhotoUrl?: string | null;
     }
   | { action: 'RECOMMEND_ACTION'; treatment: string; urgency: 'ROUTINE' | 'PRIORITY' | 'URGENT'; rationale: string; assessmentId: string | null; assessment?: AssessmentSnapshot | null }
-  | { action: 'START_WORK'; reason: string; contractorNote: string; contractor?: string; contractValueIdr?: number | null; targetDate?: string | null; supervisor?: string }
+  | { action: 'START_WORK'; reason: string; contractorNote: string; contractor?: string; contractValueIdr?: number | null; targetDate?: string | null; supervisor?: string; maintenanceMonths?: number | null }
   | { action: 'TRANSFER_AUTHORITY'; reason: string; agencyId: string; agencyName: string; level: CaseAuthority['level'] }
   | { action: 'MARK_HAZARD'; reason: string; photoUrl: string; note: string };
 
@@ -190,6 +193,22 @@ function assignmentGuard(action: WorkflowAction, c: ReportCase, actor: Actor): s
     default:
       return null;
   }
+}
+
+/** SPEC M2.1: every repair records method, material, thickness, area, compaction and category. */
+export function validRepair(r: unknown): RepairRecord | string {
+  const x = (r ?? {}) as Record<string, unknown>;
+  if (!REPAIR_METHODS.includes(x.method as never)) return `repair.method must be one of ${REPAIR_METHODS.join(', ')}.`;
+  if (typeof x.materialId !== 'string' || !/^[A-Z0-9-]{2,40}$/.test(x.materialId)) return 'repair.materialId is required.';
+  const t = Number(x.thicknessCm);
+  if (!Number.isFinite(t) || t <= 0 || t > 100) return 'repair.thicknessCm must be between 0 and 100 cm.';
+  const a = Number(x.areaM2);
+  if (!Number.isFinite(a) || a <= 0 || a > 100000) return 'repair.areaM2 must be a positive area in m2.';
+  if (!COMPACTORS.includes(x.compactor as never)) return `repair.compactor must be one of ${COMPACTORS.join(', ')}.`;
+  if (x.category !== 'SEMENTARA' && x.category !== 'PERMANEN') return 'repair.category must be SEMENTARA or PERMANEN.';
+  const v = x.valueIdr == null || x.valueIdr === '' ? null : Number(x.valueIdr);
+  if (v !== null && (!Number.isFinite(v) || v < 0 || v > 1e13)) return 'repair.valueIdr must be a positive amount in rupiah.';
+  return { method: x.method as RepairRecord['method'], materialId: x.materialId, thicknessCm: t, areaM2: a, compactor: x.compactor as RepairRecord['compactor'], category: x.category, valueIdr: v };
 }
 
 export function applyCommand(c: ReportCase, command: WorkflowCommand, ctx: CommandContext): CommandResult {
@@ -338,6 +357,8 @@ export function applyCommand(c: ReportCase, command: WorkflowCommand, ctx: Comma
       if (isResult(supervisor)) return supervisor;
       const value = command.contractValueIdr;
       if (value != null && (!Number.isFinite(value) || value < 0 || value > 1e13)) return fail('VALIDATION', 'contractValueIdr must be a positive amount in rupiah.');
+      const months = command.maintenanceMonths == null ? null : Number(command.maintenanceMonths);
+      if (months !== null && (!Number.isInteger(months) || months < 0 || months > 120)) return fail('VALIDATION', 'maintenanceMonths must be a whole number of months (0-120).');
       const target = command.targetDate ?? null;
       if (target !== null && (Number.isNaN(Date.parse(target)) || Date.parse(target) < Date.parse(ctx.now) - 86400000)) return fail('VALIDATION', 'targetDate must be today or later.');
       next.workOrder = {
@@ -350,6 +371,7 @@ export function applyCommand(c: ReportCase, command: WorkflowCommand, ctx: Comma
         contractValueIdr: value ?? null,
         targetDate: target,
         supervisor: supervisor || null,
+        maintenanceMonths: months,
         completedAt: null,
         isOfficialDocument: false
       };
@@ -377,6 +399,8 @@ export function applyCommand(c: ReportCase, command: WorkflowCommand, ctx: Comma
         return fail('VALIDATION', 'completionPhotoUrl must be a JPEG, PNG or WebP image of the finished repair.');
       }
       if (photo === c.report.photoUrl) return fail('VALIDATION', 'The repair photo must be a new photo, not the citizen report photo.');
+      const repair = validRepair(command.repair);
+      if (typeof repair === 'string') return fail('VALIDATION', repair);
       const submission = { photoUrl: photo, note: reason as string, by: ctx.actor.id, at: ctx.now };
       const currentWo: WorkOrder = c.workOrder ?? {
         id: ctx.newId('WO'),
@@ -396,7 +420,8 @@ export function applyCommand(c: ReportCase, command: WorkflowCommand, ctx: Comma
         completionNote: reason as string,
         completedBy: ctx.actor.id,
         submissions: [...(currentWo.submissions ?? []), submission],
-        repairCheck: command.repairCheck ?? null
+        repairCheck: command.repairCheck ?? null,
+        repair
       };
       break;
     }

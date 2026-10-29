@@ -7,6 +7,7 @@ import { useSession } from '../../app/providers/SessionProvider';
 import type { EngineeringAssessment, RiskLevel } from '../../domain/intelligence/assessment';
 import { StructuralAssessmentPanel } from '../../features/road-intelligence/StructuralAssessmentPanel';
 import { StatusPill } from '../lean/CitizenPages';
+import { RepairHistory } from '../../features/road-intelligence/RepairHistory';
 
 const RISK: Record<RiskLevel, { label: string; tone: 'red' | 'orange' | 'blue' | 'green' }> = {
   HIGH: { label: 'Perlu segera ditangani', tone: 'red' },
@@ -75,6 +76,8 @@ export const RoadDetailPage: React.FC<{ params: Record<string, string> }> = ({ p
       {assessment && currentAccount.role === 'FIELD_ENGINEER' && (
         <StructuralAssessmentPanel segmentId={segment.id} baseline={assessment.inputs} onRun={(body) => workflow.gateway.engineAssess(body)} />
       )}
+
+      <RepairHistory segmentId={segment.id} title="Riwayat perbaikan ruas ini" />
 
       <h2 className="pt-2 text-lg font-extrabold">Laporan di ruas ini</h2>
       {cases.length === 0 ? (

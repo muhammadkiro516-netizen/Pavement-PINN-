@@ -1,0 +1,23 @@
+{
+  "measuredAt": "2026-10-29T00:00:42.644Z",
+  "commit": "788d179",
+  "label": "TERUKUR",
+  "definition": "Perbaikan = RESOLVE terverifikasi. Berulang = laporan baru <= 10 m atau konfirmasi warga 'berlubang lagi'. Penyebut = perbaikan yang sudah teramati selama jendela penuh atau gagal di dalamnya.",
+  "repairs": 0,
+  "recurrence3m": {
+    "windowMonths": 3,
+    "recurred": 0,
+    "observed": 0,
+    "tooRecent": 0,
+    "pct": null
+  },
+  "recurrence6m": {
+    "windowMonths": 6,
+    "recurred": 0,
+    "observed": 0,
+    "tooRecent": 0,
+    "pct": null
+  },
+  "byMethod": [],
+  "maintenanceFlags": 0
+}

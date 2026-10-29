@@ -25,6 +25,7 @@ import { fieldStage } from '../../work-orders/fieldStages';
 import { BeforeAfterSlider } from '../../../components/ui/BeforeAfterSlider';
 import { AccountContext, type AccountInfo } from './AccountContext';
 import { isOverdue } from '../queues';
+import { apiUrl } from '../../../services/api/client';
 import {
   canonicalStatusOf,
   CANONICAL_STATUS_LIST,
@@ -1203,6 +1204,15 @@ const usePhoto = () => {
 const WorkDoneModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) => Promise<ReportMutationOutcome>; onClose: () => void }> = ({ c, onRun, onClose }) => {
   const { photo, setPhoto, err: photoErr, pick } = usePhoto();
   const [note, setNote] = useState('');
+  // SPEC M2.1: what was actually done; required so repair life can be compared per method.
+  const [repair, setRepair] = useState({ method: '', materialId: '', thicknessCm: '', areaM2: String(c.inspection?.measuredAreaM2 ?? ''), compactor: '', category: '', valueIdr: '' });
+  const [materials, setMaterials] = useState<Array<{ id: string; name: string; minThicknessCm: number | null }>>([]);
+  useEffect(() => {
+    fetch(apiUrl('/api/materials'), { credentials: 'same-origin' }).then((r) => r.json()).then((j) => setMaterials(j?.materials ?? [])).catch(() => undefined);
+  }, []);
+  const mat = materials.find((m) => m.id === repair.materialId);
+  const thinner = !!mat?.minThicknessCm && Number(repair.thicknessCm) > 0 && Number(repair.thicknessCm) < mat.minThicknessCm;
+  const repairOk = !!(repair.method && repair.materialId && Number(repair.thicknessCm) > 0 && Number(repair.areaM2) > 0 && repair.compactor && repair.category);
   const { busy, err, submit } = useSubmit(onClose);
   const sameAsBefore = !!photo && photo === c.report.photoUrl;
   const last = c.workOrder?.submissions?.at(-1);
@@ -1225,26 +1235,44 @@ const WorkDoneModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) => 
           {photo && <button type="button" className="text-fg-muted underline" onClick={() => setPhoto(null)}>Ganti / hapus foto</button>}
         </div>
         {photoErr && <p role="alert" className="text-xs text-rose-300">{photoErr}</p>}
-        {!photo && (
-          <button
-            type="button"
-            id="btn-sample-after-photo"
-            onClick={async () => {
-              try {
-                const res = await fetch('/PavementPinn/test-fixtures/test-after.jpg');
-                const blob = await res.blob();
-                const reader = new FileReader();
-                reader.onload = (e) => setPhoto(String(e.target?.result));
-                reader.readAsDataURL(blob);
-              } catch (err) {
-                console.error(err);
-              }
-            }}
-            className="w-full py-1.5 px-3 rounded-lg border border-dashed border-emerald-500/40 bg-emerald-500/10 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/20 transition-colors cursor-pointer"
-          >
-            ✓ Gunakan Foto Sampel Hasil Perbaikan (Aspal Baru Mulus)
-          </button>
-        )}
+        <fieldset className="grid grid-cols-2 gap-2 rounded-lg border border-line-subtle p-2.5 text-xs">
+          <legend className="px-1 font-semibold text-fg">Data perbaikan (wajib)</legend>
+          <label className="col-span-2"><span className={LABEL}>Metode</span>
+            <select className={INPUT} value={repair.method} onChange={(e) => setRepair({ ...repair, method: e.target.value })}>
+              <option value="">Pilih metode…</option>
+              <option value="TAMBAL_DINGIN">Tambal dingin (cold mix / TCM)</option>
+              <option value="TAMBAL_PANAS">Tambal panas (hot mix)</option>
+              <option value="PATCHING_DALAM">Patching dalam (potong–bongkar–padat)</option>
+              <option value="OVERLAY">Overlay (lapis ulang)</option>
+              <option value="REKONSTRUKSI">Rekonstruksi</option>
+            </select>
+          </label>
+          <label className="col-span-2"><span className={LABEL}>Material (katalog)</span>
+            <select className={INPUT} value={repair.materialId} onChange={(e) => setRepair({ ...repair, materialId: e.target.value })}>
+              <option value="">Pilih material…</option>
+              {materials.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </label>
+          <label><span className={LABEL}>Tebal (cm)</span><input className={INPUT} type="number" min={0} step="0.5" inputMode="decimal" value={repair.thicknessCm} onChange={(e) => setRepair({ ...repair, thicknessCm: e.target.value })} /></label>
+          <label><span className={LABEL}>Luas (m²)</span><input className={INPUT} type="number" min={0} step="0.1" inputMode="decimal" value={repair.areaM2} onChange={(e) => setRepair({ ...repair, areaM2: e.target.value })} /></label>
+          <label><span className={LABEL}>Alat pemadat</span>
+            <select className={INPUT} value={repair.compactor} onChange={(e) => setRepair({ ...repair, compactor: e.target.value })}>
+              <option value="">Pilih…</option>
+              <option value="STAMPER">Stamper</option>
+              <option value="ROLLER">Roller</option>
+              <option value="TIDAK_ADA">Tidak ada alat pemadat</option>
+            </select>
+          </label>
+          <label><span className={LABEL}>Kategori</span>
+            <select className={INPUT} value={repair.category} onChange={(e) => setRepair({ ...repair, category: e.target.value })}>
+              <option value="">Pilih…</option>
+              <option value="SEMENTARA">Sementara</option>
+              <option value="PERMANEN">Permanen</option>
+            </select>
+          </label>
+          <label className="col-span-2"><span className={LABEL}>Nilai pekerjaan (Rp, opsional)</span><input className={INPUT} inputMode="numeric" value={repair.valueIdr} onChange={(e) => setRepair({ ...repair, valueIdr: e.target.value.replace(/\D/g, '') })} /></label>
+          {thinner && <p className="col-span-2 text-amber-300">Tebal di bawah minimum spesifikasi {mat!.name} ({mat!.minThicknessCm} cm). Tetap bisa dikirim; catat alasannya.</p>}
+        </fieldset>
         <label className="block"><span className={LABEL}>Catatan penyelesaian &amp; spesifikasi perbaikan</span>
           <textarea id="textarea-fe-completion-note" className={INPUT} rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Contoh: patching AC-WC 5 cm, dipadatkan, tepi dirapikan." />
         </label>
@@ -1253,7 +1281,7 @@ const WorkDoneModal: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCommand) => 
         </p>
       </div>
       <Footer err={err} onClose={onClose}>
-        <button id="btn-fe-kirim-bukti-selesai" type="button" className={BTN_GOOD} disabled={!photo || sameAsBefore || !note.trim() || busy} onClick={() => void submit([() => onRun({ action: 'COMPLETE_WORK_ORDER', reason: note.trim(), completionPhotoUrl: photo! })])}>
+        <button id="btn-fe-kirim-bukti-selesai" type="button" className={BTN_GOOD} disabled={!photo || sameAsBefore || !note.trim() || !repairOk || busy} onClick={() => void submit([() => onRun({ action: 'COMPLETE_WORK_ORDER', reason: note.trim(), completionPhotoUrl: photo!, repair: { method: repair.method as never, materialId: repair.materialId, thicknessCm: Number(repair.thicknessCm), areaM2: Number(repair.areaM2), compactor: repair.compactor as never, category: repair.category as 'SEMENTARA' | 'PERMANEN', valueIdr: repair.valueIdr ? Number(repair.valueIdr) : null } })])}>
           {busy ? 'Mengirim…' : 'Kirim Bukti Perbaikan ke M.O'}
         </button>
       </Footer>

@@ -19,6 +19,8 @@ import { citizenImpact } from "../../src/domain/workflow/impact";
 const PHOTO_LOCATION_TOLERANCE_M = 1000;
 import { attachCvAnalysis } from "../services/cvAttach";
 import { checkRepairPhoto } from "../services/repairCheck";
+import { MATERIAL_CATALOGUE, materialById } from "../services/materials";
+import { CONFIRM_MILESTONES_MONTHS, dueConfirmations, recurrence, repairLives, statsByMethod } from "../../src/domain/roads/recurrence";
 import type { WorkflowRuntime } from "../services/workflowRuntime";
 import { actorFrom, clearSessionCookie, credentialFrom, sessionFrom, setSessionCookie } from "../auth/actor";
 import { verifyDemoLogin } from "../auth/demoLogin";
@@ -328,6 +330,8 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
       const photo = checkPhotoReference(command.completionPhotoUrl);
       if (photo.ok === false) return sendError(res, "VALIDATION", `Repair photo: ${photo.message}`);
       command.completionPhotoUrl = stripPhotoMetadata(command.completionPhotoUrl as string);
+      const repair = command.repair as { materialId?: unknown } | undefined;
+      if (!repair || typeof repair.materialId !== "string" || !materialById(repair.materialId)) return sendError(res, "VALIDATION", "Material perbaikan harus dipilih dari katalog.");
       // Computed here only; a client-sent repairCheck is discarded.
       command.repairCheck = await checkRepairPhoto(command.completionPhotoUrl, await service.getCase(req.params.id), new Date().toISOString());
     }
@@ -418,6 +422,63 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
     if (!actor) return sendError(res, "UNAUTHENTICATED", "Masuk dulu.");
     res.setHeader("Cache-Control", "no-store");
     res.json({ success: true, impact: citizenImpact(await service.listCases(), actor.id) });
+  });
+
+  router.get("/api/materials", (_req: Request, res: Response) => {
+    res.json({ success: true, ...MATERIAL_CATALOGUE });
+  });
+
+  // SPEC M2.2: real repair life per spot / road segment, from recorded events only.
+  router.get("/api/roads/repairs", async (req: Request, res: Response) => {
+    await runtime.ready;
+    const segmentId = typeof req.query.segment === "string" ? req.query.segment : null;
+    const all = repairLives(await service.listCases(), await service.listRepairConfirmations());
+    const lives = segmentId ? all.filter((l) => l.segmentId === segmentId) : all;
+    const staff = isOfficial(actorFrom(req, runtime));
+    res.setHeader("Cache-Control", "no-store");
+    res.json({
+      success: true,
+      // Maintenance-period flags are internal (SPEC M2.4): never on the public response.
+      items: lives.map((l) => (staff ? l : { ...l, inMaintenance: undefined, maintenanceEndsAt: undefined })),
+      byMethod: statsByMethod(lives),
+      recurrence3m: recurrence(lives, 3),
+      recurrence6m: recurrence(lives, 6),
+      label: "TERUKUR (dari peristiwa tercatat)"
+    });
+  });
+
+  // SPEC M2.3: open 1/3/6-month questions for this device/account (reporter, or within 300 m).
+  router.get("/api/me/confirmations", async (req: Request, res: Response) => {
+    await runtime.ready;
+    const actor = actorFrom(req, runtime);
+    if (!actor) return sendError(res, "UNAUTHENTICATED", "Masuk dulu.");
+    const lat = Number(req.query.lat), lng = Number(req.query.lng);
+    const near = Number.isFinite(lat) && Number.isFinite(lng) ? ([lat, lng] as [number, number]) : null;
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ success: true, items: dueConfirmations(await service.listCases(), await service.listRepairConfirmations(), actor.id, Date.now(), near) });
+  });
+
+  router.post("/api/workflow/reports/:id/repair-confirmations", writeLimit, async (req: Request, res: Response) => {
+    await runtime.ready;
+    const actor = actorFrom(req, runtime);
+    if (!actor) return sendError(res, "UNAUTHENTICATED", "Masuk dulu.");
+    const milestone = Number(req.body?.milestone);
+    const result = req.body?.result;
+    if (!(CONFIRM_MILESTONES_MONTHS as readonly number[]).includes(milestone) || (result !== "OK" && result !== "BROKEN")) {
+      return sendError(res, "VALIDATION", "Body: { milestone: 1|3|6, result: OK|BROKEN, photoUrl? }.");
+    }
+    const near = Array.isArray(req.body?.near) && req.body.near.every((n: unknown) => Number.isFinite(n)) ? (req.body.near as [number, number]) : null;
+    const open = dueConfirmations(await service.listCases(), await service.listRepairConfirmations(), actor.id, Date.now(), near);
+    if (!open.some((d) => d.caseId === req.params.id && d.milestone === milestone)) return sendError(res, "VALIDATION", "Konfirmasi ini belum dibuka atau sudah dijawab.");
+    let photoUrl: string | null = null;
+    if (req.body?.photoUrl) {
+      const photo = checkPhotoReference(req.body.photoUrl);
+      if (photo.ok === false) return sendError(res, "VALIDATION", `Foto: ${photo.message}`);
+      photoUrl = stripPhotoMetadata(req.body.photoUrl);
+    }
+    const r = await service.addRepairConfirmation({ caseId: req.params.id, by: actor.id, milestone: milestone as 1 | 3 | 6, result, photoUrl });
+    if (r.ok === false) return sendError(res, r.code === "NOT_FOUND" ? "NOT_FOUND" : "VALIDATION", r.message);
+    res.status(201).json({ success: true, confirmation: { ...r.value, by: undefined } });
   });
 
   router.get("/api/agencies", (_req: Request, res: Response) => {

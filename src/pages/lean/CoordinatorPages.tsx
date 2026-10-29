@@ -10,6 +10,7 @@ import { impactStats } from '../../domain/workflow/impactStats';
 import type { ReportCase } from '../../domain/workflow/model';
 import { apiUrl } from '../../services/api/client';
 import { WORKFLOW_API_PATHS, type AccountProfile } from '../../types';
+import { RepairHistory } from '../../features/road-intelligence/RepairHistory';
 
 const pct = (a: number, b: number) => (b === 0 ? '–' : `${Math.round((a / b) * 100)}%`);
 
@@ -41,6 +42,7 @@ export const StatsPage: React.FC = () => {
           hint="median, dari laporan sampai perbaikan terverifikasi"
         />
       </div>
+      <RepairHistory title="Umur perbaikan (semua ruas)" />
       <h2 className="pt-3 text-lg font-extrabold">Kualitas AI</h2>
       <div className="grid grid-cols-2 gap-3">
         <Stat value={pct(s.aiAutoPassed, s.aiScreened)} label="Lolos otomatis" hint={`${s.aiAutoPassed} dari ${s.aiScreened} laporan yang dianalisis AI`} />

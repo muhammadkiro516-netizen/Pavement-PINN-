@@ -141,6 +141,23 @@ export interface WorkSubmission {
   decidedAt?: string;
   reason?: string;
 }
+/** SPEC M2.1: what was actually done, recorded by the engineer with the repair evidence. */
+export const REPAIR_METHODS = ['TAMBAL_DINGIN', 'TAMBAL_PANAS', 'PATCHING_DALAM', 'OVERLAY', 'REKONSTRUKSI'] as const;
+export type RepairMethod = (typeof REPAIR_METHODS)[number];
+export const COMPACTORS = ['STAMPER', 'ROLLER', 'TIDAK_ADA'] as const;
+export type Compactor = (typeof COMPACTORS)[number];
+export interface RepairRecord {
+  method: RepairMethod;
+  /** Id from config/materials.json (checked by the server). */
+  materialId: string;
+  thicknessCm: number;
+  areaM2: number;
+  compactor: Compactor;
+  category: 'SEMENTARA' | 'PERMANEN';
+  /** Rupiah, optional; DARI_INPUT. */
+  valueIdr: number | null;
+}
+
 /** CV run on the repair photo. `ran: false` says why, so a missing check is never read as "clean". */
 export interface RepairCheck {
   ran: boolean;
@@ -164,6 +181,10 @@ export interface WorkOrder {
   contractValueIdr?: number | null;
   targetDate?: string | null;
   supervisor?: string | null;
+  /** Contract maintenance period (masa pemeliharaan) in months; null when not stated. */
+  maintenanceMonths?: number | null;
+  /** SPEC M2.1: method/material/thickness of the latest repair evidence. */
+  repair?: RepairRecord | null;
   completedAt: string | null;
   /** Repair evidence from the assigned F.E (latest submission); verified by M.O via RESOLVE. */
   completionPhotoUrl?: string | null;

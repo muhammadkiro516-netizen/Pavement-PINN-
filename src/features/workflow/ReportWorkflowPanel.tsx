@@ -213,6 +213,7 @@ const ActionForm: React.FC<{
   const [contractValue, setContractValue] = useState('');
   const [targetDate, setTargetDate] = useState(inDays(14));
   const [supervisor, setSupervisor] = useState('');
+  const [maintenanceMonths, setMaintenanceMonths] = useState('');
   // Disposisi: agencies come from the server registry, never typed in.
   const [agencies, setAgencies] = useState<Array<{ id: string; name: string; level: string; parent: string }>>([]);
   const [agencyId, setAgencyId] = useState('');
@@ -256,7 +257,8 @@ const ActionForm: React.FC<{
           contractor,
           contractValueIdr: contractValue.trim() === '' ? null : Number(contractValue.replace(/\D/g, '')),
           targetDate: targetDate ? new Date(`${targetDate}T17:00:00`).toISOString() : null,
-          supervisor
+          supervisor,
+          maintenanceMonths: maintenanceMonths.trim() === '' ? null : Number(maintenanceMonths)
         });
       case 'TRANSFER_AUTHORITY':
         // Name and level are filled from the registry by the server.
@@ -385,6 +387,9 @@ const ActionForm: React.FC<{
             </Field>
             <Field skin={skin} label="Nilai pekerjaan (Rp)" htmlFor={id('val')}>
               <input id={id('val')} inputMode="numeric" className={inputClass} value={contractValue} onChange={(e) => setContractValue(e.target.value)} placeholder="Kosongkan jika swakelola" />
+            </Field>
+            <Field skin={skin} label="Masa pemeliharaan (bulan)" htmlFor={id('mm')} hint="Sesuai kontrak; kosongkan bila tidak tahu.">
+              <input id={id('mm')} type="number" min={0} max={120} inputMode="numeric" className={inputClass} value={maintenanceMonths} onChange={(e) => setMaintenanceMonths(e.target.value)} />
             </Field>
             <Field skin={skin} label="Target selesai" htmlFor={id('tgt')}>
               <input id={id('tgt')} type="date" className={inputClass} value={targetDate} min={inDays(0)} onChange={(e) => setTargetDate(e.target.value)} />

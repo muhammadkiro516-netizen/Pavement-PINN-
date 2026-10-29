@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pavi } from '../../components/brand/Pavi';
 import { readPaviHelmet } from '../../components/brand/paviPrefs';
 import { apiUrl } from '../../services/api/client';
+import { RepairConfirmPrompts } from '../../features/road-intelligence/RepairHistory';
 import { Glyph } from '../../components/ui/brand';
 import { Empty, Pill, SnapButton, SnapCard, SnapPage } from '../../components/ui/snap';
 import { useAppState } from '../../app/providers/AppStateProvider';
@@ -162,6 +163,7 @@ export const NotificationsPage: React.FC = () => {
   );
   return (
     <SnapPage title="Notifikasi" subtitle="Kabar terbaru tentang laporan yang terkait dengan Anda.">
+      <RepairConfirmPrompts />
       {items.length === 0 ? (
         <Empty icon={<Glyph name="bell" size={26} />} title="Belum ada kabar" text="Saat petugas memeriksa atau memperbaiki laporan Anda, kabarnya muncul di sini." />
       ) : (

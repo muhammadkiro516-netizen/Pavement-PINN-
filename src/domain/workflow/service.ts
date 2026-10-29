@@ -12,6 +12,7 @@
  * - Every accepted change appends an audit event (actor, time, entity, action, from, to,
  *   reason).
  */
+import type { RepairConfirmation } from '../roads/recurrence';
 import type { DamageReport, UserRole } from '../../types';
 import type { CvAssessment } from '../../types/cv';
 import { canEditReport } from '../access';
@@ -53,6 +54,8 @@ export interface WorkflowSnapshot {
   simulations?: SimulationRecord[];
   /** Real comments by signed-in people (never generated). Optional for older stores. */
   comments?: CommentRecord[];
+  /** SPEC M2.3: citizens' 1/3/6-month answers on repaired spots. */
+  repairConfirmations?: RepairConfirmation[];
 }
 
 /** A comment on a report by a real signed-in account. STAFF comments are hidden from citizens. */
@@ -283,6 +286,30 @@ export class WorkflowService {
       }
       return { ok: true, value: record };
     });
+  }
+
+  /** Persist a 1/3/6-month repair confirmation (one per account per milestone). */
+  addRepairConfirmation(input: Omit<RepairConfirmation, 'id' | 'at'>): Promise<ServiceResult<RepairConfirmation>> {
+    return this.serialize(async () => {
+      const snapshot = await this.store.load();
+      if (!snapshot.cases.some((c) => c.id === input.caseId)) return { ok: false, code: 'NOT_FOUND', message: 'Laporan tidak ditemukan.' };
+      const list = snapshot.repairConfirmations ?? [];
+      if (list.some((f) => f.caseId === input.caseId && f.by === input.by && f.milestone === input.milestone)) {
+        return { ok: false, code: 'VALIDATION', message: 'Konfirmasi untuk tahap ini sudah dikirim.' };
+      }
+      const record: RepairConfirmation = { ...input, id: this.deps.newId('CNF'), at: this.deps.now() };
+      try {
+        await this.store.commit({ ...snapshot, revision: snapshot.revision + 1, repairConfirmations: [...list, record] });
+      } catch (error) {
+        if (error instanceof StoreConflictError) throw error;
+        return { ok: false, code: 'STORAGE', message: `Konfirmasi tidak tersimpan: ${(error as Error).message}` };
+      }
+      return { ok: true, value: record };
+    });
+  }
+
+  async listRepairConfirmations(): Promise<RepairConfirmation[]> {
+    return (await this.store.load()).repairConfirmations ?? [];
   }
 
   async listComments(caseId: string, includeStaff: boolean): Promise<CommentRecord[]> {

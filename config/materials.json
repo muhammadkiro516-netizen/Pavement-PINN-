@@ -1,0 +1,26 @@
+{
+  "note": "Katalog material perbaikan (SPEC M2.1/M6.1). Tebal minimum dari Spesifikasi Umum Bina Marga 2018 rev.2 Divisi 6 — VERIFIKASI ke dokumen sebelum dipakai resmi. Field lain (berat isi, modulus, harga) ditambahkan di F3 dengan sumber + tanggal. Admin dapat menyunting.",
+  "source": "Spesifikasi Umum Bina Marga 2018 (rev. 2), Divisi 6 Perkerasan Aspal",
+  "label": "ASUMSI",
+  "materials": [
+    { "id": "AC-WC", "name": "Laston Lapis Aus (AC-WC)", "group": "CAMPURAN", "minThicknessCm": 4 },
+    { "id": "AC-BC", "name": "Laston Lapis Antara (AC-BC)", "group": "CAMPURAN", "minThicknessCm": 6 },
+    { "id": "AC-BASE", "name": "Laston Lapis Fondasi (AC-Base)", "group": "CAMPURAN", "minThicknessCm": 7.5 },
+    { "id": "HRS-WC", "name": "Lataston Lapis Aus (HRS-WC)", "group": "CAMPURAN", "minThicknessCm": 3 },
+    { "id": "HRS-BASE", "name": "Lataston Lapis Fondasi (HRS-Base)", "group": "CAMPURAN", "minThicknessCm": 3.5 },
+    { "id": "SMA", "name": "Stone Matrix Asphalt (SMA)", "group": "CAMPURAN", "minThicknessCm": null },
+    { "id": "LATASIR", "name": "Latasir", "group": "CAMPURAN", "minThicknessCm": null },
+    { "id": "LAPEN", "name": "Lapis Penetrasi Macadam (Lapen)", "group": "CAMPURAN", "minThicknessCm": null },
+    { "id": "BURTU-BURDA", "name": "Burtu / Burda", "group": "CAMPURAN", "minThicknessCm": null },
+    { "id": "SLURRY", "name": "Slurry seal / micro surfacing", "group": "CAMPURAN", "minThicknessCm": null },
+    { "id": "COLD-MIX", "name": "Aspal dingin kemasan / TCM", "group": "PENGIKAT", "minThicknessCm": null },
+    { "id": "CPHMA", "name": "CPHMA (Cold Paving Hot Mix Asbuton)", "group": "PENGIKAT", "minThicknessCm": null },
+    { "id": "PEN-60-70", "name": "Aspal keras Pen 60/70", "group": "PENGIKAT", "minThicknessCm": null },
+    { "id": "PMA", "name": "Aspal modifikasi polimer (PG70/PG76)", "group": "PENGIKAT", "minThicknessCm": null },
+    { "id": "ASBUTON", "name": "Asbuton (BGA/LGA)", "group": "PENGIKAT", "minThicknessCm": null },
+    { "id": "EMULSI", "name": "Aspal emulsi (CRS/CSS)", "group": "PENGIKAT", "minThicknessCm": null },
+    { "id": "CAIR", "name": "Aspal cair (MC/RC)", "group": "PENGIKAT", "minThicknessCm": null },
+    { "id": "BETON", "name": "Beton semen (rigid)", "group": "LAIN", "minThicknessCm": null },
+    { "id": "LAINNYA", "name": "Lainnya (tulis di catatan)", "group": "LAIN", "minThicknessCm": null }
+  ]
+}
