@@ -100,7 +100,7 @@ test('cross-role golden path over HTTP, with public tracking and audit', async (
   const inQueue = queue.body.items.find((i: any) => i.case.id === id);
   assert.equal(inQueue.audience, 'STAFF');
   // TRANSFER_AUTHORITY: the Koordinator may hand the report to the agency that owns the road.
-  assert.deepEqual(inQueue.availableActions, ['REVIEW_ACCEPT', 'CLOSE_INVALID', 'TRANSFER_AUTHORITY']);
+  assert.deepEqual(inQueue.availableActions, ['REVIEW_ACCEPT', 'CLOSE_INVALID', 'TRANSFER_AUTHORITY', 'SET_PENDING']);
   assert.equal(inQueue.case.screening.modelStatus, 'DEMO');
 
   let version = inQueue.case.version as number;

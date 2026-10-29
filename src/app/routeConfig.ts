@@ -28,6 +28,8 @@ export type RouteId =
   | 'team'
   | 'stats'
   | 'roadDetail'
+  | 'escalations'
+  | 'reportCard'
   | 'profile';
 
 /** `PUBLIC` = reachable without logging in. Everything else needs a registered account. */
@@ -43,7 +45,9 @@ export interface RouteDefinition {
   kind: 'tab' | 'page';
 }
 
-const SIGNED_IN = ALL_ROLES;
+const SIGNED_IN: readonly UserRole[] = [...ALL_ROLES, 'POLICY_MAKER'];
+/** Koordinator and Pimpinan Instansi (SPEC M3.2/M3.5). */
+const LEADERS: readonly UserRole[] = ['OPERATIONS_MANAGER', 'POLICY_MAKER'];
 const CITIZEN: readonly UserRole[] = ['PUBLIC_REPORTER'];
 const ENGINEER: readonly UserRole[] = ['FIELD_ENGINEER'];
 const COORDINATOR: readonly UserRole[] = ['OPERATIONS_MANAGER'];
@@ -63,6 +67,8 @@ export const ROUTES: readonly RouteDefinition[] = [
   { id: 'analysisWorkspace', path: '/analisis/:reportId/', title: 'Analisis Laporan', access: STAFF, kind: 'page' },
   { id: 'team', path: '/tim/', title: 'Tim', access: COORDINATOR, kind: 'tab' },
   { id: 'stats', path: '/statistik/', title: 'Statistik', access: COORDINATOR, kind: 'tab' },
+  { id: 'escalations', path: '/eskalasi/', title: 'Eskalasi', access: LEADERS, kind: 'tab' },
+  { id: 'reportCard', path: '/rapor/', title: 'Rapor Instansi', access: LEADERS, kind: 'tab' },
   { id: 'roadDetail', path: '/ruas/:roadId/', title: 'Detail Ruas', access: SIGNED_IN, kind: 'page' },
   { id: 'profile', path: '/profil/', title: 'Profil', access: SIGNED_IN, kind: 'tab' }
 ];

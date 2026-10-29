@@ -6,6 +6,7 @@ import { Pavi } from '../../components/brand/Pavi';
 import { readPaviHelmet } from '../../components/brand/paviPrefs';
 import { apiUrl } from '../../services/api/client';
 import { RepairConfirmPrompts } from '../../features/road-intelligence/RepairHistory';
+import { Hourglass } from '../../features/workflow/Hourglass';
 import { Glyph } from '../../components/ui/brand';
 import { Empty, Pill, SnapButton, SnapCard, SnapPage } from '../../components/ui/snap';
 import { useAppState } from '../../app/providers/AppStateProvider';
@@ -146,6 +147,7 @@ export const MyReportsPage: React.FC = () => {
                 </div>
               </div>
               <StoryProgress state={v.case.state} closedInvalid={invalid} />
+              <Hourglass c={v.case as never} allowComplaint />
             </SnapCard>
           );
         })

@@ -9,6 +9,7 @@
  * Pure and isomorphic: used by the Express API (authoritative) and by the browser's
  * offline demo store. No I/O, no clock, no randomness — callers pass `now` and ids.
  */
+import type { PendingReason } from './escalation';
 import type { DamageReport, UserRole } from '../../types';
 import type { AssessmentSnapshot } from '../intelligence/assessment';
 
@@ -239,6 +240,8 @@ export interface ReportCase {
   authorityHistory?: AuthorityChange[];
   /** Temporary warning sign placed at the damage (UU 22/2009 Ps. 24 ayat 2). */
   hazard?: HazardSign | null;
+  /** SPEC M3.3: why work waits and until when (public); pauses escalation. */
+  pending?: PendingReason | null;
 }
 
 export interface CaseAuthority {
@@ -287,6 +290,7 @@ export const WORKFLOW_ACTIONS = [
   'CLOSE_RESOLVED',
   'TRANSFER_AUTHORITY',
   'MARK_HAZARD',
+  'SET_PENDING',
   /** Bundled demo report imported into the store with its existing state; never user-triggered. */
   'SEED_IMPORT'
 ] as const;

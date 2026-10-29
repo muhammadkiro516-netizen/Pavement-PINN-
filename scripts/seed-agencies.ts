@@ -29,7 +29,8 @@ for (const id of PILOT) {
   if (!agency) continue;
   for (const [role, prefix, title] of [
     ["OPERATIONS_MANAGER", "koordinator", "Koordinator"],
-    ["FIELD_ENGINEER", "pengawas", "Pengawas Lapangan"]
+    ["FIELD_ENGINEER", "pengawas", "Pengawas Lapangan"],
+    ["POLICY_MAKER", "pimpinan", "Pimpinan Instansi"]
   ] as const) {
     const email = `${prefix}.${id}@pavement-pinn.id`;
     const password = `Pinn-${randomBytes(4).toString("hex")}`;

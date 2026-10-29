@@ -337,7 +337,7 @@ export const ReportDetailBottomSheet: React.FC<ReportDetailBottomSheetProps> = (
               }`}
             >
               <ThumbsUp className="w-3.5 h-3.5" />
-              <span>{report.userUpvoted ? 'Didukung' : 'Dukung Laporan'}</span>
+              <span>{report.userUpvoted ? 'Anda juga melihat ini' : 'Saya juga melihat ini'}</span>
               <span className="font-mono text-xs opacity-80">({report.upvotesCount})</span>
             </button>
 

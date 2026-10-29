@@ -20,6 +20,7 @@
 import type { UserRole } from '../../types';
 import { samePerson } from '../identity/people';
 import type { AssessmentSnapshot } from '../intelligence/assessment';
+import { PENDING_CODES, PENDING_LABEL, type PendingCode } from './escalation';
 import {
   Actor,
   ApprovalRecord,
@@ -75,6 +76,7 @@ export const TRANSITIONS: Readonly<Record<WorkflowAction, TransitionRule>> = {
   RESOLVE: { from: ['IN_PROGRESS', 'INSPECTED'], to: 'RESOLVED', roles: ['OPERATIONS_MANAGER'], reasonRequired: true, publicNote: 'Perbaikan terverifikasi petugas' },
   CLOSE_RESOLVED: { from: ['RESOLVED'], to: 'CLOSED', roles: ['OPERATIONS_MANAGER'], reasonRequired: true, publicNote: 'Laporan ditutup' },
   TRANSFER_AUTHORITY: { from: ['NEEDS_REVIEW', 'VERIFIED'], to: 'SAME', roles: ['OPERATIONS_MANAGER'], reasonRequired: true, publicNote: 'Laporan dialihkan ke instansi yang berwenang' },
+  SET_PENDING: { from: ['NEEDS_REVIEW', 'VERIFIED', 'FIELD_INSPECTION_REQUESTED', 'INSPECTED', 'INSPECTION_VERIFIED', 'ACTION_RECOMMENDED', 'ACTION_APPROVED', 'IN_PROGRESS'], to: 'SAME', roles: ['OPERATIONS_MANAGER'], reasonRequired: true, publicNote: 'Instansi menyampaikan alasan penundaan dan perkiraan jadwal' },
   MARK_HAZARD: { from: ['VERIFIED', 'FIELD_INSPECTION_REQUESTED', 'INSPECTED', 'INSPECTION_VERIFIED', 'ACTION_RECOMMENDED', 'ACTION_APPROVED', 'IN_PROGRESS'], to: 'SAME', roles: ['FIELD_ENGINEER', 'OPERATIONS_MANAGER'], reasonRequired: true, publicNote: 'Rambu peringatan sementara dipasang di lokasi' },
   SEED_IMPORT: { from: [null], to: 'SAME', roles: [], reasonRequired: false, publicNote: 'Data contoh (DEMO) dimuat ke sistem' }
 };
@@ -99,7 +101,8 @@ export type WorkflowCommand =
   | { action: 'RECOMMEND_ACTION'; treatment: string; urgency: 'ROUTINE' | 'PRIORITY' | 'URGENT'; rationale: string; assessmentId: string | null; assessment?: AssessmentSnapshot | null }
   | { action: 'START_WORK'; reason: string; contractorNote: string; contractor?: string; contractValueIdr?: number | null; targetDate?: string | null; supervisor?: string; maintenanceMonths?: number | null }
   | { action: 'TRANSFER_AUTHORITY'; reason: string; agencyId: string; agencyName: string; level: CaseAuthority['level'] }
-  | { action: 'MARK_HAZARD'; reason: string; photoUrl: string; note: string };
+  | { action: 'MARK_HAZARD'; reason: string; photoUrl: string; note: string }
+  | { action: 'SET_PENDING'; reason: string; code: PendingCode; until: string };
 
 export interface CommandContext {
   actor: Actor;
@@ -383,6 +386,14 @@ export function applyCommand(c: ReportCase, command: WorkflowCommand, ctx: Comma
       next.authorityHistory = [...(c.authorityHistory ?? []), { at: ctx.now, by: ctx.actor.id, from: c.authority?.agencyId ?? null, to: command.agencyId, reason: reason as string }];
       next.authority = { agencyId: command.agencyId, level: command.level, name: command.agencyName, confidence: 'HIGH', basis: `Didisposisikan Koordinator: ${reason as string}` };
       autoReason = `Dialihkan ke ${command.agencyName}.`;
+      break;
+    }
+    case 'SET_PENDING': {
+      if (!PENDING_CODES.includes(command.code)) return fail('VALIDATION', `code must be one of ${PENDING_CODES.join(', ')}.`);
+      const until = Date.parse(command.until);
+      if (!Number.isFinite(until) || until < Date.parse(ctx.now) || until > Date.parse(ctx.now) + 366 * 86_400_000) return fail('VALIDATION', 'until must be a date within the next 12 months.');
+      next.pending = { code: command.code, until: new Date(until).toISOString(), note: reason as string, by: ctx.actor.id, at: ctx.now };
+      autoReason = `${PENDING_LABEL[command.code]} — perkiraan ${new Date(until).toLocaleDateString('id-ID')}.`;
       break;
     }
     case 'MARK_HAZARD': {

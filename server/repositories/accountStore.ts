@@ -9,8 +9,9 @@ import type { UserRole } from "../../src/types";
  * Passwords are stored as scrypt hashes with a per-account salt; nothing else is secret.
  * Kept in one JSON file next to the workflow store (or in memory for tests).
  */
-export type AccountRole = Extract<UserRole, "PUBLIC_REPORTER" | "FIELD_ENGINEER" | "OPERATIONS_MANAGER">;
-export const ACCOUNT_ROLES: readonly AccountRole[] = ["PUBLIC_REPORTER", "FIELD_ENGINEER", "OPERATIONS_MANAGER"];
+/** POLICY_MAKER is the "Pimpinan Instansi" (SPEC §2): receives escalations, reads the report card. */
+export type AccountRole = Extract<UserRole, "PUBLIC_REPORTER" | "FIELD_ENGINEER" | "OPERATIONS_MANAGER" | "POLICY_MAKER">;
+export const ACCOUNT_ROLES: readonly AccountRole[] = ["PUBLIC_REPORTER", "FIELD_ENGINEER", "OPERATIONS_MANAGER", "POLICY_MAKER"];
 
 export interface AccountRecord {
   id: string;

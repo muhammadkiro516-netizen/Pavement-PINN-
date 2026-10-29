@@ -56,6 +56,16 @@ export interface WorkflowSnapshot {
   comments?: CommentRecord[];
   /** SPEC M2.3: citizens' 1/3/6-month answers on repaired spots. */
   repairConfirmations?: RepairConfirmation[];
+  /** SPEC M3.4: "Saya juga melihat ini" — one per account per report, optional photo. */
+  witnesses?: WitnessRecord[];
+}
+
+export interface WitnessRecord {
+  id: string;
+  caseId: string;
+  at: string;
+  by: string;
+  photoUrl: string | null;
 }
 
 /** A comment on a report by a real signed-in account. STAFF comments are hidden from citizens. */
@@ -73,6 +83,15 @@ export interface CommentRecord {
 
 export const MAX_COMMENT_LENGTH = 500;
 const MAX_COMMENTS = 20000;
+
+/** Support count = server-recorded independent sightings (never a client counter). */
+function withWitnessCounts(snapshot: WorkflowSnapshot): ReportCase[] {
+  const w = snapshot.witnesses ?? [];
+  if (w.length === 0) return snapshot.cases;
+  const counts = new Map<string, number>();
+  for (const x of w) counts.set(x.caseId, (counts.get(x.caseId) ?? 0) + 1);
+  return snapshot.cases.map((c) => (counts.has(c.id) ? { ...c, report: { ...c.report, upvotesCount: counts.get(c.id)! } } : c));
+}
 
 export interface CaseStore {
   load(): Promise<WorkflowSnapshot>;
@@ -325,11 +344,36 @@ export class WorkflowService {
   }
 
   async listCases(): Promise<ReportCase[]> {
-    return (await this.store.load()).cases;
+    return withWitnessCounts(await this.store.load());
   }
 
   async getCase(id: string): Promise<ReportCase | null> {
-    return (await this.store.load()).cases.find((c) => c.id === id) ?? null;
+    return withWitnessCounts(await this.store.load()).find((c) => c.id === id) ?? null;
+  }
+
+  /** SPEC M3.4: record an independent sighting; the count is the report's real support. */
+  addWitness(input: Omit<WitnessRecord, 'id' | 'at'>): Promise<ServiceResult<{ record: WitnessRecord; count: number }>> {
+    return this.serialize(async () => {
+      const snapshot = await this.store.load();
+      const c = snapshot.cases.find((x) => x.id === input.caseId);
+      if (!c) return { ok: false, code: 'NOT_FOUND', message: 'Laporan tidak ditemukan.' };
+      if (c.createdBy.id === input.by) return { ok: false, code: 'VALIDATION', message: 'Pelapor tidak dapat mendukung laporannya sendiri.' };
+      const list = snapshot.witnesses ?? [];
+      if (list.some((w) => w.caseId === input.caseId && w.by === input.by)) return { ok: false, code: 'VALIDATION', message: 'Anda sudah menandai laporan ini.' };
+      const record: WitnessRecord = { ...input, id: this.deps.newId('WIT'), at: this.deps.now() };
+      const witnesses = [...list, record];
+      try {
+        await this.store.commit({ ...snapshot, revision: snapshot.revision + 1, witnesses });
+      } catch (error) {
+        if (error instanceof StoreConflictError) throw error;
+        return { ok: false, code: 'STORAGE', message: `Tidak tersimpan: ${(error as Error).message}` };
+      }
+      return { ok: true, value: { record, count: witnesses.filter((w) => w.caseId === input.caseId).length } };
+    });
+  }
+
+  async witnessedBy(accountId: string): Promise<string[]> {
+    return ((await this.store.load()).witnesses ?? []).filter((w) => w.by === accountId).map((w) => w.caseId);
   }
 
   async listAudit(filter: { entityId?: string; limit: number; offset: number }): Promise<{ total: number; items: AuditEvent[] }> {

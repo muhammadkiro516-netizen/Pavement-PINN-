@@ -25,6 +25,7 @@ export const ACTION_LABEL: Record<WorkflowAction, string> = {
   CLOSE_RESOLVED: 'Tutup laporan',
   TRANSFER_AUTHORITY: 'Alihkan ke instansi lain (disposisi)',
   MARK_HAZARD: 'Pasang rambu peringatan',
+  SET_PENDING: 'Catat alasan tertunda',
   SEED_IMPORT: 'Impor data contoh'
 };
 

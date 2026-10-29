@@ -20,6 +20,7 @@ const PHOTO_LOCATION_TOLERANCE_M = 1000;
 import { attachCvAnalysis } from "../services/cvAttach";
 import { checkRepairPhoto } from "../services/repairCheck";
 import { MATERIAL_CATALOGUE, materialById } from "../services/materials";
+import { reportCards } from "../../src/domain/workflow/reportCard";
 import { CONFIRM_MILESTONES_MONTHS, dueConfirmations, recurrence, repairLives, statsByMethod } from "../../src/domain/roads/recurrence";
 import type { WorkflowRuntime } from "../services/workflowRuntime";
 import { actorFrom, clearSessionCookie, credentialFrom, sessionFrom, setSessionCookie } from "../auth/actor";
@@ -174,7 +175,7 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
     const actor = coordinator(req, res);
     if (!actor) return;
     const role = req.body?.role;
-    if (role !== "FIELD_ENGINEER" && role !== "OPERATIONS_MANAGER") return sendError(res, "VALIDATION", "Peran harus Petugas Lapangan atau Koordinator.");
+    if (role !== "FIELD_ENGINEER" && role !== "OPERATIONS_MANAGER" && role !== "POLICY_MAKER") return sendError(res, "VALIDATION", "Peran harus Petugas Lapangan, Koordinator atau Pimpinan Instansi.");
     try {
       // Staff join the Koordinator's own agency; the agency is never taken from the request.
       const me = runtime.accounts.get(actor.id);
@@ -479,6 +480,39 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
     const r = await service.addRepairConfirmation({ caseId: req.params.id, by: actor.id, milestone: milestone as 1 | 3 | 6, result, photoUrl });
     if (r.ok === false) return sendError(res, r.code === "NOT_FOUND" ? "NOT_FOUND" : "VALIDATION", r.message);
     res.status(201).json({ success: true, confirmation: { ...r.value, by: undefined } });
+  });
+
+  // SPEC M3.4: "Saya juga melihat ini" — one per account, optional photo, stored on the server.
+  router.post("/api/workflow/reports/:id/witness", writeLimit, async (req: Request, res: Response) => {
+    await runtime.ready;
+    const actor = actorFrom(req, runtime);
+    if (!actor) return sendError(res, "UNAUTHENTICATED", "Masuk dulu.");
+    let photoUrl: string | null = null;
+    if (req.body?.photoUrl) {
+      const photo = checkPhotoReference(req.body.photoUrl);
+      if (photo.ok === false) return sendError(res, "VALIDATION", `Foto: ${photo.message}`);
+      photoUrl = stripPhotoMetadata(req.body.photoUrl);
+    }
+    const r = await service.addWitness({ caseId: req.params.id, by: actor.id, photoUrl });
+    if (r.ok === false) return sendError(res, r.code === "NOT_FOUND" ? "NOT_FOUND" : r.code === "STORAGE" ? "STORAGE" : "VALIDATION", r.message);
+    res.status(201).json({ success: true, count: r.value.count });
+  });
+
+  router.get("/api/me/witnessed", async (req: Request, res: Response) => {
+    await runtime.ready;
+    const actor = actorFrom(req, runtime);
+    if (!actor) return sendError(res, "UNAUTHENTICATED", "Masuk dulu.");
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ success: true, items: await service.witnessedBy(actor.id) });
+  });
+
+  // SPEC M3.5: Rapor Instansi. Staff see every agency; the public only agencies with n >= 10.
+  router.get("/api/agencies/report-card", async (req: Request, res: Response) => {
+    await runtime.ready;
+    const cards = reportCards(await service.listCases(), await service.listRepairConfirmations());
+    const staff = isOfficial(actorFrom(req, runtime));
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ success: true, items: staff ? cards : cards.filter((c) => c.publishable) });
   });
 
   router.get("/api/agencies", (_req: Request, res: Response) => {

@@ -79,7 +79,7 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
   return json as T;
 }
 
-const ROLE_NAME: Record<string, string> = { FIELD_ENGINEER: 'Petugas Lapangan', OPERATIONS_MANAGER: 'Koordinator' };
+const ROLE_NAME: Record<string, string> = { FIELD_ENGINEER: 'Petugas Lapangan', OPERATIONS_MANAGER: 'Koordinator', POLICY_MAKER: 'Pimpinan Instansi' };
 
 export const TeamPage: React.FC = () => {
   const { currentAccount } = useSession();

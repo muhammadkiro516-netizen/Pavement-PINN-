@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { loadDraft, saveDraft } from '../work-orders/inspectionDraft';
 import { apiUrl } from '../../services/api/client';
+import { PENDING_CODES, PENDING_LABEL, type PendingCode } from '../../domain/workflow/escalation';
 import type { WorkflowAction, WorkflowState, ReportCase } from '../../domain/workflow/model';
 import type { PublicReportView } from '../../domain/workflow/projections';
 import type { WorkflowCommand } from '../../domain/workflow/stateMachine';
@@ -214,6 +215,8 @@ const ActionForm: React.FC<{
   const [targetDate, setTargetDate] = useState(inDays(14));
   const [supervisor, setSupervisor] = useState('');
   const [maintenanceMonths, setMaintenanceMonths] = useState('');
+  const [pendingCode, setPendingCode] = useState<PendingCode>('MENUNGGU_JADWAL');
+  const [pendingUntil, setPendingUntil] = useState(inDays(30));
   // Disposisi: agencies come from the server registry, never typed in.
   const [agencies, setAgencies] = useState<Array<{ id: string; name: string; level: string; parent: string }>>([]);
   const [agencyId, setAgencyId] = useState('');
@@ -263,6 +266,8 @@ const ActionForm: React.FC<{
       case 'TRANSFER_AUTHORITY':
         // Name and level are filled from the registry by the server.
         return onSubmit({ action, reason, agencyId, agencyName: '', level: 'KABUPATEN' });
+      case 'SET_PENDING':
+        return onSubmit({ action, reason, code: pendingCode, until: new Date(`${pendingUntil}T17:00:00`).toISOString() });
       case 'MARK_HAZARD':
         if (!evidence) return setEvidenceError('Foto rambu di lokasi wajib dilampirkan.');
         return onSubmit({ action, reason, photoUrl: evidence, note: notes });
@@ -415,6 +420,20 @@ const ActionForm: React.FC<{
                 </option>
               ))}
             </select>
+          </Field>
+        </>
+      )}
+
+      {action === 'SET_PENDING' && (
+        <>
+          <p className={`text-[11px] ${skin.muted}`}>Alasan dan perkiraan tanggal tampil di halaman publik. Eskalasi berhenti sampai tanggal itu, lalu dihitung ulang dari tanggal tersebut.</p>
+          <Field skin={skin} label="Alasan tertunda" htmlFor={id('pc')}>
+            <select id={id('pc')} className={inputClass} value={pendingCode} onChange={(e) => setPendingCode(e.target.value as PendingCode)}>
+              {PENDING_CODES.map((c) => <option key={c} value={c} className="bg-slate-900 text-white">{PENDING_LABEL[c]}</option>)}
+            </select>
+          </Field>
+          <Field skin={skin} label="Perkiraan mulai ditangani" htmlFor={id('pu')}>
+            <input id={id('pu')} type="date" className={inputClass} value={pendingUntil} min={inDays(1)} max={inDays(365)} onChange={(e) => setPendingUntil(e.target.value)} required />
           </Field>
         </>
       )}

@@ -11,7 +11,8 @@
  * Upvotes remain a per-browser demo interaction (not stored on the server).
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { createReportState, ReportState, toggleUpvote, viewReportsAs } from '../../features/community-reports/reportState';
+import { createReportState, ReportState, viewReportsAs } from '../../features/community-reports/reportState';
+import { apiUrl } from '../../services/api/client';
 import { RoadSegment, SimulationResult, AuditLogItem, DamageReport, ReportMutationOutcome, UserRole } from '../../types';
 import { INDONESIAN_ROAD_SEGMENTS } from '../../data/reference/indonesianRoads';
 import { KARAWANG_PILOT_SEGMENTS } from '../../data/reference/karawangPilot';
@@ -141,7 +142,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const isOfficial = isOfficialRole(currentAccount.role);
   const sessionReady = useRef<Promise<unknown>>(Promise.resolve());
 
-  /** Put confirmed server views into state; keep local upvote counts for known reports. */
+  /** Put confirmed server views into state; support counts come from the server, the "mine" flag is kept. */
   const applyViews = useCallback((incoming: ReportView[], replaceAll: boolean) => {
     setViews((prev) => {
       const next: Record<string, ReportView> = replaceAll ? {} : { ...prev };
@@ -149,10 +150,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return next;
     });
     setReportState((prev) => {
-      const counts = new Map(prev.reports.map((r) => [r.id, r.upvotesCount]));
+      const mine = new Set(prev.reports.filter((r) => r.userUpvoted).map((r) => r.id));
       const incomingReports = incoming.map((v) => {
         const r = displayReport(v);
-        return counts.has(r.id) ? { ...r, upvotesCount: counts.get(r.id)! } : r;
+        return mine.has(r.id) ? { ...r, userUpvoted: true } : r;
       });
       if (replaceAll) return { reports: incomingReports, ledger: prev.ledger };
       const byId = new Map(prev.reports.map((r) => [r.id, r]));
@@ -325,8 +326,15 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 
   // Upvote Community Damage Report (per-browser demo interaction)
+  // SPEC M3.4: "Saya juga melihat ini" is stored on the server (one per account), never a local counter.
   const upvoteCommunityReport = (reportId: string) => {
-    setReportState((prev) => toggleUpvote(prev, currentAccount.id, reportId));
+    void fetch(apiUrl(`/api/workflow/reports/${encodeURIComponent(reportId)}/witness`), { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j?.success && !/sudah menandai/.test(j?.error?.message ?? '')) return;
+        setReportState((prev) => ({ ...prev, reports: prev.reports.map((r) => (r.id === reportId ? { ...r, userUpvoted: true, upvotesCount: j?.count ?? r.upvotesCount } : r)) }));
+      })
+      .catch(() => undefined);
   };
 
   // Callback when a new simulation finishes (a local session event, not a workflow change)

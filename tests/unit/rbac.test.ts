@@ -31,14 +31,22 @@ const EXPECTED: Record<RouteId, Row> = {
   team: [F, A, L, L],
   stats: [F, A, L, L],
   roadDetail: [A, A, A, L],
+  escalations: [F, A, L, L],
+  reportCard: [F, A, L, L],
   profile: [A, A, A, L]
 };
 
-test('role x route matrix (15 routes x 3 roles + guest)', () => {
+test('role x route matrix (17 routes x 3 roles + guest)', () => {
   assert.deepEqual(ROUTES.map((r) => r.id).sort(), Object.keys(EXPECTED).sort());
   for (const route of ROUTES) {
     MATRIX_ROLES.forEach((role, i) => assert.equal(resolveRouteAccess(route, { role }), EXPECTED[route.id][i], `${route.id} as ${role}`));
   }
+});
+
+test('the Pimpinan Instansi (POLICY_MAKER) reads escalations and the report card, nothing operational', () => {
+  const as = (id: RouteId) => resolveRouteAccess(ROUTES.find((r) => r.id === id)!, { role: 'POLICY_MAKER' });
+  assert.deepEqual([as('escalations'), as('reportCard'), as('map'), as('profile')], [A, A, A, A]);
+  assert.deepEqual([as('queue'), as('tasks'), as('team')], [F, F, F]);
 });
 
 test('each role lands on its own main tab; guests on the landing page', () => {

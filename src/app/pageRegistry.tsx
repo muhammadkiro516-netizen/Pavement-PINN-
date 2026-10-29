@@ -10,6 +10,7 @@ import { TrackPage } from '../pages/track/TrackPage';
 import { MapPage } from '../pages/map/MapPage';
 import { MyReportsPage, NotificationsPage } from '../pages/lean/CitizenPages';
 import { StatsPage, TeamPage } from '../pages/lean/CoordinatorPages';
+import { EscalationsPage, ReportCardPage } from '../pages/lean/LeaderPages';
 import { ProfilePage } from '../pages/lean/ProfilePage';
 import { EvidencePage } from '../pages/lean/EvidencePage';
 import { WorkOrdersPage } from '../pages/engineering/WorkOrdersPage';
@@ -34,6 +35,8 @@ export const PAGE_COMPONENTS: Record<RouteId, PageComponent> = {
   team: TeamPage,
   stats: StatsPage,
   roadDetail: RoadDetailPage,
+  escalations: EscalationsPage,
+  reportCard: ReportCardPage,
   profile: ProfilePage
 };
 

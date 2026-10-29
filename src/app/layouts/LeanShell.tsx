@@ -31,6 +31,12 @@ export const TABS_BY_ROLE: Partial<Record<UserRole, Tab[]>> = {
     { id: 'analysis', label: 'Analisis', icon: <Glyph name="layers" /> },
     { id: 'profile', label: 'Profil', icon: <Glyph name="user" /> }
   ],
+  POLICY_MAKER: [
+    { id: 'map', label: 'Peta', icon: <Glyph name="map" /> },
+    { id: 'escalations', label: 'Eskalasi', icon: <Glyph name="inbox" /> },
+    { id: 'reportCard', label: 'Rapor', icon: <Glyph name="chart" /> },
+    { id: 'profile', label: 'Profil', icon: <Glyph name="user" /> }
+  ],
   OPERATIONS_MANAGER: [
     { id: 'map', label: 'Peta', icon: <Glyph name="map" /> },
     { id: 'queue', label: 'Antrian', icon: <Glyph name="inbox" /> },

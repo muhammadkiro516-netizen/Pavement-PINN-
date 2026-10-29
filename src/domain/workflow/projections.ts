@@ -63,6 +63,8 @@ export interface PublicReportView {
   authority: { name: string; level: string; confidence: string } | null;
   /** A temporary warning sign is on site (UU 22/2009 Ps. 24 ayat 2). */
   hazard: { at: string; note: string } | null;
+  /** SPEC M3.3: public reason for waiting (no staff identity). */
+  pending: { code: string; until: string; note: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -112,6 +114,7 @@ export function toPublicView(c: ReportCase): PublicReportView {
     timeline: c.history.map((h) => ({ at: h.at, state: h.to, note: h.publicNote })),
     authority: c.authority ? { name: c.authority.name, level: c.authority.level, confidence: c.authority.confidence } : null,
     hazard: c.hazard ? { at: c.hazard.at, note: c.hazard.note } : null,
+    pending: c.pending ? { code: c.pending.code, until: c.pending.until, note: c.pending.note } : null,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt
   };
