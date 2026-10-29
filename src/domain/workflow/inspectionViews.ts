@@ -34,6 +34,8 @@ export interface InspectionView {
   takenAt: string;
   /** Filled by the server from its CV store; null when the photo was not analysed. */
   ai: InspectionViewAi | null;
+  /** Scale-reference measurement on this photo (PhotoMeasure); optional. */
+  marks?: PhotoMarks | null;
 }
 
 export interface FieldDimensions {
@@ -101,4 +103,62 @@ export function volumeFromDimensions(d: FieldDimensions): number | null {
   const a = areaFromDimensions(d);
   if (a === null || !d.depthCm || d.depthCm <= 0) return null;
   return Math.round(a * (d.depthCm / 100) * 1000) / 1000;
+}
+
+/* ---------- Measuring on the photo with an in-picture scale reference ---------- */
+export type Pt = [number, number];
+export type MeasureKind = 'LENGTH' | 'WIDTH' | 'DEPTH';
+export const MEASURE_LABEL: Record<MeasureKind, string> = { LENGTH: 'Panjang', WIDTH: 'Lebar', DEPTH: 'Kedalaman' };
+/** What each angle is good for: top view for plan size, side/detail views for depth. */
+export const ANGLE_MEASURES: Record<InspectionAngle, MeasureKind[]> = { OVERVIEW: ['LENGTH'], TOP: ['LENGTH', 'WIDTH'], SIDE: ['DEPTH'], DETAIL: ['DEPTH', 'WIDTH'], SIGN: [] };
+
+export interface PhotoMarks {
+  /** Real length of the reference in cm. */
+  refCm: number;
+  /** Reference end points, normalised 0..1 (x of width, y of height). */
+  ref: [Pt, Pt] | null;
+  items: Array<{ what: MeasureKind; pts: [Pt, Pt] }>;
+  /** Image width / height, so normalised distances are measured in true pixels. */
+  aspect: number;
+}
+
+const span = (a: Pt, b: Pt, aspect: number) => Math.hypot((a[0] - b[0]) * aspect, a[1] - b[1]);
+
+/** cm per measured item on one photo; null when the reference is missing or degenerate. */
+export function measureFromMarks(m: PhotoMarks): Partial<Record<MeasureKind, number>> {
+  const out: Partial<Record<MeasureKind, number>> = {};
+  if (!m.ref || !(m.refCm > 0)) return out;
+  const ref = span(m.ref[0], m.ref[1], m.aspect || 1);
+  if (ref < 0.01) return out;
+  for (const it of m.items) out[it.what] = Math.round((span(it.pts[0], it.pts[1], m.aspect || 1) / ref) * m.refCm * 10) / 10;
+  return out;
+}
+
+export interface CombinedMeasure { cm: number; n: number; spreadPct: number | null; values: number[] }
+
+/** Combine the same quantity measured on several angles: mean, and spread between photos. */
+export function combineMeasurements(views: Array<{ marks?: PhotoMarks | null }>): Partial<Record<MeasureKind, CombinedMeasure>> {
+  const acc: Partial<Record<MeasureKind, number[]>> = {};
+  for (const v of views) {
+    if (!v.marks) continue;
+    for (const [k, cm] of Object.entries(measureFromMarks(v.marks)) as Array<[MeasureKind, number]>) (acc[k] ??= []).push(cm);
+  }
+  const out: Partial<Record<MeasureKind, CombinedMeasure>> = {};
+  for (const [k, vals] of Object.entries(acc) as Array<[MeasureKind, number[]]>) {
+    const mean = vals.reduce((s, x) => s + x, 0) / vals.length;
+    out[k] = { cm: Math.round(mean * 10) / 10, n: vals.length, spreadPct: vals.length > 1 && mean > 0 ? Math.round(((Math.max(...vals) - Math.min(...vals)) / mean) * 100) : null, values: vals };
+  }
+  return out;
+}
+
+/** Server-side clean-up of client marks: numbers in range or the whole block is dropped. */
+export function cleanMarks(raw: unknown): PhotoMarks | null {
+  const m = raw as PhotoMarks | null;
+  if (!m || typeof m !== 'object') return null;
+  const pt = (p: unknown): p is Pt => Array.isArray(p) && p.length === 2 && p.every((x) => typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= 1);
+  const pair = (p: unknown): p is [Pt, Pt] => Array.isArray(p) && p.length === 2 && pt(p[0]) && pt(p[1]);
+  if (!(typeof m.refCm === 'number' && m.refCm > 0 && m.refCm <= 500) || !pair(m.ref)) return null;
+  if (!(typeof m.aspect === 'number' && m.aspect > 0.1 && m.aspect < 10) || !Array.isArray(m.items) || m.items.length > 3) return null;
+  const items = m.items.filter((i) => i && ['LENGTH', 'WIDTH', 'DEPTH'].includes(i.what) && pair(i.pts)).map((i) => ({ what: i.what, pts: i.pts }));
+  return { refCm: m.refCm, ref: m.ref, items, aspect: m.aspect };
 }

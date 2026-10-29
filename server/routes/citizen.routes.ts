@@ -2,6 +2,7 @@ import type { Request, Response, Router } from "express";
 import { rateLimit } from "../middleware/rateLimit";
 import { actorFrom } from "../auth/actor";
 import { UA } from "../services/authorityResolver";
+import { weatherAt } from "../services/weather";
 import type { WorkflowRuntime } from "../services/workflowRuntime";
 
 /**
@@ -43,6 +44,18 @@ export function registerCitizenRoutes(router: Router, runtime: WorkflowRuntime):
       res.json({ success: true, places: (rows as any[]).map((r) => ({ name: String(r.display_name), at: [Number(r.lat), Number(r.lon)] })) });
     } catch {
       fail(res, 503, "GEOCODER_UNAVAILABLE", "Pencarian alamat sedang tidak tersedia. Coba lagi.");
+    }
+  });
+
+  // Rainfall for PINN (wet months) and the coordinator's rain warning; any signed-in role.
+  router.get("/api/weather", limit, async (req: Request, res: Response) => {
+    if (!actorFrom(req, runtime)) return fail(res, 401, "UNAUTHENTICATED", "Masuk untuk melihat data cuaca.");
+    const at = coord(req.query.at);
+    if (!at) return fail(res, 422, "VALIDATION", "Parameter at=lat,lng wajib.");
+    try {
+      res.json({ success: true, weather: await weatherAt(at[0], at[1]) });
+    } catch {
+      fail(res, 503, "WEATHER_UNAVAILABLE", "Data cuaca Open-Meteo sedang tidak tersedia.");
     }
   });
 

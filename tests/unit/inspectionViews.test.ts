@@ -71,3 +71,26 @@ test('an inspection without views still works (older clients)', async () => {
   const { service, c } = await inspectionReady();
   assert.equal((await service.transition(c.id, base as never, ENG, c.version)).ok, true);
 });
+
+import { cleanMarks, combineMeasurements, measureFromMarks } from '../../src/domain/workflow/inspectionViews';
+
+test('a photo measurement scales by the in-picture reference and corrects for aspect ratio', () => {
+  // 4:3 photo; a 10 cm tape spans 0.1 of the width; the hole spans 0.6 of the width and 0.4 of the height.
+  const m = { refCm: 10, ref: [[0.1, 0.5], [0.2, 0.5]] as [[number, number], [number, number]], aspect: 4 / 3, items: [{ what: 'LENGTH' as const, pts: [[0.2, 0.5], [0.8, 0.5]] as [[number, number], [number, number]] }, { what: 'WIDTH' as const, pts: [[0.5, 0.3], [0.5, 0.7]] as [[number, number], [number, number]] }] };
+  const v = measureFromMarks(m);
+  assert.equal(v.LENGTH, 60);
+  assert.equal(v.WIDTH, 30);
+});
+
+test('depth measured on several angles is averaged and their spread reported', () => {
+  const side = { marks: { refCm: 10, ref: [[0, 0], [0, 0.1]] as [[number, number], [number, number]], aspect: 1, items: [{ what: 'DEPTH' as const, pts: [[0.5, 0.2], [0.5, 0.27]] as [[number, number], [number, number]] }] } };
+  const detail = { marks: { refCm: 10, ref: [[0, 0], [0, 0.2]] as [[number, number], [number, number]], aspect: 1, items: [{ what: 'DEPTH' as const, pts: [[0.5, 0.2], [0.5, 0.36]] as [[number, number], [number, number]] }] } };
+  const c = combineMeasurements([side, detail, { marks: null }]);
+  assert.deepEqual(c.DEPTH, { cm: 7.5, n: 2, spreadPct: 13, values: [7, 8] });
+});
+
+test('marks with out-of-range numbers are dropped on the server', () => {
+  assert.equal(cleanMarks({ refCm: 10, ref: [[0, 0], [2, 0]], aspect: 1, items: [] }), null);
+  assert.equal(cleanMarks({ refCm: -1, ref: [[0, 0], [1, 0]], aspect: 1, items: [] }), null);
+  assert.deepEqual(cleanMarks({ refCm: 10, ref: [[0, 0], [1, 0]], aspect: 1, items: [{ what: 'DEPTH', pts: [[0, 0], [0, 1]] }, { what: 'HACK', pts: [[0, 0], [0, 1]] }] })?.items.map((i) => i.what), ['DEPTH']);
+});

@@ -1,5 +1,5 @@
-import React from 'react';
-import { AlertTriangle, BarChart2, Camera, MapPin, Truck } from 'lucide-react';
+import React, { useState } from 'react';
+import { AlertTriangle, BarChart2, Camera, ChevronDown, MapPin, Truck } from 'lucide-react';
 import { RoadSegment } from '../../types';
 import { Language } from '../../i18n/translations';
 
@@ -25,13 +25,27 @@ export const MapAnalyticsPanel: React.FC<MapAnalyticsPanelProps> = ({
     ? Math.round(roadSegments.reduce((sum, s) => sum + (s.currentPci || 0), 0) / roadSegments.length)
     : 0;
 
+  // Collapsed by default: the map, the navigation card and the report pins stay visible; the
+  // network summary and legend open on demand.
+  const [open, setOpen] = useState(false);
+  const en = language === 'en';
   return (
     <div
       data-testid="default-map-analytics-panel"
-      className={`absolute bottom-6 sm:bottom-7 left-2 sm:left-4 right-2 sm:right-4 z-10 pointer-events-none space-y-2 sm:space-y-3 ${className}`}
+      className={`absolute left-3 top-[150px] sm:top-auto sm:bottom-6 sm:left-4 z-10 pointer-events-none flex max-w-[calc(100%-24px)] flex-col items-start gap-2 sm:max-w-3xl ${className}`}
     >
-      {/* BOTTOM STATS & LEGEND COLUMN */}
-      <div className="pointer-events-auto max-w-7xl mx-auto bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-2.5 sm:p-3.5 shadow-2xl grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 text-slate-200 text-xs">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="pointer-events-auto flex cursor-pointer items-center gap-2 rounded-full border border-white/10 bg-[#15181D]/95 px-3.5 py-2 text-xs font-bold text-white shadow-xl backdrop-blur-md hover:bg-[#1E2229]"
+      >
+        <BarChart2 className="h-4 w-4 text-[#FFD60A]" />
+        {en ? 'Network summary' : 'Ringkasan jaringan'} · PCI {avgPci} · {damagedPercent}% {en ? 'poor' : 'tidak mantap'}
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+      <div className="pointer-events-auto max-h-[55dvh] w-full overflow-y-auto bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-2.5 sm:p-3.5 shadow-2xl grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 text-slate-200 text-xs">
         {/* Stat 1: Total Jaringan */}
         <div className="bg-slate-800/80 border border-slate-700/80 rounded-lg p-2.5 sm:p-3 flex items-center space-x-2.5 sm:space-x-3">
           <div className="p-2 rounded-lg bg-slate-700/60 text-slate-300 border border-slate-600/60 shrink-0">
@@ -165,6 +179,7 @@ export const MapAnalyticsPanel: React.FC<MapAnalyticsPanelProps> = ({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

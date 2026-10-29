@@ -9,11 +9,12 @@ import type { ReportCase } from '../../../domain/workflow/model';
 import type { WorkflowCommand } from '../../../domain/workflow/stateMachine';
 import type { ReportMutationOutcome } from '../../../types/reports';
 import type { CvAnalysis } from '../../../types/cv';
-import { ANGLE_GUIDE, INSPECTION_ANGLES, REQUIRED_ANGLES, areaFromDimensions, summarizeViews, volumeFromDimensions, type InspectionAngle, type InspectionView } from '../../../domain/workflow/inspectionViews';
+import { ANGLE_GUIDE, ANGLE_MEASURES, INSPECTION_ANGLES, MEASURE_LABEL, REQUIRED_ANGLES, areaFromDimensions, combineMeasurements, measureFromMarks, summarizeViews, volumeFromDimensions, type InspectionAngle, type InspectionView, type MeasureKind, type PhotoMarks } from '../../../domain/workflow/inspectionViews';
+import { MarksOverlay, PhotoMeasure } from './PhotoMeasure';
 import { normalizePhoto, runCvAnalysis } from '../../community-reports/cvClient';
 import { friendlyError } from '../friendlyError';
 
-type Shot = { photoUrl: string; takenAt: string; state: 'analysing' | 'done' | 'error'; analysis: CvAnalysis | null; error?: string };
+type Shot = { photoUrl: string; takenAt: string; state: 'analysing' | 'done' | 'error'; analysis: CvAnalysis | null; error?: string; marks?: PhotoMarks | null };
 
 const SEV_LABEL = { LIGHT: 'Ringan', MODERATE: 'Sedang', SEVERE: 'Berat', CRITICAL: 'Kritis' } as const;
 const INPUT = 'w-full rounded-xl border border-white/10 bg-[#0B0D10] px-3 py-2.5 text-sm text-white outline-none focus:border-[#FFD60A]';
@@ -65,10 +66,12 @@ export const GuidedInspection: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCo
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [measuring, setMeasuring] = useState<InspectionAngle | null>(null);
   const abort = useRef(new AbortController());
   useEffect(() => () => abort.current.abort(), []);
 
-  const views: InspectionView[] = INSPECTION_ANGLES.filter((a) => shots[a]).map((a) => ({ angle: a, photoUrl: shots[a]!.photoUrl, takenAt: shots[a]!.takenAt, ai: viewAi(shots[a]!.analysis) }));
+  const views: InspectionView[] = INSPECTION_ANGLES.filter((a) => shots[a]).map((a) => ({ angle: a, photoUrl: shots[a]!.photoUrl, takenAt: shots[a]!.takenAt, ai: viewAi(shots[a]!.analysis), marks: shots[a]!.marks ?? null }));
+  const fromPhotos = combineMeasurements(views);
   const summary = useMemo(() => summarizeViews(views), [shots]); // eslint-disable-line react-hooks/exhaustive-deps
   const num = (v: string) => (v.trim() === '' ? null : Number(v));
   const d = { lengthCm: num(dims.lengthCm), widthCm: num(dims.widthCm), depthCm: num(dims.depthCm) };
@@ -89,12 +92,12 @@ export const GuidedInspection: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCo
       return;
     }
     const takenAt = new Date().toISOString();
-    setShots((s) => ({ ...s, [angle]: { photoUrl, takenAt, state: 'analysing', analysis: null } }));
+    setShots((s) => ({ ...s, [angle]: { photoUrl, takenAt, state: 'analysing', analysis: null, marks: null } }));
     try {
       const job = await runCvAnalysis(photoUrl, `${c.id}-${angle}-${Date.now()}`, () => undefined, abort.current.signal);
-      setShots((s) => ({ ...s, [angle]: { photoUrl, takenAt, state: 'done', analysis: job.analysis ?? null } }));
+      setShots((s) => ({ ...s, [angle]: { ...s[angle]!, state: 'done', analysis: job.analysis ?? null } }));
     } catch (e) {
-      setShots((s) => ({ ...s, [angle]: { photoUrl, takenAt, state: 'error', analysis: null, error: (e as Error).message } }));
+      setShots((s) => ({ ...s, [angle]: { ...s[angle]!, state: 'error', analysis: null, error: (e as Error).message } }));
     }
   };
 
@@ -110,7 +113,7 @@ export const GuidedInspection: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCo
       severity: effSeverity,
       notes: notes.trim(),
       evidencePhotoUrl: shots.TOP?.photoUrl ?? null,
-      views: views.map((v) => ({ angle: v.angle, photoUrl: v.photoUrl, takenAt: v.takenAt, analysisId: v.ai?.analysisId ?? null })),
+      views: views.map((v) => ({ angle: v.angle, photoUrl: v.photoUrl, takenAt: v.takenAt, analysisId: v.ai?.analysisId ?? null, marks: v.marks ?? null })),
       dimensions: d
     });
     setBusy(false);
@@ -143,6 +146,7 @@ export const GuidedInspection: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCo
                     <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => { void capture(a, e.target.files?.[0]); e.target.value = ''; }} aria-label={g.title} />
                     <div className="relative grid h-28 shrink-0 place-items-center overflow-hidden bg-black/40">
                       {s ? <img src={s.photoUrl} alt={g.title} className="absolute inset-0 h-full w-full object-cover" /> : <Camera className="h-7 w-7 text-[#FFD60A]" />}
+                      {s?.marks && <MarksOverlay marks={s.marks} />}
                       {s?.state === 'analysing' && <span className="absolute inset-0 grid place-items-center bg-black/55 text-xs"><Loader2 className="mb-1 h-5 w-5 animate-spin text-[#FFD60A]" />AI menganalisis…</span>}
                     </div>
                     <div className="p-2.5">
@@ -155,6 +159,11 @@ export const GuidedInspection: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCo
                         </p>
                       )}
                       {s?.state === 'error' && <p className="mt-0.5 text-[11px] text-[#FF4D5E]">AI gagal: {s.error}. Foto tetap terlampir.</p>}
+                      {s && ANGLE_MEASURES[a].length > 0 && (
+                        <button type="button" onClick={(e) => { e.preventDefault(); setMeasuring(a); }} className="mt-1.5 w-full cursor-pointer rounded-lg bg-[#38BDF8]/15 py-1.5 text-[11px] font-bold text-[#38BDF8]">
+                          {s.marks?.items.length ? Object.entries(measureFromMarks(s.marks)).map(([k, v]) => `${MEASURE_LABEL[k as MeasureKind]} ${v} cm`).join(' · ') : `Ukur ${ANGLE_MEASURES[a].map((k) => MEASURE_LABEL[k].toLowerCase()).join(' & ')} di foto`}
+                        </button>
+                      )}
                     </div>
                   </label>
                 );
@@ -178,7 +187,8 @@ export const GuidedInspection: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCo
           </section>
 
           <section>
-            <p className="mb-2 flex items-center gap-2 text-sm font-extrabold"><Ruler className="h-4 w-4 text-[#FFD60A]" />3 · Ukur dengan meteran</p>
+            <p className="mb-1 flex items-center gap-2 text-sm font-extrabold"><Ruler className="h-4 w-4 text-[#FFD60A]" />3 · Ukuran kerusakan</p>
+            <p className="mb-2 text-[11px] text-[#A1A1AA]">Ukur langsung di foto: letakkan meteran / A4 / KTP di foto atas, berdirikan meteran di titik terdalam pada foto samping dan detail. Kedalaman dari beberapa foto dirata-rata. Atau isi dari meteran.</p>
             <div className="grid grid-cols-3 gap-2">
               {(['lengthCm', 'widthCm', 'depthCm'] as const).map((k) => (
                 <label key={k} className="block text-xs text-[#A1A1AA]">
@@ -187,6 +197,19 @@ export const GuidedInspection: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCo
                 </label>
               ))}
             </div>
+            {Object.keys(fromPhotos).length > 0 && (
+              <div className="mt-2 rounded-xl border border-[#38BDF8]/30 bg-[#38BDF8]/5 p-2.5 text-xs">
+                <p className="font-bold text-[#38BDF8]">Terukur dari foto (skala pembanding)</p>
+                {(Object.entries(fromPhotos) as Array<[MeasureKind, NonNullable<(typeof fromPhotos)[MeasureKind]>]>).map(([k, m]) => (
+                  <p key={k} className="text-[#D4D4D8]">
+                    {MEASURE_LABEL[k]}: <b>{m.cm} cm</b> dari {m.n} foto{m.spreadPct !== null ? ` · selisih antar-foto ${m.spreadPct}%${m.spreadPct > 20 ? ' (ukur ulang)' : ''}` : ''}
+                  </p>
+                ))}
+                <button type="button" onClick={() => setDims({ lengthCm: String(fromPhotos.LENGTH?.cm ?? dims.lengthCm), widthCm: String(fromPhotos.WIDTH?.cm ?? dims.widthCm), depthCm: String(fromPhotos.DEPTH?.cm ?? dims.depthCm) })} className="mt-1.5 cursor-pointer rounded-lg bg-[#38BDF8] px-3 py-1.5 font-bold text-[#0B0D10]">
+                  Pakai ukuran dari foto
+                </button>
+              </div>
+            )}
             <p className="mt-2 text-xs text-[#A1A1AA]">
               Luas: <b className="text-white">{area !== null ? `${area} m²` : '—'}</b> · Volume bahan tambal: <b className="text-white">{volume !== null ? `${volume} m³` : '—'}</b>
             </p>
@@ -210,6 +233,19 @@ export const GuidedInspection: React.FC<{ c: ReportCase; onRun: (cmd: WorkflowCo
           </section>
         </div>
 
+        {measuring && shots[measuring] && (
+          <PhotoMeasure
+            photoUrl={shots[measuring]!.photoUrl}
+            title={ANGLE_GUIDE[measuring].title}
+            kinds={ANGLE_MEASURES[measuring]}
+            initial={shots[measuring]!.marks}
+            onClose={() => setMeasuring(null)}
+            onDone={(marks) => {
+              setShots((s) => ({ ...s, [measuring]: { ...s[measuring]!, marks } }));
+              setMeasuring(null);
+            }}
+          />
+        )}
         <div className="border-t border-white/10 p-4">
           {err && <p role="alert" className="mb-2 text-xs text-[#FF4D5E]">{err}</p>}
           <button type="button" disabled={!ready || busy} onClick={() => void submit()} className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] py-3.5 text-sm font-extrabold text-[#0B0D10] disabled:cursor-not-allowed disabled:opacity-40">

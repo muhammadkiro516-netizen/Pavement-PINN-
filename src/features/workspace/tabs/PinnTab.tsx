@@ -176,7 +176,7 @@ export const PinnMain: React.FC = () => {
           <p className="mt-2 text-[11px] text-[#8B9BB0]">Keputusan penanganan dicatat lewat rekomendasi petugas dan persetujuan Koordinator di Antrian, bukan di halaman ini.</p>
         </div>
       )}
-      {decideBase(w.layers) && <PinnDecisionCard base={decideBase(w.layers)!} />}
+      {decideBase(w.layers) && <PinnDecisionCard base={decideBase(w.layers)!} at={o ? [o.location.lat, o.location.lon] : null} />}
       <div className="flex flex-wrap items-center gap-2">
         {(['eps_xx', 'eps_zz', 'sigma_zz'] as Variable[]).map((v) => (
           <button key={v} type="button" onClick={() => setVariable(v)} className={`rounded-md px-2.5 py-1 text-[12px] ${variable === v ? 'bg-[#1D4573] text-white' : 'bg-[#16202C] text-[#C9D4E3]'}`}>{VAR_LABEL[v]}</button>

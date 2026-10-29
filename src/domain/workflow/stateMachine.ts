@@ -17,7 +17,7 @@
  *   transitions; the engineer who recommended an action cannot approve it.
  * - The work order is an internal record, explicitly not an official SPK document.
  */
-import { INSPECTION_ANGLES, REQUIRED_ANGLES, type FieldDimensions, type InspectionView, type InspectionViewAi } from './inspectionViews';
+import { INSPECTION_ANGLES, REQUIRED_ANGLES, cleanMarks, type FieldDimensions, type InspectionView, type InspectionViewAi } from './inspectionViews';
 import type { UserRole } from '../../types';
 import { samePerson } from '../identity/people';
 import type { AssessmentSnapshot } from '../intelligence/assessment';
@@ -299,7 +299,7 @@ export function applyCommand(c: ReportCase, command: WorkflowCommand, ctx: Comma
         if (!v || !(INSPECTION_ANGLES as readonly string[]).includes(v.angle)) return fail('VALIDATION', 'view angle is invalid.');
         if (views.some((x) => x.angle === v.angle)) return fail('VALIDATION', 'each view angle may appear once.');
         if (typeof v.photoUrl !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/i.test(v.photoUrl)) return fail('VALIDATION', 'view photo must be a JPEG, PNG or WebP image.');
-        views.push({ angle: v.angle, photoUrl: v.photoUrl, takenAt: typeof v.takenAt === 'string' ? v.takenAt : ctx.now, ai: v.ai ?? null });
+        views.push({ angle: v.angle, photoUrl: v.photoUrl, takenAt: typeof v.takenAt === 'string' ? v.takenAt : ctx.now, ai: v.ai ?? null, marks: cleanMarks(v.marks) });
       }
       if (views.length && REQUIRED_ANGLES.some((a) => !views.some((v) => v.angle === a))) return fail('VALIDATION', 'Foto jauh, foto atas dan foto samping wajib ada.');
       let dims: FieldDimensions | null = null;

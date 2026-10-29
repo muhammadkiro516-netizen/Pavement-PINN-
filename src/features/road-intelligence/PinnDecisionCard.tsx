@@ -4,7 +4,8 @@
  * answers a road authority needs: surface or structural problem, what ODOL trucks cost, what the
  * rainy season costs, how long it lasts, and which treatment is not wasted money.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useWeather } from '../weather/useWeather';
 import { Glyph } from '../../components/ui/brand';
 import { apiUrl } from '../../services/api/client';
 import type { EngineAssessRequest } from '../../types';
@@ -51,10 +52,15 @@ const Answer: React.FC<{ q: string; a: string; children?: React.ReactNode }> = (
   </div>
 );
 
-export const PinnDecisionCard: React.FC<{ base: EngineAssessRequest }> = ({ base }) => {
+export const PinnDecisionCard: React.FC<{ base: EngineAssessRequest; at?: [number, number] | null }> = ({ base, at }) => {
   const [preset, setPreset] = useState<keyof typeof TRAFFIC_PRESETS>('industri');
   const [odol, setOdol] = useState(30);
   const [wet, setWet] = useState(6);
+  // Wet months from measured rainfall at this location (Open-Meteo, last 12 months), when available.
+  const { weather } = useWeather(at);
+  useEffect(() => {
+    if (weather) setWet(weather.wetMonths);
+  }, [weather]);
   const [target, setTarget] = useState(10);
   const [alligator, setAlligator] = useState(0);
   const [severity, setSeverity] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('LOW');
@@ -132,7 +138,15 @@ export const PinnDecisionCard: React.FC<{ base: EngineAssessRequest }> = ({ base
         <div className="flex flex-wrap gap-4">
           <div>
             <p className="mb-1.5 text-xs font-bold text-[#FFFFFF]/50">Bulan musim hujan</p>
-            <div className="flex gap-2">{[3, 6, 9].map((m) => <Chip key={m} on={wet === m} onClick={() => setWet(m)}>{m}</Chip>)}</div>
+            <div className="flex gap-2">
+              {weather && ![3, 6, 9].includes(weather.wetMonths) && <Chip on={wet === weather.wetMonths} onClick={() => setWet(weather.wetMonths)}>{weather.wetMonths}</Chip>}
+              {[3, 6, 9].map((m) => <Chip key={m} on={wet === m} onClick={() => setWet(m)}>{m}</Chip>)}
+            </div>
+            {weather && (
+              <p className="mt-1.5 max-w-[260px] text-[11px] leading-snug text-[#38BDF8]">
+                Terukur di lokasi: {weather.wetMonths} bulan ≥ 200 mm dalam 12 bulan terakhir ({weather.annualMm.toLocaleString('id-ID')} mm/tahun). Sumber Open-Meteo.
+              </p>
+            )}
           </div>
           <div>
             <p className="mb-1.5 text-xs font-bold text-[#FFFFFF]/50">Target umur (tahun)</p>
@@ -158,7 +172,7 @@ export const PinnDecisionCard: React.FC<{ base: EngineAssessRequest }> = ({ base
               Satu gandar {r.odol.axle_t} t merusak tanah dasar setara {r.odol.rutting_factor}× gandar standar{r.odol.fatigue_factor ? `, lapis aspal ${r.odol.fatigue_factor}×` : ''}.
             </Answer>
             <Answer q="Musim hujan" a={r.remaining_life ? `Daya tahan −${Math.round(r.remaining_life.wet_season_loss_pct)}%` : '–'}>
-              {wet} bulan tanah dasar jenuh air.
+              {wet} bulan tanah dasar jenuh air{weather && wet === weather.wetMonths ? ' (dari curah hujan terukur di lokasi)' : ''}.
             </Answer>
             <Answer q="Sisa umur" a={r.remaining_life ? `${r.remaining_life.seasonal_years.toFixed(1)} tahun` : 'Butuh data lalu lintas'}>
               Bila dibiarkan dengan lalu lintas ini.
