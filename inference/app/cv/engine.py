@@ -549,8 +549,7 @@ def _analyze_bgr(bgr: np.ndarray, source_type: str, source_ref: str, stage: Stag
             "totalCrackPixels": int(crack_mask.sum()) if crack_mask is not None else 0,
             "maskPngBase64": mask_png,
         },
-        "primary": None if primary is None else {"taxonomyCode": primary["taxonomyCode"], "damageType": primary["damageType"],
-                                                 "label": primary["label"], "confidence": primary["confidence"]},
+        "primary": _primary(primary, scene_res, reasons),
         "overallSeverity": overall,
         "scene": scene_res,
         "surfaceIndex": index,
@@ -564,6 +563,20 @@ def _analyze_bgr(bgr: np.ndarray, source_type: str, source_ref: str, stage: Stag
 
 
 _live_lock = threading.Lock()
+
+
+def _primary(primary: dict | None, scene_res: dict | None, reasons: list[str]) -> dict | None:
+    """Box detector first (pothole + 6 crack classes). For types it was not trained on (rutting,
+    depression, patching, flooding, ...) the zero-shot scene head suggests one; an officer confirms."""
+    if primary is not None:
+        return {"taxonomyCode": primary["taxonomyCode"], "damageType": primary["damageType"],
+                "label": primary["label"], "confidence": primary["confidence"], "source": "detector"}
+    top = (scene_res or {}).get("distressTop")
+    if not top:
+        return None
+    reasons.append(f"Jenis '{top['label']}' disarankan model scene (zero-shot, p {top['p']:.2f}); bukan kotak deteksi, petugas memastikan.")
+    return {"taxonomyCode": top["damageType"], "damageType": top["damageType"], "label": top["label"],
+            "confidence": round(float(top["p"]), 4), "source": "scene"}
 
 
 def analyze_live(data: bytes) -> dict:

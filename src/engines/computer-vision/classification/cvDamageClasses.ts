@@ -207,6 +207,60 @@ export const CV_DAMAGE_CLASSES: Record<string, CVDamageClassInfo> = {
       widthPercent: 52,
       heightPercent: 48
     }
+  },
+  corrugation: {
+    modelClass: 'corrugation',
+    damageType: 'CORRUGATION',
+    label: 'Corrugation',
+    icon: '≈',
+    characteristics: [
+      'Regular transverse ripples',
+      'Washboard surface'
+    ],
+    defaultSeverity: 'MODERATE',
+    severityLabel: 'Medium',
+    severityLevel: 3,
+    defaultConfidence: 0,
+    samplePhotoUrl: '',
+    defaultDepthCm: 2,
+    defaultAreaM2: 4,
+    detectionBox: { xPercent: 20, yPercent: 30, widthPercent: 60, heightPercent: 45 }
+  },
+  subsidence: {
+    modelClass: 'subsidence',
+    damageType: 'SUBSIDENCE',
+    label: 'Subsidence',
+    icon: '⤓',
+    characteristics: [
+      'Road section has sunk or collapsed',
+      'Possible base or drainage failure'
+    ],
+    defaultSeverity: 'SEVERE',
+    severityLabel: 'High',
+    severityLevel: 4,
+    defaultConfidence: 0,
+    samplePhotoUrl: '',
+    defaultDepthCm: 10,
+    defaultAreaM2: 6,
+    detectionBox: { xPercent: 20, yPercent: 30, widthPercent: 60, heightPercent: 45 }
+  },
+  flooding: {
+    modelClass: 'flooding',
+    damageType: 'FLOODING',
+    label: 'Flooding / Standing Water',
+    icon: '≋',
+    characteristics: [
+      'Standing water covers the carriageway',
+      'Hides potholes and edges; hazard for riders'
+    ],
+    defaultSeverity: 'SEVERE',
+    severityLabel: 'High',
+    severityLevel: 4,
+    defaultConfidence: 0,
+    samplePhotoUrl: '',
+    defaultDepthCm: 0,
+    defaultAreaM2: 10,
+    detectionBox: { xPercent: 20, yPercent: 30, widthPercent: 60, heightPercent: 45 }
   }
 };
 

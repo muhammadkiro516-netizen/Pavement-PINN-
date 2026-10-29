@@ -12,7 +12,8 @@ export type DamageType =
   | 'SURFACE_DAMAGE'
   | 'ROAD_DEFORMATION'
   | 'DEPRESSION'
-  | 'PATCHING';
+  | 'PATCHING'
+  | 'FLOODING';
 
 export type ReportSeverity = 'LIGHT' | 'MODERATE' | 'SEVERE' | 'CRITICAL';
 /** Display status used by the report screens; derived from the workflow state (domain/workflow/projections.ts). */

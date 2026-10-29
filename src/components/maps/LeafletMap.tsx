@@ -639,7 +639,8 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
       SURFACE_DAMAGE: 'Kerusakan Permukaan (Surface Damage)',
       ROAD_DEFORMATION: 'Deformasi Jalan (Road Deformation)',
       DEPRESSION: 'Ambles Lokal (Depression)',
-      PATCHING: 'Tambalan (Patching)'
+      PATCHING: 'Tambalan (Patching)',
+      FLOODING: 'Genangan / Banjir (Flooding)'
     };
 
     const photoPresets = [

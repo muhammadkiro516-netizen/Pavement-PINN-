@@ -103,6 +103,24 @@ def head_probs(image_emb: np.ndarray, text_emb: np.ndarray) -> np.ndarray:
     return softmax(LOGIT_SCALE * text_emb @ image_emb)
 
 
+# Distress head -> app DamageType. Zero-shot and uncalibrated (accuracy BELUM_DIUKUR): a suggestion
+# the reporter sees and an officer confirms, used when the box detector has nothing to say.
+DISTRESS_TYPES = {
+    "pothole": ("POTHOLE", "Lubang (pothole)"),
+    "alligator": ("ALLIGATOR_CRACK", "Retak buaya (alligator)"),
+    "crack": ("CRACK", "Retak permukaan"),
+    "rutting": ("RUTTING", "Alur roda (rutting)"),
+    "corrugation": ("CORRUGATION", "Keriting / bergelombang (corrugation)"),
+    "subsidence": ("SUBSIDENCE", "Amblas (subsidence)"),
+    "depression": ("DEPRESSION", "Ambles lokal (depression)"),
+    "raveling": ("SURFACE_DAMAGE", "Pelepasan butir (raveling)"),
+    "deformation": ("ROAD_DEFORMATION", "Deformasi / sungkur (shoving)"),
+    "patching": ("PATCHING", "Tambalan (patching)"),
+    "flooding": ("FLOODING", "Genangan / banjir"),
+}
+DISTRESS_MIN_P = 0.30
+
+
 def classify(bgr: np.ndarray) -> dict | None:
     """Scene result, or None when the optional model is not installed."""
     m = SceneModel.get()
@@ -110,7 +128,7 @@ def classify(bgr: np.ndarray) -> dict | None:
         return None
     emb = m.embed(bgr)
     out: dict = {"modelId": "clip-vit-b32-zeroshot", "calibrated": False}
-    for head in ("road", "surface", "water"):
+    for head in ("road", "surface", "distress", "water"):
         if head not in m.heads:
             continue
         p = head_probs(emb, m.heads[head])
@@ -127,6 +145,12 @@ def interpret(scene: dict) -> dict:
     if surface:
         top = max(surface, key=surface.get)
         scene["surfaceTop"] = {"key": top, "label": SURFACE_LABELS.get(top, top), "p": surface[top]}
+    distress = scene.get("distress", {})
+    if distress:
+        top = max(distress, key=distress.get)
+        if top in DISTRESS_TYPES and distress[top] >= DISTRESS_MIN_P:
+            dt, label = DISTRESS_TYPES[top]
+            scene["distressTop"] = {"key": top, "damageType": dt, "label": label, "p": distress[top]}
     scene["water"] = {"flooded": water.get("flooded", 0.0) >= 0.6, "p": water.get("flooded", 0.0)} if water else {"flooded": False, "p": 0.0}
     return scene
 

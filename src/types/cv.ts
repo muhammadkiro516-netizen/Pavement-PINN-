@@ -101,6 +101,9 @@ export interface CvScene {
   road?: Record<string, number>;
   surface?: Record<string, number>;
   surfaceTop?: { key: string; label: string; p: number };
+  distress?: Record<string, number>;
+  /** Zero-shot damage-type suggestion for types the box detector was not trained on. */
+  distressTop?: { key: string; damageType: string; label: string; p: number };
   water: { flooded: boolean; p: number };
 }
 
