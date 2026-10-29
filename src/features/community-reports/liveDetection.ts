@@ -62,7 +62,7 @@ export function frameSize(vw: number, vh: number, lowData: boolean): { w: number
 
 type Conn = { saveData?: boolean; effectiveType?: string };
 
-export function useLiveDetection(video: HTMLVideoElement | null, active: boolean) {
+export function useLiveDetection(video: HTMLVideoElement | null, active: boolean, intervalMs = 1000) {
   const [result, setResult] = useState<LiveResult | null>(null);
   const [state, setState] = useState<'idle' | 'running' | 'paused' | 'unavailable'>('idle');
   const seq = useRef(0);
@@ -74,7 +74,7 @@ export function useLiveDetection(video: HTMLVideoElement | null, active: boolean
     }
     const conn = (navigator as Navigator & { connection?: Conn }).connection;
     const lowData = !!conn?.saveData || conn?.effectiveType === '2g' || conn?.effectiveType === 'slow-2g';
-    const interval = lowData ? 1000 : 400;
+    const interval = lowData ? Math.max(1500, intervalMs) : intervalMs;
     const startedAt = Date.now();
     const canvas = document.createElement('canvas');
     let timer = 0;
@@ -128,7 +128,7 @@ export function useLiveDetection(video: HTMLVideoElement | null, active: boolean
       controller?.abort();
       setResult(null);
     };
-  }, [active, video]);
+  }, [active, video, intervalMs]);
 
   return { result, state };
 }

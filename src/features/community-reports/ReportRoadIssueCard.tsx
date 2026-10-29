@@ -36,6 +36,7 @@ import { CV_DAMAGE_CLASSES } from '../../engines/computer-vision/classification/
 import type { CvAnalysis, CvJobStage, CvJobView, CvSeverityLevel } from '../../types/cv';
 import { AiPhotoScan } from './AiPhotoScan';
 import { LiveAiOverlay } from './LiveAiOverlay';
+import { useSpeedLock, SPEED_LIMIT_KMH } from '../location/speedLock';
 import { lastDeviceFix } from '../location/deviceLocation';
 import { CV_STAGE_LABELS, CvClientError, checkImageInput, runCvAnalysis } from './cvClient';
 
@@ -171,6 +172,23 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
 
   // Camera Live Video Stream State
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  // SPEC M1.3: live AI aiming help is opt-in (saves data); remembered per device.
+  const [assist, setAssist] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('pp-aim-assist') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleAssist = () =>
+    setAssist((v) => {
+      try {
+        localStorage.setItem('pp-aim-assist', v ? '0' : '1');
+      } catch {
+        /* preference not stored */
+      }
+      return !v;
+    });
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
   const [flashMode, setFlashMode] = useState<'OFF' | 'AUTO' | 'ON'>('AUTO');
   const [isShutterFlashing, setIsShutterFlashing] = useState<boolean>(false);
@@ -526,7 +544,11 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
   };
 
   // Capture photo from live camera or high-res road snapshot -> Now prompts confirmation
+  const speed = useSpeedLock(isCameraActive && currentState === 'CAMERA_CAPTURE');
+
   const handleCapturePhoto = () => {
+    // SPEC 0.6: never while moving faster than the limit.
+    if (speed.locked) return;
     // Only a real camera frame can become evidence; there is no stand-in photo.
     const video = videoRef.current;
     if (!video || !isCameraActive || !video.videoWidth) return;
@@ -650,9 +672,9 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
       probe.onerror = () => setValidationError('Foto tidak dapat dibaca. Coba file lain.');
       probe.src = dataUrl;
     };
+    reader.onerror = () => setValidationError('Foto tidak dapat dibaca. Coba file lain.');
+    reader.readAsDataURL(file);
   };
-
-  // Helper to load verified real road damage test fixture photo
 
   // Reset form
   const handleReset = () => {
@@ -873,8 +895,21 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
             />
 
             {/* What the AI sees, live, before the photo is taken */}
-            <LiveAiOverlay video={videoRef.current} active={isCameraActive && currentState === 'CAMERA_CAPTURE'} />
+            <LiveAiOverlay video={videoRef.current} active={assist && !speed.locked && isCameraActive && currentState === 'CAMERA_CAPTURE'} />
           </div>
+
+          {isCameraActive && currentState === 'CAMERA_CAPTURE' && (
+            <button type="button" onClick={toggleAssist} className={`absolute left-1/2 top-20 z-30 -translate-x-1/2 rounded-full px-4 py-2 text-xs font-bold backdrop-blur ${assist ? 'bg-[#FFD60A] text-[#0B0D10]' : 'bg-black/55 text-white'}`}>
+              {assist ? 'Bantu bidik AI: aktif' : 'Bantu bidik AI: mati (hemat kuota)'}
+            </button>
+          )}
+
+          {speed.locked && isCameraActive && currentState === 'CAMERA_CAPTURE' && (
+            <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-2 bg-black/80 px-8 text-center text-white" role="alert">
+              <p className="text-lg font-extrabold">Berhenti dulu untuk melapor</p>
+              <p className="text-sm text-white/70">Kamera terkunci saat bergerak lebih dari {SPEED_LIMIT_KMH} km/jam ({Math.round(speed.kmh ?? 0)} km/jam). Menepilah dengan aman, lalu potret.</p>
+            </div>
+          )}
 
           {/* Permission state on the dark page (no stand-in image) */}
           {!isCameraActive && (

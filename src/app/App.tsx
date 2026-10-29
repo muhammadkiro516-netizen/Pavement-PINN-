@@ -1,3 +1,4 @@
+import { Onboarding, shouldOnboard } from '../features/onboarding/Onboarding';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { UserAccount } from '../features/authentication/demoAccounts';
 import { RouterProvider, useRouter } from './router';
@@ -97,6 +98,7 @@ function AppShell() {
     }
   }
 
+  const [onboarding, setOnboarding] = useState(shouldOnboard);
   const standalone = !match || STANDALONE_ROUTES.includes(match.route.id) || decision !== 'ALLOW';
   const canReport = currentAccount.role === 'PUBLIC_REPORTER' || currentAccount.role === 'FIELD_ENGINEER';
   const tasksDue = Object.values(app.workflow.views).filter((v) => v.audience === 'STAFF' && v.availableActions.length > 0).length;
@@ -117,6 +119,7 @@ function AppShell() {
             {page}
           </LeanShell>
         )}
+        {currentAccount.role === 'PUBLIC_REPORTER' && onboarding && <Onboarding onDone={() => setOnboarding(false)} />}
         {canReport && (
           <ReportRoadIssueCard
             isOpen={cameraOpen}

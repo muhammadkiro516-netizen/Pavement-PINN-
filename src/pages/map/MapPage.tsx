@@ -1,3 +1,4 @@
+import { HazardRadar } from '../../features/location/RadarToggle';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Glyph } from '../../components/ui/brand';
 import { Pavi } from '../../components/brand/Pavi';
@@ -154,6 +155,9 @@ export const MapPage: React.FC = () => {
           </div>
         </div>
       )}
+      <div className="absolute bottom-[214px] left-4 z-30">
+        <HazardRadar cases={Object.values(app.workflow.views).map((v) => v.case as never)} />
+      </div>
       <button
         type="button"
         onClick={locate}

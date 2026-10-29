@@ -13,7 +13,10 @@ import { rateLimit } from "../middleware/rateLimit";
 import { checkPhotoReference, photoGpsPosition, stripPhotoMetadata } from "../services/photoValidation";
 import { distanceMeters } from "../../src/domain/workflow/screening";
 import { AGENCIES, agencyById, resolveAuthority } from "../services/authorityResolver";
-import { citizenImpact } from "../../src/domain/workflow/impact";
+import { citizenImpact, quests, type QuestDef } from "../../src/domain/workflow/impact";
+import { visitsFor } from "./share.routes";
+import { trackingCodeFor } from "../../src/domain/workspace/fromCase";
+import questConfig from "../../config/quests.json";
 
 /** How far the camera position may be from the reported position. */
 const PHOTO_LOCATION_TOLERANCE_M = 1000;
@@ -422,7 +425,42 @@ export function registerWorkflowRoutes(router: Router, runtime: WorkflowRuntime)
     const actor = actorFrom(req, runtime);
     if (!actor) return sendError(res, "UNAUTHENTICATED", "Masuk dulu.");
     res.setHeader("Cache-Control", "no-store");
-    res.json({ success: true, impact: citizenImpact(await service.listCases(), actor.id) });
+    const cases = await service.listCases();
+    const impact = citizenImpact(cases, actor.id);
+    // SPEC M8: quest progress from server-verified events only.
+    const mine = cases.filter((c) => c.createdBy.id === actor.id && !c.history.some((h) => h.action === "CLOSE_INVALID"));
+    const firstStaff = (c: ReportCase) => c.history.find((h) => ["REVIEW_ACCEPT", "SCREENING_PASS", "REQUEST_INSPECTION"].includes(h.action))?.at;
+    const verifiedAt = mine.map(firstStaff).filter((x): x is string => !!x);
+    const rainy = (iso: string) => [10, 11, 0, 1, 2].includes(new Date(iso).getMonth());
+    const q = quests(questConfig.quests as QuestDef[], {
+      verifiedAt,
+      repairedAt: mine.map((c) => c.history.find((h) => h.action === "RESOLVE")?.at).filter((x): x is string => !!x),
+      confirmation36At: (await service.listRepairConfirmations()).filter((f) => f.by === actor.id && f.milestone !== 1).map((f) => f.at),
+      visits: Math.max(0, ...mine.map((c) => visitsFor(trackingCodeFor(c.id)))),
+      rainyWaterAt: mine.filter((c) => c.report.cvAssessment?.hazards?.includes("GENANGAN") && firstStaff(c) && rainy(c.createdAt)).map((c) => firstStaff(c)!),
+      projectVerifiedAt: (await service.listRecords("projects")).filter((p) => p.by === actor.id && p.verifiedAt).map((p) => String(p.verifiedAt))
+    }, questConfig.dailyXpCap);
+    res.json({ success: true, impact: { ...impact, quests: q.items, xp: q.xp, dailyXpCap: questConfig.dailyXpCap } });
+  });
+
+  // SPEC M8: e-certificate "Relawan Pengawal Jalan" from level 4, verifiable by QR without personal data.
+  const certCode = (id: string) => runtime.signer.mac(`cert:${id}`).slice(0, 12).toUpperCase();
+  router.get("/api/me/certificate", async (req: Request, res: Response) => {
+    await runtime.ready;
+    const actor = actorFrom(req, runtime);
+    if (!actor) return sendError(res, "UNAUTHENTICATED", "Masuk dulu.");
+    const impact = citizenImpact(await service.listCases(), actor.id);
+    if (impact.level.index < 3) return sendError(res, "FORBIDDEN", "Sertifikat tersedia mulai level Mitra Jalan.");
+    res.json({ success: true, code: certCode(actor.id), level: impact.level.name, verified: impact.verified, repaired: impact.repaired, areaM2: impact.repairedAreaM2 });
+  });
+  router.get("/api/public/certificate/:code", async (req: Request, res: Response) => {
+    await runtime.ready;
+    const code = String(req.params.code).toUpperCase();
+    const cases = await service.listCases();
+    const ids = [...new Set(cases.map((c) => c.createdBy.id))];
+    const id = ids.find((x) => certCode(x) === code);
+    const impact = id ? citizenImpact(cases, id) : null;
+    res.json({ success: true, valid: !!impact && impact.level.index >= 3, level: impact?.level.name ?? null, verifiedReports: impact?.verified ?? null });
   });
 
   router.get("/api/materials", (_req: Request, res: Response) => {

@@ -28,6 +28,11 @@ function loadVisits(): Record<string, string[]> {
   return visits!;
 }
 
+/** Unique visitors recorded for a share code. */
+export function visitsFor(code: string): number {
+  return (loadVisits()[code] ?? []).length;
+}
+
 /** Unique visitors per code: one salted hash per visitor per day; no IP is stored. */
 function recordVisit(code: string, req: Request): number {
   const v = loadVisits();

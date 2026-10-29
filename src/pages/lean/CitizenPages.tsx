@@ -7,6 +7,7 @@ import { readPaviHelmet } from '../../components/brand/paviPrefs';
 import { apiUrl } from '../../services/api/client';
 import { RepairConfirmPrompts } from '../../features/road-intelligence/RepairHistory';
 import { Hourglass } from '../../features/workflow/Hourglass';
+import { SusPrompt } from '../../features/evidence/SusPrompt';
 import { ShareSheet, type ShareCase } from '../../features/share/ShareSheet';
 import { paviMarkerHtml } from '../../components/brand/Pavi';
 import { Glyph } from '../../components/ui/brand';
@@ -58,6 +59,31 @@ interface ImpactData {
   repaired: number;
   repairedAreaM2: number;
   badges: Array<{ id: string; title: string; description: string; earned: boolean }>;
+  quests?: Array<{ id: string; title: string; description: string; xp: number; progress: number; target: number; done: boolean }>;
+  xp?: number;
+  dailyXpCap?: number;
+}
+
+/** SPEC M8: e-certificate from level Mitra Jalan, with a QR that verifies it publicly (no name stored). */
+async function downloadCertificate() {
+  const r = await fetch(apiUrl('/api/me/certificate'), { credentials: 'same-origin' });
+  const j = await r.json().catch(() => null);
+  if (!j?.success) return alert(j?.error?.message ?? 'Sertifikat belum tersedia.');
+  const name = window.prompt('Nama yang dicetak di sertifikat (tidak disimpan di server):') ?? '';
+  const [{ jsPDF }, QR] = await Promise.all([import('jspdf'), import('qrcode')]);
+  const url = `${window.location.origin}/api/public/certificate/${j.code}`;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  doc.setFontSize(26);
+  doc.text('Relawan Pengawal Jalan', 148, 45, { align: 'center' });
+  doc.setFontSize(14);
+  doc.text(name || 'Warga PavementPINN', 148, 65, { align: 'center' });
+  doc.setFontSize(11);
+  doc.text(`Level ${j.level} · ${j.verified} laporan dibenarkan petugas · ${j.repaired} sudah diperbaiki · ±${j.areaM2} m² jalan`, 148, 78, { align: 'center' });
+  doc.text(`Kode verifikasi ${j.code} · ${new Date().toLocaleDateString('id-ID')}`, 148, 88, { align: 'center' });
+  doc.addImage(await QR.toDataURL(url, { margin: 1, width: 240 }), 'PNG', 128, 100, 40, 40);
+  doc.setFontSize(8);
+  doc.text('Pindai QR untuk memeriksa keaslian. Dihitung dari laporan terverifikasi, bukan dari jumlah laporan.', 148, 150, { align: 'center' });
+  doc.save(`sertifikat-${j.code}.pdf`);
 }
 
 const BADGE_TONE: Record<string, string> = { first: '#FFD60A', verified5: '#4C8DFF', water: '#38BDF8', witness: '#2BD67B' };
@@ -95,6 +121,20 @@ const ImpactCard: React.FC = () => {
           </div>
         ))}
       </div>
+      {d.quests && (
+        <div className="mt-3 space-y-1.5">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[#FFFFFF]/45">Misi · {d.xp ?? 0} XP (maks. {d.dailyXpCap} XP/hari)</p>
+          {d.quests.map((q) => (
+            <div key={q.id} className="flex items-center gap-2 text-xs">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${q.done ? 'bg-[#2BD67B]' : 'bg-[#FFFFFF]/20'}`} />
+              <span className="min-w-0 flex-1 truncate" title={q.description}>{q.title}</span>
+              <span className="tabular text-[#FFFFFF]/55">{q.progress}/{q.target}</span>
+              <span className="tabular w-12 text-right font-bold text-[#FFD60A]">+{q.xp}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {d.level.index >= 3 && <button type="button" onClick={() => void downloadCertificate()} className="mt-3 min-h-10 w-full cursor-pointer rounded-xl bg-[#2BD67B] text-sm font-extrabold text-[#0B0D10]">Unduh e-Sertifikat Relawan Pengawal Jalan</button>}
       <button type="button" onClick={() => setShare(true)} className="mt-3 min-h-10 w-full cursor-pointer rounded-xl bg-[#FFD60A] text-sm font-extrabold text-[#0B0D10]">Bagikan Kartu Dampakku</button>
       {share && <ShareSheet impact={{ points: d.points, level: d.level.name, areaM2: d.repairedAreaM2, verified: d.verified }} paviSvg={(paviMarkerHtml(readPaviHelmet()).match(/<svg[\s\S]*<\/svg>/) ?? [''])[0].replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ')} onClose={() => setShare(false)} />}
       <div className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none]">
@@ -120,10 +160,17 @@ export const MyReportsPage: React.FC = () => {
   );
 
   const [sharing, setSharing] = useState<ShareCase | null>(null);
+  // SPEC M3.4/M9: reports this device marked "Saya juga melihat ini".
+  const [watched, setWatched] = useState<string[]>([]);
+  useEffect(() => {
+    fetch(apiUrl('/api/me/witnessed'), { credentials: 'same-origin' }).then((r) => r.json()).then((j) => j?.success && setWatched(j.items)).catch(() => undefined);
+  }, []);
+  const guarded = watched.map((id) => workflow.views[id]).filter(Boolean);
   return (
-    <SnapPage title="Laporanku" subtitle="Laporan Anda dan sampai mana penanganannya.">
+    <SnapPage title="Kawal" subtitle="Laporan Anda dan laporan yang Anda kawal, sampai mana penanganannya.">
       {sharing && <ShareSheet c={sharing} onClose={() => setSharing(null)} />}
       <ImpactCard />
+      <SusPrompt />
       {mine.length === 0 ? (
         <Empty
           icon={<Pavi size={44} mood="sleep" />}
@@ -160,6 +207,14 @@ export const MyReportsPage: React.FC = () => {
           );
         })
       )}
+      {guarded.length > 0 && <h2 className="pt-2 text-lg font-extrabold">Yang saya kawal</h2>}
+      {guarded.map((v) => (
+        <SnapCard key={v.case.id}>
+          <p className="truncate font-extrabold">{v.case.report.damageTypeLabel} · {v.case.report.segmentName}</p>
+          <StoryProgress state={v.case.state} closedInvalid={false} />
+          <Hourglass c={v.case as never} />
+        </SnapCard>
+      ))}
     </SnapPage>
   );
 };

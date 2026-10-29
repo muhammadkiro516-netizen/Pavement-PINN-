@@ -19,7 +19,7 @@ const CAMERA: Tab = { id: 'camera', label: 'Lapor', icon: <Glyph name="camera" s
 export const TABS_BY_ROLE: Partial<Record<UserRole, Tab[]>> = {
   PUBLIC_REPORTER: [
     { id: 'map', label: 'Peta', icon: <Glyph name="map" /> },
-    { id: 'myReports', label: 'Laporanku', icon: <Glyph name="list" /> },
+    { id: 'myReports', label: 'Kawal', icon: <Glyph name="list" /> },
     CAMERA,
     { id: 'notifications', label: 'Notifikasi', icon: <Glyph name="bell" /> },
     { id: 'profile', label: 'Profil', icon: <Glyph name="user" /> }

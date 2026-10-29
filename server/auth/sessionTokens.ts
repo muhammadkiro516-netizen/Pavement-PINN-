@@ -85,6 +85,11 @@ export class SessionSigner {
     }
   }
 
+  /** Keyed digest for public, non-secret codes (e.g. certificate verification). */
+  mac(text: string): string {
+    return createHmac("sha256", this.key).update(text).digest("hex");
+  }
+
   get maxAgeSeconds(): number {
     return this.ttlSeconds;
   }

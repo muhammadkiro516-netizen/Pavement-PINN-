@@ -1,0 +1,13 @@
+{
+  "note": "SPEC M8: quests are completed only by server-verified events. XP per day is capped and never negative. Editable by an admin.",
+  "dailyXpCap": 100,
+  "quests": [
+    { "id": "laporan_pertama", "title": "Laporan Pertama", "description": "Laporan pertama Anda diterima petugas.", "xp": 20, "rule": "verified", "target": 1 },
+    { "id": "mata_elang", "title": "Mata Elang", "description": "5 laporan dibenarkan petugas.", "xp": 50, "rule": "verified", "target": 5 },
+    { "id": "saksi_perbaikan", "title": "Saksi Perbaikan", "description": "Laporan Anda sudah diperbaiki.", "xp": 15, "rule": "repaired", "target": 1 },
+    { "id": "penjaga_janji", "title": "Penjaga Janji", "description": "Menjawab konfirmasi 3 atau 6 bulan setelah perbaikan.", "xp": 25, "rule": "confirmation36", "target": 1 },
+    { "id": "suara_bergaung", "title": "Suara Bergaung", "description": "Tautan laporan Anda dibuka 20 orang berbeda.", "xp": 30, "rule": "visits", "target": 20 },
+    { "id": "siaga_hujan", "title": "Siaga Hujan", "description": "3 laporan genangan terverifikasi pada November–Maret.", "xp": 40, "rule": "rainyWater", "target": 3 },
+    { "id": "pencatat_proyek", "title": "Pencatat Proyek", "description": "Data proyek yang Anda isi diverifikasi Koordinator.", "xp": 40, "rule": "projectVerified", "target": 1 }
+  ]
+}

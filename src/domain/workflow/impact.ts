@@ -62,3 +62,36 @@ export function citizenImpact(cases: ReportCase[], accountId: string): Impact {
     ]
   };
 }
+
+/** SPEC M8: quests from server-verified events only; XP capped per day, never negative. */
+export interface QuestDef { id: string; title: string; description: string; xp: number; rule: string; target: number }
+export interface QuestProgress { id: string; title: string; description: string; xp: number; progress: number; target: number; done: boolean; doneAt: string | null }
+export interface QuestEvents {
+  /** ISO dates of the account's reports first accepted by staff. */
+  verifiedAt: string[];
+  repairedAt: string[];
+  /** 3- or 6-month repair confirmations answered by the account. */
+  confirmation36At: string[];
+  /** Unique visitors of the account's share links (highest single report). */
+  visits: number;
+  /** Verified water (GENANGAN) reports filed November-March. */
+  rainyWaterAt: string[];
+  projectVerifiedAt: string[];
+}
+
+export function quests(defs: QuestDef[], ev: QuestEvents, dailyCap: number, now: Date = new Date()): { items: QuestProgress[]; xp: number } {
+  const series: Record<string, string[]> = { verified: ev.verifiedAt, repaired: ev.repairedAt, confirmation36: ev.confirmation36At, rainyWater: ev.rainyWaterAt, projectVerified: ev.projectVerifiedAt };
+  const items = defs.map((q) => {
+    if (q.rule === 'visits') {
+      const done = ev.visits >= q.target;
+      return { ...q, progress: Math.min(ev.visits, q.target), done, doneAt: done ? now.toISOString() : null };
+    }
+    const dates = [...(series[q.rule] ?? [])].sort();
+    const done = dates.length >= q.target;
+    return { id: q.id, title: q.title, description: q.description, xp: q.xp, target: q.target, progress: Math.min(dates.length, q.target), done, doneAt: done ? dates[q.target - 1] : null };
+  });
+  const perDay = new Map<string, number>();
+  for (const q of items) if (q.done && q.doneAt) perDay.set(q.doneAt.slice(0, 10), (perDay.get(q.doneAt.slice(0, 10)) ?? 0) + q.xp);
+  const xp = [...perDay.values()].reduce((s, v) => s + Math.min(dailyCap, Math.max(0, v)), 0);
+  return { items, xp };
+}

@@ -59,7 +59,7 @@ export const ROUTES: readonly RouteDefinition[] = [
   { id: 'track', path: '/lacak/:code/', title: 'Lacak Laporan', access: 'PUBLIC', kind: 'page' },
   { id: 'evidence', path: '/bukti/', title: 'Bukti & Transparansi', access: 'PUBLIC', kind: 'page' },
   { id: 'map', path: '/peta/', title: 'Peta', access: SIGNED_IN, kind: 'tab' },
-  { id: 'myReports', path: '/laporanku/', title: 'Laporanku', access: CITIZEN, kind: 'tab' },
+  { id: 'myReports', path: '/laporanku/', title: 'Kawal', access: CITIZEN, kind: 'tab' },
   { id: 'notifications', path: '/notifikasi/', title: 'Notifikasi', access: SIGNED_IN, kind: 'tab' },
   { id: 'tasks', path: '/tugas/', title: 'Tugas', access: ENGINEER, kind: 'tab' },
   { id: 'queue', path: '/antrian/', title: 'Antrian', access: COORDINATOR, kind: 'tab' },
