@@ -21,6 +21,7 @@ export const TABS_BY_ROLE: Partial<Record<UserRole, Tab[]>> = {
     { id: 'map', label: 'Peta', icon: <Glyph name="map" /> },
     { id: 'myReports', label: 'Kawal', icon: <Glyph name="list" /> },
     CAMERA,
+    { id: 'safety', label: 'Aman', icon: <Glyph name="layers" /> },
     { id: 'notifications', label: 'Notifikasi', icon: <Glyph name="bell" /> },
     { id: 'profile', label: 'Profil', icon: <Glyph name="user" /> }
   ],

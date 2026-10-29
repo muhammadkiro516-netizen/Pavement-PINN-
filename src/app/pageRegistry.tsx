@@ -12,6 +12,7 @@ import { MyReportsPage, NotificationsPage } from '../pages/lean/CitizenPages';
 import { StatsPage, TeamPage } from '../pages/lean/CoordinatorPages';
 import { EscalationsPage, ReportCardPage } from '../pages/lean/LeaderPages';
 import { ProfilePage } from '../pages/lean/ProfilePage';
+import { SafetyPage } from '../pages/lean/SafetyPage';
 import { EvidencePage } from '../pages/lean/EvidencePage';
 import { WorkOrdersPage } from '../pages/engineering/WorkOrdersPage';
 import { PinnIndexPage } from '../pages/operations/PinnIndexPage';
@@ -28,6 +29,7 @@ export const PAGE_COMPONENTS: Record<RouteId, PageComponent> = {
   map: MapPage,
   myReports: MyReportsPage,
   notifications: NotificationsPage,
+  safety: SafetyPage,
   tasks: WorkOrdersPage,
   queue: WorkOrdersPage,
   analysis: PinnIndexPage,

@@ -92,7 +92,7 @@ export function offlineFacts(lat: number, lng: number): PlaceFacts {
 
 // ---------------------------------------------------------------- network lookup (cached)
 
-const UA = "PAVEMENT-PINN/1.0 (road damage reporting pilot; contact: pavement-pinn@users.noreply.github.com)";
+export const UA = "PAVEMENT-PINN/1.0 (road damage reporting pilot; contact: pavement-pinn@users.noreply.github.com)";
 const CACHE_FILE = path.join(process.env.DATA_DIR || ".data", "geocode-cache.json");
 let cache: Record<string, { at: number; facts: PlaceFacts }> = {};
 try {

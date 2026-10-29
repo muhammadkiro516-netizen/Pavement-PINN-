@@ -40,6 +40,7 @@ import { AiPhotoScan } from './AiPhotoScan';
 import { LiveAiOverlay } from './LiveAiOverlay';
 import { useSpeedLock, SPEED_LIMIT_KMH } from '../location/speedLock';
 import { lastDeviceFix } from '../location/deviceLocation';
+import { enqueueReport } from './offlineQueue';
 import { CV_STAGE_LABELS, CvClientError, checkImageInput, normalizePhoto, runCvAnalysis } from './cvClient';
 
 /** Damage-type choice in step 3: from the model (with its taxonomy code) or picked by the reporter. */
@@ -862,6 +863,15 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
     const outcome = await settleMutation(onAddReport(newReport), newReport);
     setIsSubmitting(false);
     if (outcome.ok === false) {
+      if ((outcome as { code?: string }).code === 'NETWORK' || !navigator.onLine) {
+        try {
+          await enqueueReport(newReport);
+          setSubmitError('Tidak ada sinyal. Laporan disimpan di HP ini dan akan terkirim otomatis saat sinyal kembali (lihat tab Kawal).');
+        } catch {
+          setSubmitError((outcome as { error: string }).error);
+        }
+        return;
+      }
       setSubmitError((outcome as { error: string }).error);
       return;
     }

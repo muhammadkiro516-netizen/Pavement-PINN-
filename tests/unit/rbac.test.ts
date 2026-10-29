@@ -24,6 +24,7 @@ const EXPECTED: Record<RouteId, Row> = {
   map: [A, A, A, L],
   myReports: [F, F, A, L],
   notifications: [A, A, A, L],
+  safety: [F, F, A, L],
   tasks: [A, F, L, L],
   queue: [F, A, L, L],
   analysis: [A, A, L, L],
@@ -36,7 +37,7 @@ const EXPECTED: Record<RouteId, Row> = {
   profile: [A, A, A, L]
 };
 
-test('role x route matrix (17 routes x 3 roles + guest)', () => {
+test('role x route matrix (18 routes x 3 roles + guest)', () => {
   assert.deepEqual(ROUTES.map((r) => r.id).sort(), Object.keys(EXPECTED).sort());
   for (const route of ROUTES) {
     MATRIX_ROLES.forEach((role, i) => assert.equal(resolveRouteAccess(route, { role }), EXPECTED[route.id][i], `${route.id} as ${role}`));
