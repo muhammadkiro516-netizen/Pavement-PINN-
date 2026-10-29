@@ -1,0 +1,5 @@
+
+# Linux containers need LF line endings (Hugging Face Space, Docker)
+*.sh text eol=lf
+Dockerfile text eol=lf
+Caddyfile text eol=lf
