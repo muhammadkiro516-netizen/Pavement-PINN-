@@ -24,6 +24,7 @@ const EXPECTED: Record<RouteId, Row> = {
   uiCheck: [A, A, A, A],
   staffHome: [A, A, A, A],
   workCase: [A, A, A, A],
+  workModule: [A, A, A, A],
   publicCase: [A, A, A, A],
   why: [A, A, A, A],
   tour: [A, A, A, A],

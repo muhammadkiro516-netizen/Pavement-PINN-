@@ -21,6 +21,7 @@ export const PAGE_COMPONENTS: Record<RouteId, PageComponent> = {
   login: LoginPage,
   uiCheck: import.meta.env.DEV ? UiCheckPage : LandingPage,
   staffHome: StaffHomePage,
+  workModule: StaffHomePage,
   workCase: CasePage,
   publicCase: PublicTrackPage,
   why: WhyPage,
@@ -47,4 +48,4 @@ export const PAGE_COMPONENTS: Record<RouteId, PageComponent> = {
 };
 
 /** Pages shown without the shell's bottom bar. */
-export const STANDALONE_ROUTES: readonly RouteId[] = ['uiCheck', 'landing', 'login', 'track', 'evidence', 'staffHome', 'workCase', 'publicCase', 'why', 'tour', 'verify', 'verifyDoc'];
+export const STANDALONE_ROUTES: readonly RouteId[] = ['uiCheck', 'landing', 'login', 'track', 'evidence', 'staffHome', 'workModule', 'workCase', 'publicCase', 'why', 'tour', 'verify', 'verifyDoc'];

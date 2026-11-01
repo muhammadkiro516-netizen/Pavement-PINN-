@@ -9,11 +9,12 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
 const DATA = process.env.V5_DATA_DIR ?? '.data/v5-live';
 /** Written by scripts/v6-create-workspaces.ts; never committed. */
 const ACCESS: { id: string; code: string; pin: string }[] = JSON.parse(fs.readFileSync(`${DATA}/test-access.local.json`, 'utf8'));
-const WS = 'sudin-bm-jaktim';
+const WS = 'dpupr-karawang';
 const PERSON: Record<string, string> = { OM: `${WS}-om1`, OM2: `${WS}-om2`, FE: `${WS}-fe1`, FE2: `${WS}-fe2`, AUDITOR: `${WS}-auditor` };
 const accessOf = (who: string) => ACCESS.find((a) => a.id === PERSON[who])!;
 const SHOTS = 'test-results/screens';
-const AT = { latitude: -6.2006, longitude: 106.8574, accuracy: 8 };
+/** Karawang, where official 2026 prices exist, so the cost comparison shows real numbers. */
+const AT = { latitude: -6.3056, longitude: 107.3006, accuracy: 8 };
 
 const id = (page: Page, testId: string) => page.getByTestId(testId);
 
@@ -60,7 +61,7 @@ async function staffPage(browser: Browser, who: string, tab?: string): Promise<{
   await id(page, 'v6-pin-ok').click();
   await page.waitForURL(/kerja/);
   await expect(id(page, 'v5-role-name')).toBeVisible();
-  if (tab) await id(page, `v6-tab-${tab}`).click();
+  if (tab) await page.goto(`/kerja/m/${tab}/`);
   return { page, close: () => context.close() };
 }
 
@@ -96,6 +97,21 @@ test('golden path: report, route, assign, measure, approve, repair, supervise, c
   page.on('pageerror', (e) => errors.push(e.message));
   await liveCamera(context);
 
+  // The OM picks which of Karawang's two AC-WC lines applies. It is never averaged.
+  {
+    const { page: p, close } = await staffPage(browser, 'OM', 'cost');
+    await expect(id(p, 'v6-acwc-choice')).toBeVisible();
+    const pick = id(p, 'v6-acwc-pick-REG-003');
+    if (await pick.count()) {
+      await pick.click();
+      await confirmPin(p, 'OM');
+    }
+    await expect(id(p, 'v6-acwc-chosen')).toBeVisible();
+    await p.screenshot({ path: `${SHOTS}/om-buku-harga.png`, fullPage: true });
+    await close();
+  }
+
+  await context.setGeolocation(AT);
   // Citizen, no login, on the original screens.
   await page.goto('/beranda/');
   await page.getByRole('button', { name: 'Laporkan jalan rusak' }).first().click();
@@ -107,13 +123,14 @@ test('golden path: report, route, assign, measure, approve, repair, supervise, c
   await page.getByRole('button', { name: /ambil foto|potret/i }).first().click();
   await page.getByRole('button', { name: /gunakan|lanjut|pakai foto/i }).first().click({ timeout: 15_000 }).catch(() => undefined);
   await expect(id(page, 'road-owner')).toBeVisible({ timeout: 90_000 });
-  await expect(id(page, 'road-owner-office')).toContainText('Bina Marga');
+  await expect(id(page, 'road-owner-office')).toHaveText('Dinas PUPR Kabupaten Karawang');
+  await expect(id(page, 'road-owner-reason')).toContainText('Karawang');
   await page.screenshot({ path: `${SHOTS}/warga-2-hasil-ai.png`, fullPage: true });
   await page.getByRole('radio', { name: 'Sedang' }).or(page.getByRole('button', { name: 'Sedang' })).first().click();
   await page.getByRole('button', { name: 'Kirim laporan' }).click();
   await expect(id(page, 'report-code')).toBeVisible({ timeout: 60_000 });
   const code = (await id(page, 'report-code').innerText()).trim();
-  expect(code).toMatch(/^JKT-/);
+  expect(code).toMatch(/^KRW-/);
   await page.screenshot({ path: `${SHOTS}/warga-3-terkirim.png` });
 
   // Coordinator.
@@ -168,6 +185,29 @@ test('golden path: report, route, assign, measure, approve, repair, supervise, c
     for (const summary of await p.locator('summary', { hasText: 'Detail teknis' }).all()) await summary.click();
     await expect(p.getByText(/P10.P90/)).toBeVisible();
     await p.screenshot({ path: `${SHOTS}/petugas-3-detail-teknis.png`, fullPage: true });
+    // Material options side by side: official Karawang prices, life from the physics model.
+    await id(p, 'v6-compare-run').click();
+    await expect(id(p, 'v6-option-total-HOT_MIX_PATCH')).toContainText('Rp');
+    await expect(id(p, 'v6-option-total-CONCRETE_K350')).toContainText('Rp');
+    await expect(id(p, 'v6-option-missing-COLD_MIX_PATCH')).toContainText('Harga belum tersedia');
+    await expect(id(p, 'v6-compare-excluded')).toContainText('Belum termasuk upah dan alat');
+    await id(p, 'v6-submitted').fill('99000000');
+    await id(p, 'v6-submitted-option').selectOption('HOT_MIX_PATCH');
+    await id(p, 'v6-submitted-send').click();
+    await expect(id(p, 'v6-audit-result')).toContainText('Perlu klarifikasi');
+    await p.screenshot({ path: `${SHOTS}/fe-banding-opsi.png`, fullPage: true });
+    // AI findings: a person decides, and the case state does not move.
+    await expect(id(p, 'v6-ai-status-early-failure')).toHaveText('Belum diukur');
+    await id(p, 'v6-ai-accept-detection').click().catch(() => undefined);
+    const stateBefore = await id(p, 'v5-state-label').innerText();
+    await id(p, 'v6-ai-reject-duplicates').click();
+    await id(p, 'v6-ai-reason-duplicates').fill('Sudah saya cek di lokasi.');
+    await id(p, 'v6-ai-send-duplicates').click();
+    await expect(id(p, 'v6-ai-decided-duplicates')).toContainText('Ditolak');
+    await expect(id(p, 'v5-state-label')).toHaveText(stateBefore);
+    await id(p, 'v6-ai-draft').click();
+    await expect(id(p, 'v6-ai-draft-text')).toContainText('Disusun AI, perlu persetujuan', { timeout: 130_000 });
+    await p.screenshot({ path: `${SHOTS}/fe-bantuan-ai.png`, fullPage: true });
     await id(p, 'v5-rationale').fill('Lubang di jalur roda. Tambal sampai dasar.');
     await id(p, 'v5-propose-plan').click();
     await expect(id(p, 'v5-state-label')).toHaveText('Usulan penanganan disusun');
@@ -193,7 +233,7 @@ test('golden path: report, route, assign, measure, approve, repair, supervise, c
     await close();
   }
   {
-    const { page: p, close } = await staffPage(browser, 'OM2', 'APPROVER');
+    const { page: p, close } = await staffPage(browser, 'OM2', 'inbox');
     await openCase(p, code);
     await id(p, 'v5-reason').fill('Biaya dan ukuran sudah sesuai.');
     await p.screenshot({ path: `${SHOTS}/penyetuju-1-setujui.png`, fullPage: true });
@@ -247,7 +287,7 @@ test('golden path: report, route, assign, measure, approve, repair, supervise, c
 
   // Supervisor, then approver.
   {
-    const { page: p, close } = await staffPage(browser, 'FE2', 'SUPERVISOR');
+    const { page: p, close } = await staffPage(browser, 'FE2', 'work');
     await openCase(p, code);
     await shoot(p);
     await expect(id(p, 'v5-own-photo')).toBeVisible();
@@ -257,7 +297,7 @@ test('golden path: report, route, assign, measure, approve, repair, supervise, c
     await close();
   }
   {
-    const { page: p, close } = await staffPage(browser, 'OM2', 'APPROVER');
+    const { page: p, close } = await staffPage(browser, 'OM2', 'inbox');
     await openCase(p, code);
     await id(p, 'v5-reason').fill('Pengawas sudah memeriksa semua tahap.');
     await id(p, 'v6-pho-date').fill(new Date().toISOString().slice(0, 10));
@@ -280,7 +320,7 @@ test('golden path: report, route, assign, measure, approve, repair, supervise, c
   await page.screenshot({ path: `${SHOTS}/warga-4-kawal.png` });
   await page.goto(`/pantau/${code}/`);
   await expect(id(page, 'v5-state-label')).toHaveText('Diperbaiki — dipantau');
-  await expect(id(page, 'v6-handled-name')).toHaveText('Suku Dinas Bina Marga Jakarta Timur');
+  await expect(id(page, 'v6-handled-name')).toHaveText('Dinas PUPR Kabupaten Karawang');
   for (const m of ['M1', 'M3', 'M6', 'HEAVY_RAIN']) await expect(page.locator(`li[data-milestone="${m}"]`)).toBeVisible();
   await id(page, 'v5-still-fixed').click();
   await expect(id(page, 'v5-confirm')).toContainText('Masih bagus: 1');
@@ -310,6 +350,11 @@ test('golden path: report, route, assign, measure, approve, repair, supervise, c
     docId = (await id(p, 'v5-doc-id').innerText()).trim();
     const sha = (await id(p, 'v5-doc-hash').innerText()).trim();
     await p.screenshot({ path: `${SHOTS}/auditor-1-laporan.png`, fullPage: true });
+    await p.goto('/kerja/m/audit/');
+    await expect(id(p, 'v6-chain-status')).toContainText('Utuh');
+    await expect(id(p, 'v6-anomaly-COST_GAP').first()).toContainText('Perlu klarifikasi');
+    await expect(p.getByText(/korupsi|penipu|curang/i)).toHaveCount(0);
+    await p.screenshot({ path: `${SHOTS}/auditor-2-temuan.png`, fullPage: true });
     const bytes = await (await p.request.get(`/api/v5/documents/${docId}/pdf`)).body();
     expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
     await p.goto(`/v/${docId}/`);
@@ -342,11 +387,11 @@ test('golden path: report, route, assign, measure, approve, repair, supervise, c
 });
 
 test('Pimpinan and Admin open their own screens with their own accounts', async ({ browser }) => {
-  const head = await staffPage(browser, 'OM', 'AGENCY_HEAD');
+  const head = await staffPage(browser, 'OM', 'report');
   await expect(id(head.page, 'v5-head')).toContainText('Semua kasus');
   await head.page.screenshot({ path: `${SHOTS}/pimpinan-1-ringkasan.png` });
   await head.close();
-  const admin = await staffPage(browser, 'OM', 'ADMIN');
+  const admin = await staffPage(browser, 'OM', 'settings');
   await expect(id(admin.page, 'v5-admin')).toContainText('Peta jalan');
   await admin.page.screenshot({ path: `${SHOTS}/admin-1-data.png` });
   await admin.close();
@@ -365,7 +410,7 @@ test('a wrong code or PIN is refused, staff pages need a sign-in, Lock returns t
   await expect(id(page, 'v6-login-error')).toContainText('PIN salah');
   await page.screenshot({ path: `${SHOTS}/masuk-instansi.png` });
   const { page: p, close } = await staffPage(browser, 'OM');
-  await expect(id(p, 'v6-agency-name')).toContainText('Suku Dinas Bina Marga Jakarta Timur');
+  await expect(id(p, 'v6-agency-name')).toContainText('Dinas PUPR Kabupaten Karawang');
   await id(p, 'v6-lock').click();
   await p.waitForURL(/login/);
   await expect(id(p, 'v6-code')).toHaveCount(0);
@@ -379,7 +424,7 @@ test('a wrong code or PIN is refused, staff pages need a sign-in, Lock returns t
 });
 
 test('Team & Codes: the OM issues a code with a QR, the new person makes a PIN, and revoking locks them out', async ({ browser }) => {
-  const om = await staffPage(browser, 'OM', 'TEAM');
+  const om = await staffPage(browser, 'OM', 'team');
   await id(om.page, 'v6-staff-name').fill('Uji Staf Baru');
   await id(om.page, 'v6-staff-title').fill('Uji');
   await id(om.page, 'v6-staff-add').click();
@@ -412,13 +457,53 @@ test('Team & Codes: the OM issues a code with a QR, the new person makes a PIN, 
 });
 
 test('the Auditor reads the team and the login log, and cannot change them', async ({ browser }) => {
-  const auditor = await staffPage(browser, 'AUDITOR', 'TEAM');
+  const auditor = await staffPage(browser, 'AUDITOR', 'team');
   await expect(id(auditor.page, 'v6-team')).toContainText('Uji OM 1');
   await expect(id(auditor.page, 'v6-login-log')).toContainText('Masuk');
   await expect(id(auditor.page, 'v6-staff-add')).toHaveCount(0);
   await expect(auditor.page.locator('[data-testid^="v6-revoke-"]')).toHaveCount(0);
   await auditor.page.screenshot({ path: `${SHOTS}/auditor-log-masuk.png`, fullPage: true });
   await auditor.close();
+});
+
+test('every module opens for each role, and what is outside the role is not there', async ({ browser }) => {
+  const SEEN: Record<string, string[]> = {
+    OM: ['inbox', 'work', 'cost', 'monitor', 'report', 'audit', 'team', 'settings'],
+    FE: ['inbox', 'field', 'work', 'cost', 'monitor', 'report'],
+    AUDITOR: ['inbox', 'work', 'cost', 'monitor', 'report', 'audit', 'team', 'settings']
+  };
+  const HIDDEN: Record<string, string[]> = { OM: ['field'], FE: ['audit', 'team', 'settings'], AUDITOR: ['field'] };
+  for (const who of Object.keys(SEEN)) {
+    const { page: p, close } = await staffPage(browser, who);
+    const errors: string[] = [];
+    p.on('pageerror', (e) => errors.push(e.message));
+    await expect(id(p, 'v6-today-numbers')).toBeVisible();
+    await expect(id(p, 'v6-num-new')).not.toContainText('–');
+    await p.screenshot({ path: `${SHOTS}/${who.toLowerCase()}-hari-ini.png`, fullPage: true });
+    for (const m of SEEN[who]) {
+      await p.goto(`/kerja/m/${m}/`);
+      await expect(p.locator('.v5-page').first()).not.toContainText('Memuat…');
+      await expect(p.locator('body')).not.toContainText('Ada yang tidak berjalan');
+      await p.screenshot({ path: `${SHOTS}/${who.toLowerCase()}-${m}.png`, fullPage: true });
+    }
+    for (const m of HIDDEN[who]) await expect(p.locator(`[data-testid$="-${m}"].v6-nav-item`)).toHaveCount(0);
+    expect(errors).toEqual([]);
+    await close();
+  }
+});
+
+test('the desktop layout shows the side menu, and the phone shows five tabs at most', async ({ browser }) => {
+  const { page: p, close } = await staffPage(browser, 'OM');
+  await expect(p.locator('.v6-bottom .v6-nav-item')).toHaveCount(5);
+  await expect(id(p, 'v5-sign-out')).toBeInViewport({ ratio: 1 });
+  await p.screenshot({ path: `${SHOTS}/om-hp.png` });
+  await id(p, 'v6-tab-more').click();
+  await expect(id(p, 'v6-more-sheet')).toBeVisible();
+  await p.setViewportSize({ width: 1280, height: 800 });
+  await expect(p.locator('.v6-side')).toBeVisible();
+  await expect(p.locator('.v6-bottom')).toBeHidden();
+  await p.screenshot({ path: `${SHOTS}/om-desktop.png` });
+  await close();
 });
 
 test('road owner colours are really on the map', async ({ context, page }) => {

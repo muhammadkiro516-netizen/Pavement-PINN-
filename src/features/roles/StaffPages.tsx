@@ -9,7 +9,9 @@ import { ROAD_STATUS_WORD } from '../road-owner/RoadOwnerCard';
 import { v5, v6 } from './api';
 import { useV5 } from './context';
 import { AccessBadge, type Badge } from './TeamPanel';
-import { panelDuty } from '../../domain/v6/roles';
+import { panelDuty, type V6Role } from '../../domain/v6/roles';
+import { CaseAiPanel } from './CaseAi';
+import { CompareOptions } from './CostModule';
 import { Capture, DetectionView, apiUrl, type EvidenceView } from './Capture';
 import { FollowUps } from './TrackPages';
 import { Card, Chip, Confidence, ErrorNote, Ladder, RolePavi, TechDetails, dateOnly, roleWord, rupiah, useAction, useLoad, when, type ChipKind, type LadderView } from './ui';
@@ -54,27 +56,44 @@ const NEXT_STEP: Partial<Record<V5State, string>> = {
   REOPENED: 'Tugaskan inspeksi baru'
 };
 
-export function StaffHome() {
-  const { role, go } = useV5();
-  const queue = QUEUES[role];
-  const { data, error } = useLoad(() => v5<StaffCase[]>('/cases'), [role]);
-  if (role === 'AUDITOR') return <AuditorHome />;
-  if (role === 'AGENCY_HEAD') return <HeadHome />;
-  if (role === 'ADMIN') return <AdminHome />;
-  const rows = (data ?? []).filter((c) => queue?.states.includes(c.state as V5State));
+export type CaseScope = 'ACTION' | 'INBOX' | 'FIELD' | 'WORK' | 'ALL';
+
+const WORK_STATES: V5State[] = ['PLAN_PROPOSED', 'PLAN_APPROVED', 'WORK_ORDERED', 'IN_PROGRESS', 'WORK_SUBMITTED', 'WORK_VERIFIED'];
+
+/** Which cases a list shows for this person (§2.4): the OM sees all, the FE what is theirs. */
+function inList(c: StaffCase, scope: CaseScope, v6Role: V6Role | null, me: string | null): boolean {
+  const state = c.state as V5State;
+  const mineInspect = c.inspection?.inspectorAccountId === me;
+  const mineVerify = c.workOrder?.supervisorAccountId === me;
+  if (scope === 'ALL' || v6Role === 'CONTRACTOR') return true;
+  if (scope === 'WORK') {
+    if (!WORK_STATES.includes(state)) return false;
+    return v6Role !== 'FE' || mineInspect || mineVerify;
+  }
+  if (scope === 'FIELD') return mineInspect && ['INSPECTION_ASSIGNED', 'INSPECTION_VERIFIED', 'REOPENED', 'MONITORING'].includes(state);
+  if (scope === 'INBOX') return v6Role !== 'FE' ? V5_STATE_LABELS[state]?.open ?? false : mineInspect || mineVerify;
+  if (v6Role === 'AUDITOR') return true;
+  if (v6Role === 'OM') return [...QUEUES.COORDINATOR!.states, ...QUEUES.APPROVER!.states].includes(state);
+  return (mineInspect && ['INSPECTION_ASSIGNED', 'INSPECTION_VERIFIED', 'MONITORING', 'REOPENED'].includes(state)) || (mineVerify && state === 'WORK_SUBMITTED');
+}
+
+export function CaseList({ title, scope }: { title: string; scope: CaseScope }) {
+  const { role, v6Role, accountId, go } = useV5();
+  const { data, error } = useLoad(() => v5<StaffCase[]>('/cases'), []);
+  const rows = (data ?? []).filter((c) => inList(c, scope, v6Role, accountId));
   return (
-    <Card title={queue?.title} testId="v5-queue">
+    <Card title={title} testId="v5-queue">
       {error && <p>{error.message}</p>}
       {!data && !error && <p>Memuat…</p>}
-      {data && rows.length === 0 && <div className="v5-empty"><RolePavi role={role} mood="sleep" /><p>{queue?.empty}</p></div>}
+      {data && rows.length === 0 && <div className="v5-empty"><RolePavi role={role} mood="sleep" /><p>Belum ada yang perlu dikerjakan di sini.</p></div>}
       <ul className="v5-list">
         {rows.map((c) => (
           <li key={c.id} data-code={c.publicCode}>
             <button type="button" onClick={() => go(`/kerja/${c.id}`)} data-testid={`v5-open-${c.publicCode}`}>
               <span className="v5-row-between"><strong>{c.publicCode}</strong></span>
               <span>{stateWord(c)} · berikutnya: {NEXT_STEP[c.state as V5State] ?? 'tidak ada'}</span>
-              <span className="v5-caption">{c.routing?.officeName ?? 'Instansi belum ditentukan'}{c.routing && <> <Confidence level={c.routing.confidence} /></>}{c.routing?.confidence === 'LOW' && !c.ownershipConfirmed && <span className="v5-warn" data-testid="v6-confirm-owner-label"> · Konfirmasi kepemilikan</span>}</span>
-              {role === 'COORDINATOR' && <span className="v5-reasons" data-testid="v5-priority-reasons">Kenapa didahulukan: {c.priority.reasons.map((r) => reasonWord(r.text)).join(' · ') || 'belum ada tanda mendesak'}</span>}
+              <span className="v5-caption">{c.routing?.officeName ?? 'Instansi belum ditentukan'}{c.routing && <> <Confidence level={c.routing.confidence} /></>}{c.routing?.confidence === 'LOW' && !c.ownershipConfirmed && (c.state === 'TRIAGE' || c.state === 'ACCEPTED') && <span className="v5-warn" data-testid="v6-confirm-owner-label"> · Konfirmasi kepemilikan</span>}</span>
+              {v6Role === 'OM' && c.priority.reasons.length > 0 && <span className="v5-reasons" data-testid="v5-priority-reasons">Kenapa didahulukan: {c.priority.reasons.map((r) => reasonWord(r.text)).join(' · ')}</span>}
             </button>
           </li>
         ))}
@@ -90,7 +109,7 @@ export function CaseScreen({ id }: { id: string }) {
   if (!c) return <Card><p>Memuat…</p></Card>;
   return (
     <>
-      <button type="button" className="v5-link" onClick={() => go('/kerja/')}>Kembali ke antrian</button>
+      <button type="button" className="v5-link" onClick={() => go('/kerja/')}>Kembali</button>
       <Card testId="v5-case-head">
         <div className="v5-row-between">
           <div>
@@ -103,6 +122,8 @@ export function CaseScreen({ id }: { id: string }) {
                 <button type="button" className="v5-link" onClick={() => go(`/pantau/${c.publicCode}`)}>Lihat halaman publik</button>
       </Card>
       <ActionPanel c={c} onChange={(next) => { if (next) setData({ ...c, ...next }); reload(); }} />
+      <CompareOptions c={c} />
+      <CaseAiPanel caseId={c.id} />
       <CaseRecord c={c} />
     </>
   );
@@ -714,7 +735,7 @@ function AuditPanel({ c, onChange }: PanelProps) {
   );
 }
 
-function AuditorHome() {
+export function AuditorHome() {
   const { go } = useV5();
   const { data } = useLoad(() => v5<StaffCase[]>('/cases'));
   return (
@@ -729,7 +750,7 @@ function AuditorHome() {
   );
 }
 
-function HeadHome() {
+export function HeadHome() {
   const { go } = useV5();
   const { data } = useLoad(() => v5<{ totalCases: number; open: number; underWatch: number; levels: Record<string, number>; escalated: { id: string; publicCode: string; stateLabel: string; daysWaiting: number; level: string; office: string | null; delay: string | null }[]; overlaps: number }>('/dashboard/agency'));
   if (!data) return <Card><p>Memuat…</p></Card>;
@@ -755,7 +776,7 @@ function HeadHome() {
   );
 }
 
-function AdminHome() {
+export function AdminHome() {
   const { data, error } = useLoad(() => v5<{ registry: { version: string; attribution: string }; offices: { total: number; byStatus: Record<string, number>; list: { id: string; name: string; type: string; status: string }[] }; prices: { total: number; byStatus: Record<string, number>; list: { id: string; item: string; unit: string; priceIdr: number; region: string; status: string; source: string }[] }; wages: { ump: number; umkTodo: number }; note: string }>('/admin/overview'));
   if (error) return <Card><p>{error.message}</p></Card>;
   if (!data) return <Card><p>Memuat…</p></Card>;

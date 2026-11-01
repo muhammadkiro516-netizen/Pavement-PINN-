@@ -19,6 +19,8 @@ import { rateLimit } from '../middleware/rateLimit';
 import { deviceActor } from './staffAccounts';
 import { Workspaces } from '../v6/workspaces';
 import { checkReauth, registerV6Routes } from '../v6/routes';
+import { AiDecisionLog, registerV6Insights } from '../v6/insights';
+import { registerPriceRoutes } from '../v6/priceBook';
 import { PIN_ACTIONS } from '../../src/domain/v6/roles';
 import { sweepEscalations } from './escalationJob';
 import { canonicalize, sha256Hex, type ChainEvent, type ChainId } from './chain';
@@ -254,6 +256,8 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
   });
 
   registerV6Routes(router, { workspaces, store, sessions, actorOf, sendFail, qrFor });
+  registerPriceRoutes(router, { workspaces, store, actorOf, sendFail, dataDir: options.dataDir });
+  registerV6Insights(router, { workspaces, store, capture, decisions: new AiDecisionLog(path.join(options.dataDir, 'v6')), actorOf, sendFail, visible, caseNow });
 
   // Who can be assigned: staff only, no contact details.
   router.get('/api/v5/staff', (req, res) => {

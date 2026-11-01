@@ -51,6 +51,43 @@ function useMyCases(): { cases: PublicCase[] | null; failed: boolean } {
 
 const label = (state: string) => V5_STATE_LABELS[state as V5State]?.id ?? state;
 
+const BADGES = [
+  { need: 1, name: 'Pelapor Pertama' },
+  { need: 5, name: 'Penjaga Jalan' },
+  { need: 20, name: 'Pahlawan Jalan' }
+];
+
+/** Optional (docs/v6 §1): counted from this phone's real reports. A name is asked only for the certificate, and stays on the phone. */
+const Contribution: React.FC<{ count: number }> = ({ count }) => {
+  const [name, setName] = useState('');
+  const [show, setShow] = useState(false);
+  const next = BADGES.find((b) => count < b.need);
+  return (
+    <SnapCard>
+      <p className="font-extrabold">Kontribusi saya</p>
+      <p className="mt-1 text-sm text-[#D1D1D6]" data-testid="v6-contribution-count">{count} laporan dari HP ini{next ? `. ${next.need - count} lagi menuju ${next.name}.` : '.'}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {BADGES.map((b) => <span key={b.name} data-testid={count >= b.need ? `v6-badge-${b.need}` : undefined} className={`rounded-full px-3 py-1 text-xs font-bold ${count >= b.need ? 'bg-[#FFD60A] text-[#0B0D10]' : 'bg-white/5 text-[#6E6E73]'}`}>{b.name}</span>)}
+      </div>
+      {count >= 1 && (
+        <div className="mt-3">
+          <label className="block text-xs font-bold text-[#A1A1AA]">Nama untuk sertifikat
+            <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 h-11 w-full rounded-xl border border-[#2A2F37] bg-[#0B0D10] px-3 text-white" data-testid="v6-certificate-name" />
+          </label>
+          <button type="button" disabled={name.trim().length < 2} onClick={() => setShow(true)} className="mt-2 h-11 w-full cursor-pointer rounded-xl border border-[#2A2F37] text-sm font-bold disabled:opacity-50" data-testid="v6-certificate-make">Buat sertifikat</button>
+          {show && (
+            <div className="v6-badge mt-3" data-testid="v6-certificate">
+              <strong>Terima kasih, {name}</strong>
+              <span>telah mengirim {count} laporan jalan rusak lewat PavementPINN.</span>
+              <button type="button" onClick={() => window.print()} className="underline">Cetak</button>
+            </div>
+          )}
+        </div>
+      )}
+    </SnapCard>
+  );
+};
+
 export const CitizenReportsPage: React.FC<{ onOpen: (code: string) => void; onReport: () => void }> = ({ onOpen, onReport }) => {
   const { cases, failed } = useMyCases();
   return (
@@ -76,6 +113,7 @@ export const CitizenReportsPage: React.FC<{ onOpen: (code: string) => void; onRe
           </SnapCard>
         );
       })}
+      <Contribution count={cases?.length ?? 0} />
     </SnapPage>
   );
 };

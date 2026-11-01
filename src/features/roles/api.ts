@@ -3,7 +3,7 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 const TOKEN_KEY = 'pp-v5-session';
 
 export class V5ApiError extends Error {
-  constructor(message: string, readonly code: string, readonly rule?: string) {
+  constructor(message: string, readonly code: string, readonly rule?: string, readonly details?: { line: number; problem: string }[]) {
     super(message);
   }
 }
@@ -56,7 +56,7 @@ async function send<T>(url: string, body: unknown, pin?: string): Promise<T> {
       const typed = await askPin();
       if (typed) return send<T>(url, body, typed);
     }
-    throw new V5ApiError(json.error?.message ?? 'Ada yang tidak berjalan. Coba lagi.', json.error?.code ?? 'ERROR', json.error?.rule);
+    throw new V5ApiError(json.error?.message ?? 'Ada yang tidak berjalan. Coba lagi.', json.error?.code ?? 'ERROR', json.error?.rule, json.problems);
   }
   return json.data as T;
 }

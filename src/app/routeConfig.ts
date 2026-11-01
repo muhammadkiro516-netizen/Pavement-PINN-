@@ -18,6 +18,7 @@ export type RouteId =
   | 'login'
   | 'uiCheck'
   | 'staffHome'
+  | 'workModule'
   | 'workCase'
   | 'publicCase'
   | 'why'
@@ -67,6 +68,7 @@ export const ROUTES: readonly RouteDefinition[] = [
   { id: 'login', path: '/login/', title: 'Masuk', access: 'PUBLIC', kind: 'page' },
   { id: 'uiCheck', path: '/ui-check/', title: 'Semua Layar', access: 'PUBLIC', kind: 'page' },
   { id: 'staffHome', path: '/kerja/', title: 'Tugas', access: 'PUBLIC', kind: 'page' },
+  { id: 'workModule', path: '/kerja/m/:module/', title: 'Workspace', access: 'PUBLIC', kind: 'page' },
   { id: 'workCase', path: '/kerja/:id/', title: 'Kasus', access: 'PUBLIC', kind: 'page' },
   { id: 'publicCase', path: '/pantau/:code/', title: 'Perjalanan Laporan', access: 'PUBLIC', kind: 'page' },
   { id: 'why', path: '/why/', title: 'Kenapa Ini Penting', access: 'PUBLIC', kind: 'page' },

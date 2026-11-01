@@ -139,3 +139,37 @@ test('a transfer needs a decree, the target agency confirms, history moves with 
   assert.match(track.handledBy.reason, /SK Bupati 12\/2024/);
   assert.equal((await call('/api/v5/public/chain/prod/verify')).body.data.ok, true);
 });
+
+test('a price import is validated, OM only, asks for the PIN, and is one event in the audit chain', async () => {
+  const header = 'region_code,region_name,item_group,item_name_as_written,unit_as_written,price_idr,valid_year,source_doc';
+  const csv = `${header}
+3215,Kabupaten Karawang,asphalt,Cold Mix Kemasan,Kg,5000,2026,HSPK Uji`;
+  const bad = await call('/api/v6/prices/import', { token: tokens.karawang, body: { csv: `${header}
+3215,K,asphalt,Barang,Ember,0,2026,X`, fileName: 'x.csv' } });
+  assert.equal(bad.status, 400);
+  assert.ok(bad.body.problems.length >= 2);
+  const before = (await call('/api/v5/public/chain/prod/verify')).body.data;
+  const ok = await call('/api/v6/prices/import', { token: tokens.karawang, body: { csv, fileName: 'hspk.csv' } });
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  assert.equal(ok.body.data.rows, 1);
+  const after = (await call('/api/v5/public/chain/prod/verify')).body.data;
+  assert.equal(after.ok, true);
+  assert.equal(after.checked, before.checked + 1);
+  const prices = (await call('/api/v6/prices', { token: tokens.karawang })).body.data;
+  assert.ok(prices.rows.some((r: any) => r.nameAsWritten === 'Cold Mix Kemasan' && r.importedBy));
+  assert.equal(prices.imports[0].file, 'hspk.csv');
+});
+
+test('an AI decision is logged and never moves the case', async () => {
+  const made = await report(KARAWANG);
+  const c = (await inbox('karawang')).find((x) => x.publicCode === made.publicCode);
+  const findings = (await call(`/api/v6/cases/${c.id}/ai`, { token: tokens.karawang })).body.data;
+  assert.equal(findings.length, 12);
+  assert.equal(findings.find((f: any) => f.key === 'early-failure').status, 'NOT_MEASURED');
+  assert.equal((await call(`/api/v6/cases/${c.id}/ai/decisions`, { token: tokens.karawang, body: { key: 'duplicates', decision: 'REJECT', reason: '' } })).status, 400);
+  assert.equal((await call(`/api/v6/cases/${c.id}/ai/decisions`, { token: tokens.karawang, body: { key: 'duplicates', decision: 'REJECT', reason: 'Sudah dicek.' } })).status, 200);
+  const again = (await inbox('karawang')).find((x) => x.publicCode === made.publicCode);
+  assert.equal(again.state, c.state);
+  assert.equal(again.version, c.version);
+  assert.equal((await call(`/api/v6/cases/${c.id}/ai`, { token: tokens.jaktim })).status, 404, 'not another agency');
+});

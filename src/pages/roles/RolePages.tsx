@@ -10,31 +10,15 @@ import { V6_ROLE_NAMES, type V6Role } from '../../domain/v6/roles';
 import { ensureDeviceSession, lockSession, setPinAsker, signOutStaff, staffSessionActive, v5 } from '../../features/roles/api';
 import { TeamPanel } from '../../features/roles/TeamPanel';
 import { V5Context, useV5, type StaffPerson } from '../../features/roles/context';
-import { CaseScreen, StaffHome } from '../../features/roles/StaffPages';
+import { AdminHome, CaseScreen, HeadHome } from '../../features/roles/StaffPages';
+import { AuditModule, FieldModule, InboxModule, MODULES_BY_ROLE, MODULE_ICON, MODULE_LABEL, MonitorModule, ReportModule, SettingsModule, TodayModule, WorkModule, type ModuleId } from '../../features/roles/Modules';
+import { CostModule } from '../../features/roles/CostModule';
 import { TrackPage } from '../../features/roles/TrackPages';
 import { TourPage as Tour, VerifyPage as Verify, WhyPage as Why } from '../../features/roles/PublicPages';
 import { Card } from '../../features/roles/ui';
 import '../../features/roles/roles.css';
 
 interface Me { role: V5Role; accountId: string; displayName: string | null; v6Role: V6Role | null; agencyName: string | null }
-
-const DUTY_TABS: Partial<Record<V6Role, { id: string; duty: V5Role | null; label: string }[]>> = {
-  OM: [
-    { id: 'COORDINATOR', duty: 'COORDINATOR', label: 'Antrian' },
-    { id: 'APPROVER', duty: 'APPROVER', label: 'Setujui' },
-    { id: 'AGENCY_HEAD', duty: 'AGENCY_HEAD', label: 'Ringkasan' },
-    { id: 'ADMIN', duty: 'ADMIN', label: 'Data' },
-    { id: 'TEAM', duty: null, label: 'Tim & Kode' }
-  ],
-  FE: [
-    { id: 'FIELD_INSPECTOR', duty: 'FIELD_INSPECTOR', label: 'Tugasku' },
-    { id: 'SUPERVISOR', duty: 'SUPERVISOR', label: 'Periksa hasil' }
-  ],
-  AUDITOR: [
-    { id: 'AUDITOR', duty: 'AUDITOR', label: 'Temuan' },
-    { id: 'TEAM', duty: null, label: 'Log masuk' }
-  ]
-};
 
 const PinDialog: React.FC<{ onDone: (pin: string | null) => void }> = ({ onDone }) => {
   const [pin, setPin] = useState('');
@@ -52,12 +36,12 @@ const PinDialog: React.FC<{ onDone: (pin: string | null) => void }> = ({ onDone 
   );
 };
 
-const Provider: React.FC<{ staffOnly?: boolean; children: React.ReactNode }> = ({ staffOnly = false, children }) => {
+const Provider: React.FC<{ staffOnly?: boolean; module?: ModuleId; children: React.ReactNode }> = ({ staffOnly = false, module, children }) => {
   const { navigate } = useRouter();
   const [ready, setReady] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
   const [staff, setStaff] = useState<StaffPerson[]>([]);
-  const [tab, setTab] = useState<string | null>(null);
+  const [more, setMore] = useState(false);
   const [pinRequest, setPinRequest] = useState<((pin: string | null) => void) | null>(null);
 
   useEffect(() => {
@@ -90,29 +74,38 @@ const Provider: React.FC<{ staffOnly?: boolean; children: React.ReactNode }> = (
 
   const signOut = useCallback(() => { signOutStaff(); navigate('/login/'); }, [navigate]);
   const lock = useCallback(() => { void lockSession().then(() => navigate('/login/')); }, [navigate]);
-  const tabs = me?.v6Role ? DUTY_TABS[me.v6Role] ?? [] : [];
-  const current = tabs.find((t) => t.id === tab) ?? tabs[0];
+  const modules = me?.v6Role ? MODULES_BY_ROLE[me.v6Role] : [];
   const value = useMemo(() => ({
-    role: (current?.duty ?? me?.role ?? 'CITIZEN') as V5Role,
+    role: (me?.role ?? 'CITIZEN') as V5Role,
     v6Role: me?.v6Role ?? null,
     accountId: me?.accountId ?? null,
     staff,
     signOut,
     go: (to: string) => navigate(to)
-  }), [current, me, staff, signOut, navigate]);
+  }), [me, staff, signOut, navigate]);
+  const open = (m: ModuleId) => { setMore(false); navigate(m === 'today' ? '/kerja/' : `/kerja/m/${m}/`); };
+  const NavButton = (m: ModuleId, place: string) => (
+    <button key={`${place}-${m}`} type="button" className={`v6-nav-item${m === module ? ' v6-nav-on' : ''}`} onClick={() => open(m)} aria-current={m === module ? 'page' : undefined} data-testid={`v6-${place}-${m}`}>
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.800" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={MODULE_ICON[m]} /></svg>
+      <span>{MODULE_LABEL[m]}</span>
+    </button>
+  );
 
   return (
     <V5Context.Provider value={value}>
       <div className="v5-shell">
         <Top me={me} lock={lock} />
-        {tabs.length > 1 && (
-          <nav className="v5-tabs" aria-label="Bagian kerja">
-            {tabs.map((t) => (
-              <button key={t.id} type="button" className={`v5-tab${t.id === current?.id ? ' v5-tab-on' : ''}`} onClick={() => { setTab(t.id); navigate('/kerja/'); }} data-testid={`v6-tab-${t.id}`}>{t.label}</button>
-            ))}
+        <div className={modules.length > 1 ? 'v6-layout' : undefined}>
+          {modules.length > 1 && <nav className="v6-side" aria-label="Menu workspace">{modules.map((m) => NavButton(m, 'side'))}</nav>}
+          <main className="v5-page">{ready ? children : <Card><p>Memuat…</p></Card>}</main>
+        </div>
+        {modules.length > 1 && (
+          <nav className="v6-bottom" aria-label="Menu workspace">
+            {modules.slice(0, modules.length > 5 ? 4 : 5).map((m) => NavButton(m, 'tab'))}
+            {modules.length > 5 && <button type="button" className={`v6-nav-item${modules.indexOf(module ?? 'today') >= 4 ? ' v6-nav-on' : ''}`} onClick={() => setMore(!more)} data-testid="v6-tab-more"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.800" /><circle cx="12" cy="12" r="1.800" /><circle cx="19" cy="12" r="1.800" /></svg><span>Lainnya</span></button>}
           </nav>
         )}
-        <main className="v5-page">{!ready ? <Card><p>Memuat…</p></Card> : current && current.duty === null ? <TeamPanel /> : children}</main>
+        {more && <div className="v6-more" data-testid="v6-more-sheet">{modules.slice(4).map((m) => NavButton(m, 'more'))}</div>}
       </div>
       {pinRequest && <PinDialog onDone={(pin) => { pinRequest(pin); setPinRequest(null); }} />}
     </V5Context.Provider>
@@ -138,8 +131,29 @@ const Top: React.FC<{ me: Me | null; lock: () => void }> = ({ me, lock }) => {
 };
 
 type Params = { params: Record<string, string> };
-export const StaffHomePage: React.FC<Params> = () => <Provider staffOnly><StaffHome /></Provider>;
-export const CasePage: React.FC<Params> = ({ params }) => <Provider staffOnly><CaseScreen id={params.id} /></Provider>;
+const ModuleView: React.FC<{ module: ModuleId }> = ({ module }) => {
+  const { v6Role } = useV5();
+  // A module outside this person's role is not there at all (§2.4).
+  if (!v6Role || !MODULES_BY_ROLE[v6Role].includes(module)) return <TodayModule />;
+  switch (module) {
+    case 'inbox': return <InboxModule />;
+    case 'field': return <FieldModule />;
+    case 'work': return <WorkModule />;
+    case 'cost': return <CostModule />;
+    case 'monitor': return <MonitorModule />;
+    case 'report': return <ReportModule head={v6Role === 'FE' ? null : <HeadHome />} />;
+    case 'audit': return <AuditModule />;
+    case 'team': return <TeamPanel />;
+    case 'settings': return <SettingsModule admin={<AdminHome />} />;
+    default: return <TodayModule />;
+  }
+};
+
+export const StaffHomePage: React.FC<Params> = ({ params }) => {
+  const module = (params.module ?? 'today') as ModuleId;
+  return <Provider staffOnly module={module}><ModuleView module={module} /></Provider>;
+};
+export const CasePage: React.FC<Params> = ({ params }) => <Provider staffOnly module="inbox"><CaseScreen id={params.id} /></Provider>;
 export const PublicTrackPage: React.FC<Params> = ({ params }) => <Provider><TrackPage code={params.code} /></Provider>;
 export const WhyPage: React.FC<Params> = () => <Provider><Why /></Provider>;
 export const TourPage: React.FC<Params> = () => <Provider><Tour /></Provider>;
