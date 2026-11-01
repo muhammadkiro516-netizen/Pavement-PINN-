@@ -45,9 +45,14 @@ async function refresh() {
   if (reply?.success && source && visible) source.setData(reply.data);
 }
 
-export function attachRoadOwners(map: maplibregl.Map, beforeId?: string) {
+// A style change drops the layers but keeps the map's listeners, so listeners bind only once.
+const bound = new WeakSet<maplibregl.Map>();
+
+export function attachRoadOwners(map: maplibregl.Map) {
   if (map.getSource(SOURCE)) return;
   attached = map;
+  const firstTime = !bound.has(map);
+  bound.add(map);
   map.addSource(SOURCE, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   for (const [confidence, dash] of Object.entries(DASH)) {
     const id = `${SOURCE}-${confidence}`;
@@ -63,13 +68,15 @@ export function attachRoadOwners(map: maplibregl.Map, beforeId?: string) {
         'line-opacity': confidence === 'LOW' ? 0.75 : 0.95,
         ...(dash ? { 'line-dasharray': dash } : {})
       }
-    }, beforeId);
-    map.on('click', id, (e) => {
-      const p = e.features?.[0]?.properties as RoadOwnerTap | undefined;
-      if (p) onTap?.({ name: p.name && p.name !== 'null' ? p.name : null, status: p.status, confidence: p.confidence });
     });
+    if (firstTime) {
+      map.on('click', id, (e) => {
+        const p = e.features?.[0]?.properties as RoadOwnerTap | undefined;
+        if (p) onTap?.({ name: p.name && p.name !== 'null' ? p.name : null, status: p.status, confidence: p.confidence });
+      });
+    }
   }
-  map.on('moveend', () => void refresh());
+  if (firstTime) map.on('moveend', () => void refresh());
   void refresh();
 }
 

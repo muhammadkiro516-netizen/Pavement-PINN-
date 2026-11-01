@@ -23,8 +23,26 @@ test('road owner colours on the map, with a plain legend', async ({ page }) => {
   await page.getByTestId('owners-toggle').click();
   await expect(page.getByTestId('owners-legend')).toContainText('Provinsi');
   await page.waitForTimeout(7000);
-  await page.screenshot({ path: `${OUT}/peta-pemilik-jalan.png` });
+  const shot = await page.screenshot({ path: `${OUT}/peta-pemilik-jalan.png` });
   await expect(page.getByTestId('owners-legend')).toContainText('Ketuk jalan');
+  // The roads must really be coloured: count provincial-orange pixels below the legend.
+  const orange = await page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const g = canvas.getContext('2d')!;
+    g.drawImage(img, 0, 0);
+    const top = Math.round(img.height * 0.32);
+    const bottom = Math.round(img.height * 0.68);
+    const { data } = g.getImageData(0, top, img.width, bottom - top);
+    let n = 0;
+    for (let i = 0; i < data.length; i += 4) if (data[i] > 200 && data[i + 1] > 70 && data[i + 1] < 140 && data[i + 2] < 90) n++;
+    return n;
+  }, shot.toString('base64'));
+  expect(orange).toBeGreaterThan(150);
   expect(errors).toEqual([]);
 });
 
