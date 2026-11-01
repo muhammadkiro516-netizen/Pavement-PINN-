@@ -132,6 +132,38 @@ export interface EvidenceRef {
   captureTrust: CaptureTrust;
   /** Present on sample photos: "SAMPLE:<id>". */
   demoSource?: string | null;
+  /** Typed with a work stage: temperature, thickness, ticket, passes. */
+  values?: Record<string, unknown> | null;
+}
+
+/** Neutral flag on a case. Never on a person (07 §13). `text` comes from the wording library. */
+export interface V5Flag {
+  id: string;
+  code: string;
+  wordingId: string;
+  text: string;
+  note: string;
+  createdByRole: string;
+  createdAt: string;
+  state: 'OPEN' | 'RESPONDED' | 'WITHDRAWN';
+}
+
+export interface V5PinnRun {
+  id: string;
+  status: 'COMPUTED' | 'PINN_UNAVAILABLE';
+  reason?: string;
+  esalYear?: number;
+  roadClass?: string;
+  lifeMonths?: { p10: number; p50: number; p90: number };
+  verdict?: string;
+  title?: string;
+  confidence?: string;
+  samples?: number;
+  solver?: string;
+  device?: string;
+  hostLabel?: string;
+  repairOptions?: string[];
+  ranAt?: string;
 }
 
 export type RoutingConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
@@ -258,6 +290,15 @@ export interface V5Case {
   underTechnicalReview: boolean;
   mergedIntoCaseId: string | null;
   warrantyFlag: boolean;
+  note: string | null;
+  flags: V5Flag[];
+  pinnRun: V5PinnRun | null;
+  /** Latest fair-cost output (06 §9). Every run is also an event; older runs stay in the log. */
+  costRun: Record<string, any> | null;
+  /** Declared by the crew: never trusted, compared with measurements. */
+  declared: { areaCm2: number | null; thicknessMm: number | null; tonnageKg: number | null; reportedSpendIdr: number | null } | null;
+  /** DEMO only: days added by the labelled fast-forward button. The log keeps real time. */
+  demoClockDays: number;
 }
 
 export const OPEN_STATES: readonly V5State[] = V5_STATES.filter((s) => V5_STATE_LABELS[s].open);
@@ -290,6 +331,12 @@ export function blankCase(fields: Pick<V5Case, 'id' | 'publicCode' | 'isDemo' | 
     transferPending: null,
     underTechnicalReview: false,
     mergedIntoCaseId: null,
-    warrantyFlag: false
+    warrantyFlag: false,
+    note: null,
+    flags: [],
+    pinnRun: null,
+    costRun: null,
+    declared: null,
+    demoClockDays: 0
   };
 }

@@ -113,6 +113,7 @@ export class EventChain {
   private head = new Map<ChainId, { seq: number; hash: string }>();
   private readonly privateKey: KeyObject;
   readonly publicKey: KeyObject;
+  get signingKey(): KeyObject { return this.privateKey; }
   private readonly logPepper: string;
 
   constructor(private readonly dir: string) {

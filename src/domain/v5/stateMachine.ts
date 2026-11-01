@@ -13,7 +13,7 @@ export const MIN_REASON_CHARS = 10;
 const MAX_TEXT = 1000;
 
 /** Damage classes that cannot be sized without a ruler photo and a typed depth (FI-2.1). */
-const DEPTH_REQUIRED_CLASSES = ['POTHOLE', 'RUTTING', 'DEPRESSION'];
+const DEPTH_REQUIRED_CLASSES = ['POTHOLE', 'RUTTING_DEPRESSION'];
 
 /** Hard gates of the patching checklist (08 §2.1). */
 export const PERMANENT_HARD_STAGES = ['BEFORE', 'CUT_EDGES', 'CLEAN_DRY', 'TACK_COAT', 'DELIVERY_TICKET', 'MIX_TEMP_TRUCK', 'MIX_TEMP_MAT', 'COMPACTION', 'AFTER'] as const;
@@ -128,6 +128,12 @@ function evidenceOf(cmd: V5Command): EvidenceRef[] {
   return Array.isArray(cmd.evidence) ? (cmd.evidence as EvidenceRef[]) : [];
 }
 
+/** Adds evidence, keeping one copy of a photo that was already saved stage by stage. */
+function mergeEvidence(existing: readonly EvidenceRef[], added: readonly EvidenceRef[]): EvidenceRef[] {
+  const ids = new Set(existing.map((e) => e.id));
+  return [...existing, ...added.filter((e) => !ids.has(e.id))];
+}
+
 function stagesOf(items: readonly EvidenceRef[]): Set<string> {
   return new Set(items.filter((e) => e.kind === 'WORK_STAGE' && e.stage).map((e) => e.stage as string));
 }
@@ -228,7 +234,8 @@ function applyPayload(c: V5Case, cmd: V5Command, ctx: CommandContext): { patch: 
         if (!isPosInt(cmd.depthMmTyped)) return fail('VALIDATION', 'Type the depth in mm, as read from the ruler.');
       }
       if (cmd.verdict !== 'NOT_FOUND' && (!isPosInt(cmd.lengthMm) || !isPosInt(cmd.widthMm))) return fail('VALIDATION', 'Enter the length and width in mm.');
-      const hasMarker = evidence.some((e) => e.kind === 'MARKER_NADIR');
+      // The server sets markerDetected from the photo itself; a photo with no card gives no scale.
+      const hasMarker = evidence.some((e) => e.kind === 'MARKER_NADIR') && cmd.markerDetected !== false;
       const lengthMm = cmd.lengthMm as number;
       const widthMm = cmd.widthMm as number;
       const areaCm2 = cmd.verdict === 'NOT_FOUND' ? 0 : Math.round((lengthMm * widthMm) / 100);
@@ -307,10 +314,10 @@ function applyPayload(c: V5Case, cmd: V5Command, ctx: CommandContext): { patch: 
       const stages = stagesOf(evidence);
       const missing = START_WORK_STAGES.filter((s) => !stages.has(s));
       if (missing.length > 0) return fail('VALIDATION', `Add these photos first: ${missing.join(', ')}.`);
-      return { patch: { evidence: [...c.evidence, ...evidence] }, payload: { stages: [...stages] } };
+      return { patch: { evidence: mergeEvidence(c.evidence, evidence) }, payload: { stages: [...stages] } };
     }
     case 'SUBMIT_WORK_EVIDENCE': {
-      const all = [...c.evidence, ...evidence];
+      const all = mergeEvidence(c.evidence, evidence);
       const stages = stagesOf(all);
       const required = c.workOrder?.category === 'TEMPORARY' ? TEMPORARY_HARD_STAGES : PERMANENT_HARD_STAGES;
       const missing = required.filter((s) => !stages.has(s));

@@ -164,7 +164,7 @@ before(async () => {
   const app = express();
   app.use(express.json());
   const router = express.Router();
-  httpStore = registerV5Routes(router, { dataDir: tmp(), demoMode: true });
+  httpStore = registerV5Routes(router, { dataDir: tmp(), demoMode: true, seed: false }).store;
   app.use(router);
   await new Promise<void>((resolve) => { server = app.listen(0, '127.0.0.1', () => resolve()); });
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -223,7 +223,8 @@ test('API: an auditor is read-only, and a citizen cannot read the full case', as
   assert.equal(refused.body.error.rule, 'SOD-8');
   const events = await call(`/api/v5/cases/${c.id}/events`, { token: auditor });
   assert.equal(events.status, 200);
-  assert.ok(events.body.data.length >= 1);
+  assert.ok(events.body.data.events.length >= 1);
+  assert.equal(events.body.data.verify.ok, true);
   const device = await call('/api/v5/session/device', { body: {} });
   assert.equal((await call(`/api/v5/cases/${c.id}`, { token: device.body.data.token })).status, 403);
 });
