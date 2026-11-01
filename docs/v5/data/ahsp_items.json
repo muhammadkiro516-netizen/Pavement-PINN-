@@ -1,0 +1,247 @@
+{
+  "$comment": "AHSP Bina Marga item catalogue for the PAVEMENT-PINN fair-cost engine. Official coefficients have NOT been retrieved: every official coefficient is null with status TODO_VERIFY and the sheet to fetch. Coefficients found in published studies are kept separately under reference_coefficients with status ASSUMED and must never be shown as official. See 06_COST_ENGINE.md.",
+  "version": "2026-11-01.1",
+  "statuses": {
+    "OFFICIAL": "Taken from the regulation or SE sheet itself.",
+    "ASSUMED": "From a published study or another region/year; used only as a labelled proxy.",
+    "TODO_VERIFY": "Not yet retrieved; source_to_fetch names the document."
+  },
+
+  "method": {
+    "regulation": "Permen PUPR No. 8 Tahun 2023 (Pedoman Penyusunan Perkiraan Biaya Pekerjaan Konstruksi)",
+    "technical_annex": "SE Dirjen Bina Konstruksi No. 30/SE/Dk/2025, Lampiran V (AHSP Bidang Bina Marga) - replaces SE 73/2023 annexes",
+    "annex_facts": {
+      "non_jbh_sheets": "1664 -> 1723",
+      "jbh_sheets": "449 -> 469",
+      "tabel_A2d_berat_isi_campuran_beraspal_rows": "13 -> 9",
+      "tabel_A10_bucket_factor": "no longer used",
+      "changes": ["F.40 (AC-WC NR) removed", "AC-BC / AC-Base Asb Murni added", "Fog Seal D.1-D.3 emulsion coefficients changed", "'kadar aspal minimum tidak disarankan'", "Lampiran VII now refers to Perpres 180/2024 and Permen PU 1/2024"],
+      "source": "Kaltim DPUPR-PERA training 'Pengantar Permen PUPR 08/23 & SE Dirjen Binkons 30/25' https://sibikon-dpuprpera.kaltimprov.go.id/download-materi-acara/PengantarPermenPUPR0823_SEDirjenBinkons3025",
+      "status": "OFFICIAL (secondary: official training deck)"
+    },
+    "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V Excel - simantu.pu.go.id / binakonstruksi.pu.go.id / bit.ly/SEDJBKAHSP (per note 06)",
+    "formula": "HSP = (sum(labor_coef*wage) + sum(material_coef*price) + sum(equipment_coef*rate)) * (1 + OHP); estimate = sum(HSP_i * Q_i) + SMKK; total = estimate * (1 + PPN_eff)"
+  },
+
+  "parameters": {
+    "ohp_default": { "value": 0.10, "status": "OFFICIAL", "source": "SE Dirjen Bina Marga No. 01/SE/Db/2019 (10% cap for Bina Marga items) as cited in Kaltim training (SE 30/25); both academic RABs used 10%" },
+    "ohp_max": { "value": 0.15, "status": "OFFICIAL", "source": "Permen PUPR 8/2023 Pasal 11(3): 'dihitung sebesar 10% hingga 15% dari biaya langsung'", "note": "Conflict with the 10% cap in Bina Marga training. Engine: default 10%, admin may set up to 15%; any HPS > 15% flagged non-compliant." },
+    "ohp_lump_sum": { "value": 0.0, "status": "OFFICIAL", "source": "Permen PUPR 8/2023 Pasal 4(3) (lump-sum unit prices exclude biaya tidak langsung), quoted in Kaltim training materi-8" },
+    "ppn_nominal": { "value": 0.12, "status": "OFFICIAL", "source": "PMK 131/2024 (from 1 Jan 2025), via DDTCNews 2 Jan 2025" },
+    "ppn_dpp_factor": { "value": 0.9166666667, "expr": "11/12", "status": "OFFICIAL", "source": "PMK 131/2024 Pasal 3 (DPP nilai lain for non-luxury goods/services)" },
+    "ppn_effective": { "value": 0.11, "status": "OFFICIAL", "source": "12% x 11/12 = 11% (DDTCNews 2 Jan 2025)", "note": "Article does not explicitly mention jasa konstruksi / government procurement; a 2026 'PMK omnibus' revised DPP nilai lain rules - content not fetched (TODO_VERIFY)." },
+    "working_days_per_month": { "value": 25, "status": "OFFICIAL", "source": "Lampiran Permen PUPR 1/2022 (AHSP Bidang Umum); AHSP Bina Marga Bagian III says 24-26" },
+    "effective_hours_per_day": { "value": 7, "status": "OFFICIAL", "source": "Lampiran Permen PUPR 1/2022 (8 h minus 1 h rest)" },
+    "wage_basis": { "rule": "UMP or UMK 'di luar pajak' = upah pokok + tunjangan; hourly rate at least UMP/175", "status": "OFFICIAL", "source": "Permen PUPR 8/2023 Pasal 7(1)(a)-(3); Lampiran Permen PUPR 1/2022 formula (1)" },
+    "equipment_management_factor": { "max": 0.83, "typical_range": [0.65, 0.83], "status": "OFFICIAL", "source": "Kaltim training materi-8 (50 effective minutes per hour)" },
+    "modified_hotmix_fuel_factor": { "value": 1.5, "status": "OFFICIAL", "source": "Kaltim training materi-8 ('about 1.5x the fuel of normal hot mix')" },
+    "smkk": { "rule": "paid as a separate pokok pekerjaan", "status": "OFFICIAL", "source": "Permen PUPR 8/2023 Pasal 15(2); Permen PUPR 10/2021" }
+  },
+
+  "crew_rules": {
+    "pekerja_per_mandor_mechanized": { "value": 10, "status": "OFFICIAL", "source": "Lampiran Permen PUPR 1/2022" },
+    "pekerja_per_mandor_manual_max": { "value": 20, "status": "OFFICIAL", "source": "Lampiran Permen PUPR 1/2022" },
+    "kepala_tukang_share_of_tukang_max": { "value": 0.10, "status": "OFFICIAL", "source": "Lampiran Permen PUPR 1/2022 ('about 10%')" },
+    "max_pekerja_mechanized": { "value": 10, "status": "OFFICIAL", "source": "Lampiran Permen PUPR 1/2022" },
+    "max_people_per_machine": { "value": 2, "status": "OFFICIAL", "source": "Permen PUPR 8/2023 Pasal 5(5) (operator + helper)" },
+    "rule": "Crew-hours come from coefficients x quantity, not fixed headcounts."
+  },
+
+  "labor_codes": [
+    { "code": "L.01", "name": "Pekerja" },
+    { "code": "L.02", "name": "Tukang" },
+    { "code": "L.03", "name": "Kepala tukang" },
+    { "code": "L.04", "name": "Mandor" },
+    { "code": "L.07", "name": "Mekanik alat berat" },
+    { "code": "L.08", "name": "Operator alat berat" },
+    { "code": "L.09", "name": "Pembantu operator" },
+    { "code": "L.10", "name": "Supir truk" },
+    { "code": "L.11", "name": "Kenek truk" }
+  ],
+  "labor_codes_source": "Lampiran Permen PUPR 1/2022 (Wonosobo copy) https://disperkimhub.wonosobokab.go.id/media/upload/20220608095058_847.pdf",
+
+  "item_list_source": {
+    "title": "AHSP Bidang Bina Marga Bagian III (item list aligned to Spesifikasi Umum 2018 Revisi 2), hosted by Disperkimhub Wonosobo, uploaded 2022-06-08",
+    "url": "https://disperkimhub.wonosobokab.go.id/media/upload/20220608095209_847.pdf",
+    "caveat": "The file does not state its Permen number (companion file is Lampiran Permen PUPR 1/2022). Codes may have been renumbered/added by Permen 8/2023 + SE 73/2023 / SE 30/2025 - every code has code_status TODO_VERIFY until checked against SE 30/2025 Lampiran V. The source lists 11.1.(4) twice (Timbunan Pilihan pada Lereng and LPA Kelas A) - numbering error in the source.",
+    "divisions": { "1": "Umum", "2": "SMKK", "3": "Drainase", "4": "Pekerjaan Tanah & Geosintetik", "5": "Pekerjaan Preventif", "6": "Perkerasan Berbutir & Beton Semen", "7": "Perkerasan Aspal", "8": "Struktur", "9": "Rehabilitasi Jembatan", "10": "Pekerjaan Harian & Lain-lain", "11": "Pekerjaan Pemeliharaan" },
+    "spec_note": "Cite Spesifikasi Umum 2018 Rev 2 Divisi 11 (Pemeliharaan) / Seksi 11.1 - NOT 'Divisi 8 Pengembalian Kondisi' (Spec 2010 Rev 3 name)."
+  },
+
+  "items": [
+    {
+      "code": "11.1.(9)", "name": "Perbaikan Campuran Aspal Panas", "name_en": "Hot-mix asphalt patching", "unit": "m3", "division": "11",
+      "engine_role": "PRIMARY pothole item (payable = compacted repaired volume)",
+      "code_status": "TODO_VERIFY",
+      "coefficients": { "labor": null, "material": null, "equipment": null },
+      "coefficient_status": "TODO_VERIFY",
+      "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V, sheet for item 11.1.(9)",
+      "open_questions": ["Does the analysis include saw-cutting, excavation, cleaning and tack coat, or are they separate items? (decides whether the engine adds them)", "Loss factor (faktor kehilangan) and berat isi used inside the sheet"],
+      "reference_coefficients": []
+    },
+    {
+      "code": "11.1.(10)", "name": "Perbaikan Campuran Aspal Panas dengan Asbuton", "unit": "m3", "division": "11",
+      "engine_role": "alternative patching item", "code_status": "TODO_VERIFY",
+      "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V", "reference_coefficients": []
+    },
+    {
+      "code": "11.1.(11)", "name": "Perbaikan Asbuton Campuran Panas Hampar Dingin (CPHMA)", "name_en": "CPHMA cold-laid patching", "unit": "m3", "division": "11",
+      "engine_role": "cold-mix / CPHMA patching (semi-permanent)", "code_status": "TODO_VERIFY",
+      "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V", "reference_coefficients": []
+    },
+    {
+      "code": "11.1.(12)", "name": "Perbaikan Lapis Penetrasi Macadam Tanpa/dengan Asbuton", "unit": "m3", "division": "11",
+      "engine_role": "not used in v1", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V"
+    },
+    {
+      "code": "11.1.(13)", "name": "Residu Bitumen untuk Pemeliharaan", "unit": "liter", "division": "11",
+      "engine_role": "possible tack/bitumen line for maintenance packages", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V"
+    },
+    {
+      "code": "11.1.(4)", "name": "Perbaikan Lapis Pondasi Agregat Kelas A", "unit": "m3", "division": "11",
+      "engine_role": "base repair when depth exceeds the asphalt layers", "code_status": "TODO_VERIFY (code duplicated in source list)",
+      "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V"
+    },
+    { "code": "11.1.(5)", "name": "Perbaikan Lapis Pondasi Agregat Kelas B", "unit": "m3", "division": "11", "engine_role": "base repair", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "11.1.(6)", "name": "Perbaikan LPA Kelas S", "unit": "m3", "division": "11", "engine_role": "not used in v1", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "11.1.(7)", "name": "Perbaikan & Perataan Permukaan Jalan Tanah", "unit": "m2", "division": "11", "engine_role": "unpaved roads (desa)", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "11.1.(8)", "name": "Perbaikan & Perataan Perkerasan Berbutir Tanpa Penutup Aspal", "unit": "m2", "division": "11", "engine_role": "unpaved roads", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "11.1.(14)", "name": "Perbaikan Perkerasan Beton Semen", "unit": "m3", "division": "11", "engine_role": "rigid pavement repair", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+
+    {
+      "code": "7.1.(1)", "name": "Lapis Resap Pengikat (prime coat), Aspal Cair/Emulsi", "unit": "liter", "division": "7",
+      "engine_role": "prime coat over new aggregate base", "code_status": "TODO_VERIFY",
+      "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V",
+      "reference_coefficients": [
+        {
+          "region": "Kota Kendari", "price_year": 2023, "ohp": 0.10, "status": "ASSUMED",
+          "source": "Sabara et al., Jurnal Media Konstruksi UHO 2024 https://medkons.uho.ac.id/index.php/journal/article/download/31/15/63",
+          "labor": [ { "code": "L.01", "name": "Pekerja", "unit": "jam", "coef": 0.0020 }, { "code": "L.04", "name": "Mandor", "unit": "jam", "coef": 0.0002 } ],
+          "material": [ { "name": "Aspal emulsi", "unit": "liter", "coef": 1.7775 } ],
+          "equipment": [ { "name": "Asphalt distributor", "unit": "jam", "coef": 0.00020 }, { "name": "Compressor", "unit": "jam", "coef": 0.00138 } ],
+          "unit_price_idr": 19914.67,
+          "note": "1.7775 l emulsion per liter of pay item suggests the pay quantity is residual bitumen (inference in note 06; confirm against the SE sheet)."
+        }
+      ]
+    },
+    {
+      "code": "7.1.(2a)", "name": "Lapis Perekat (tack coat), Aspal Cair/Emulsi", "unit": "liter", "division": "7",
+      "engine_role": "tack coat on base and vertical walls of every patch", "code_status": "TODO_VERIFY",
+      "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V; application rate from Spesifikasi Umum 2018 Rev 2 Seksi 7.1 (Seksi 6.1 in Spec 2018)",
+      "application_rate_l_per_m2": { "value": null, "status": "TODO_VERIFY", "note": "Spec rate not retrieved; Kota Bekasi method statement says rate is set by an on-site 'paper test'. The repo's config/prices/jabodetabek.json tackCoatKgPerM2 = 0.25 is an unsourced assumption - do not carry it over as official." },
+      "reference_coefficients": []
+    },
+    { "code": "7.1.(2b)", "name": "Lapis Perekat, Aspal Emulsi Modifikasi Polimer", "unit": "liter", "division": "7", "engine_role": "alternative tack coat", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "7.2.(1)", "name": "Agregat Penutup BURTU", "unit": "m2", "division": "7", "engine_role": "surface treatment", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "7.2.(2)", "name": "Agregat Penutup BURDA", "unit": "m2", "division": "7", "engine_role": "surface treatment", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "7.2.(3a)", "name": "Bahan Aspal Keras untuk Pelaburan", "unit": "liter", "division": "7", "engine_role": "surface treatment binder", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "7.3.(3)", "name": "Lataston Lapis Aus (HRS-WC)", "unit": "ton", "division": "7", "engine_role": "alternative wearing course", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "7.3.(4)", "name": "Lataston Lapis Fondasi (HRS-Base)", "unit": "ton", "division": "7", "engine_role": "alternative", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    {
+      "code": "7.3.(5a)", "name": "Laston Lapis Aus (AC-WC)", "unit": "ton", "division": "7",
+      "engine_role": "PRIMARY item for long-damage strips / inlay / overlay; also the per-ton fallback for patching", "code_status": "TODO_VERIFY",
+      "min_thickness_cm": { "value": 4.0, "tolerance_mm": -3.0, "status": "OFFICIAL", "source": "Bina Marga SKh-1.6.27 (2019) cross-referencing Spec 2018 (OCR rendered units as mm; values match cm thickness / mm tolerance) https://binamarga.pu.go.id/uploads/files/1825/preview_1825-1-5.pdf ; same values in BPK Perwakilan Malut Buku Saku https://malut.bpk.go.id/wp-content/uploads/2022/07/BUKU-SAKU-PEMERIKSAAN-PENGUJIAN-FISIK-PEKERJAAN-KONSTRUKSI-JALAN_SAKINAH-KAMARUDDIN.pdf" },
+      "binder": { "value": "Aspal Tipe I (Pen 60/70)", "status": "OFFICIAL", "source": "SKh-1.6.27 (2019)" },
+      "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V",
+      "reference_coefficients": [
+        {
+          "variant": "AC-WC (older Permen PUPR 28/2016 method), partial set", "region": "Jagorawi toll", "price_year": 2021, "status": "ASSUMED",
+          "source": "Putri et al., PNJ CMJ 2021 https://jurnal.pnj.ac.id/cmj/article/download/4152/2365/10143",
+          "labor": [ { "code": "L.04", "name": "Mandor", "unit": "OJ", "coef": 0.0106 }, { "code": "L.08", "name": "Operator", "unit": "OJ", "coef": 0.0845 } ],
+          "material": [ { "name": "Aspal", "unit": "kg", "coef": 57 }, { "name": "Semen", "unit": "kg", "coef": 9 } ],
+          "equipment": [ { "name": "AMP", "unit": "jam", "coef": 0.0201 } ],
+          "unit_price_idr": 1114000, "unit_price_actual_idr": 1022000
+        }
+      ]
+    },
+    {
+      "code": "7.3.(5b)", "name": "Laston Lapis Aus Modifikasi (AC-WC Mod)", "unit": "ton", "division": "7",
+      "engine_role": "modified wearing course", "code_status": "TODO_VERIFY",
+      "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V",
+      "reference_coefficients": [
+        {
+          "variant": "AC-WC aspal modifikasi - 'actual field' coefficients, compared in the paper against AHSP Bina Marga 2025 (SE 30/SE/Dk/2025)", "region": "Jakarta (Stasiun Tanah Abang parking)", "price_year": 2025, "status": "ASSUMED",
+          "source": "Suryaman & Wacono, PNJ SNTS 2025 https://prosiding.pnj.ac.id/index.php/snts/article/download/4889/3221/30517",
+          "labor": [ { "code": "L.01", "name": "Pekerja", "unit": "jam", "coef": 0.2008 }, { "code": "L.04", "name": "Mandor", "unit": "jam", "coef": 0.0201 } ],
+          "material": [ { "name": "Agregat pecah mesin 5-10 & 10-15", "unit": "m3", "coef": 0.3332 }, { "name": "Agregat pecah mesin 0-5", "unit": "m3", "coef": 0.4225 }, { "name": "Semen (filler)", "unit": "kg", "coef": 9.588 }, { "name": "Aspal modifikasi", "unit": "kg", "coef": 61.71 } ],
+          "equipment": [ { "name": "Wheel loader", "unit": "jam", "coef": 0.0032 }, { "name": "AMP", "unit": "jam", "coef": 0.0201 }, { "name": "Genset", "unit": "jam", "coef": 0.0201 }, { "name": "Dump truck", "unit": "jam", "coef": 0.2285 }, { "name": "Tandem roller", "unit": "jam", "coef": 0.1004 } ],
+          "unit_prices_idr": { "ahsp_bm_2025": 1254346.42, "bid": 1381217.00, "actual": 1248991.42 },
+          "note": "Units implied (ton); field-derived, not the official sheet."
+        }
+      ]
+    },
+    {
+      "code": "7.3.(6a)", "name": "Laston Lapis Antara (AC-BC)", "unit": "ton", "division": "7",
+      "engine_role": "binder course for deep patches / reconstruction", "code_status": "TODO_VERIFY",
+      "min_thickness_cm": { "value": 6.0, "tolerance_mm": -4.0, "status": "OFFICIAL", "source": "SKh-1.6.27 (2019); BPK Malut Buku Saku" },
+      "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V",
+      "reference_coefficients": [
+        {
+          "variant": "AC-BC with Asbuton (may correspond to an Asbuton variant rather than 7.3.(6a))", "region": "Kota Kendari", "price_year": 2023, "ohp": 0.10, "status": "ASSUMED",
+          "source": "Sabara et al., Jurnal Media Konstruksi UHO 2024 https://medkons.uho.ac.id/index.php/journal/article/download/31/15/63",
+          "labor": [ { "code": "L.01", "name": "Pekerja", "unit": "jam", "coef": 0.2008 }, { "code": "L.04", "name": "Mandor", "unit": "jam", "coef": 0.0201 } ],
+          "material": [ { "name": "Agregat pecah mesin 5-10", "unit": "m3", "coef": 0.5241 }, { "name": "Agregat pecah mesin 0-5", "unit": "m3", "coef": 0.7417 }, { "name": "Aspal", "unit": "kg", "coef": 42.3286 }, { "name": "Asbuton B 50/30", "unit": "kg", "coef": 19.5468 } ],
+          "equipment": [ { "name": "Wheel loader", "unit": "jam", "coef": 0.0039 }, { "name": "AMP", "unit": "jam", "coef": 0.0201 }, { "name": "Genset", "unit": "jam", "coef": 0.0201 }, { "name": "Dump truck", "unit": "jam", "coef": 0.2833 }, { "name": "Asphalt finisher", "unit": "jam", "coef": 0.0071 }, { "name": "Tandem roller", "unit": "jam", "coef": 0.0067 }, { "name": "PTR", "unit": "jam", "coef": 0.0249 } ],
+          "unit_price_idr": 1606072.17,
+          "note": "Paper has internal inconsistencies (dump truck rate Rp427,361.74 vs Rp472,361.74)."
+        }
+      ]
+    },
+    { "code": "7.3.(6b)", "name": "Laston Lapis Antara Modifikasi (AC-BC Mod)", "unit": "ton", "division": "7", "engine_role": "alternative", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "7.3.(7a)", "name": "Laston Lapis Fondasi (AC-Base)", "unit": "ton", "division": "7", "engine_role": "reconstruction", "code_status": "TODO_VERIFY", "min_thickness_cm": { "value": 7.5, "tolerance_mm": -5.0, "status": "OFFICIAL", "source": "SKh-1.6.27 (2019); BPK Malut Buku Saku" }, "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "7.3.(7b)", "name": "Laston Lapis Fondasi Modifikasi (AC-Base Mod)", "unit": "ton", "division": "7", "engine_role": "alternative", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "7.3.(8)", "name": "Bahan Anti Pengelupasan", "unit": "kg", "division": "7", "engine_role": "additive", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "7.6.(1)", "name": "CPHMA Kemasan Kantong", "name_en": "Bagged cold-paving hot-mix asbuton", "unit": "ton", "division": "7", "engine_role": "bagged cold-mix price route (semi-permanent)", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    {
+      "code": "6.1.(1)", "name": "Lapis Fondasi Agregat Kelas A", "unit": "m3", "division": "6",
+      "engine_role": "new base (reconstruction)", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V",
+      "reference_coefficients": [
+        {
+          "variant": "LPA Kelas A - 'actual' field coefficients", "region": "Jakarta", "price_year": 2025, "status": "ASSUMED",
+          "source": "Suryaman & Wacono, PNJ SNTS 2025 https://prosiding.pnj.ac.id/index.php/snts/article/download/4889/3221/30517",
+          "labor": [ { "code": "L.01", "name": "Pekerja", "unit": "jam", "coef": 0.0052 }, { "code": "L.04", "name": "Mandor", "unit": "jam", "coef": 0.0052 } ],
+          "material": [ { "name": "Agregat A", "unit": "m3", "coef": 1.227876 } ],
+          "equipment": [ { "name": "Wheel loader", "unit": "jam", "coef": 0.0052 }, { "name": "Mini excavator", "unit": "jam", "coef": 0.0422 }, { "name": "Dump truck", "unit": "jam", "coef": 0.4777 }, { "name": "Tandem/vibratory roller (TWR)", "unit": "jam", "coef": 0.0156 } ],
+          "unit_price_idr_ahsp_bm_2025": 560907.24
+        }
+      ]
+    },
+    { "code": "6.1.(2)", "name": "Lapis Fondasi Agregat Kelas B", "unit": "m3", "division": "6", "engine_role": "new sub-base", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "5.8", "name": "Penambalan Dangkal (rigid JPCP)", "unit": "m3", "division": "5", "engine_role": "rigid shallow patch", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    { "code": "5.9", "name": "Penambalan Penuh (rigid JPCP)", "unit": "m3", "division": "5", "engine_role": "rigid full-depth patch", "code_status": "TODO_VERIFY", "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V" },
+    {
+      "code": null, "name": "Galian perkerasan beraspal / saw-cut (item code not identified)", "unit": "m3", "division": null,
+      "engine_role": "cut-out before patching, only if 11.1.(9) excludes it", "code_status": "TODO_VERIFY",
+      "coefficients": null, "coefficient_status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran V (search for galian perkerasan beraspal / pemotongan)",
+      "reference_coefficients": [
+        {
+          "variant": "'Galian' (generic excavation) - field coefficients", "region": "Jakarta", "price_year": 2025, "status": "ASSUMED",
+          "source": "Suryaman & Wacono, PNJ SNTS 2025 https://prosiding.pnj.ac.id/index.php/snts/article/download/4889/3221/30517",
+          "labor": [ { "code": "L.01", "name": "Pekerja", "unit": "jam", "coef": 0.0208 }, { "code": "L.04", "name": "Mandor", "unit": "jam", "coef": 0.0208 } ],
+          "equipment": [ { "name": "Mini excavator", "unit": "jam", "coef": 0.0208 }, { "name": "Dump truck", "unit": "jam", "coef": 0.4359 } ],
+          "unit_price_idr_ahsp_bm_2025": 169737.46,
+          "note": "Generic excavation; not asphalt saw-cutting."
+        }
+      ]
+    }
+  ],
+
+  "density_and_loss": {
+    "berat_isi_campuran_beraspal_t_per_m3": {
+      "official": { "value": null, "status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran I/II Tabel A.2.d (9 rows)" },
+      "assumed_range": { "low": 2.25, "high": 2.34, "status": "ASSUMED", "source": "Field core densities: AC-BC 2.29-2.34 g/cm3 (PNJ CMJ, Padang-Pekanbaru toll https://jurnal.pnj.ac.id/index.php/cmj/article/view/7938); AC-WC field 2.25 vs lab 2.27 g/cc (Unibos 2026 https://journal.unibos.ac.id/jptsk/article/view/5104)" }
+    },
+    "faktor_kehilangan": { "value": null, "status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran I/II", "note": "Inside official item coefficients already. Only the per-ton fallback route needs it; until loaded the engine uses 1.00 and warns." },
+    "faktor_kembang_susut": { "value": null, "status": "TODO_VERIFY", "source_to_fetch": "SE 30/SE/Dk/2025 Lampiran I/II" }
+  },
+
+  "patching_spec": {
+    "cut_margin_m": { "default": 0.30, "status": "ASSUMED", "note": "'about 30 cm into sound pavement' is common practice (note 07), NOT verified in Spec 2018 Rev 2 Seksi 11.1 - never show as official.", "source_to_fetch": "Spesifikasi Umum 2018 Revisi 2 Divisi 11 Seksi 11.1 (Pengukuran & Pembayaran)" },
+    "cut_shape": { "value": "rectangular, vertical edges", "status": "ASSUMED", "note": "Standard practice; Spec text not retrieved." },
+    "compaction_density_min_pct": { "value": 98, "status": "OFFICIAL", "source": "Spesifikasi Umum 2018 rev. 2 as cited in PNJ core-drill study (AC-BC >= 98%)", "note": "Lab test - recommended to the agency, not claimed by the app." },
+    "placement_temperature_c": { "range": [130, 150], "status": "ASSUMED", "source": "Kota Bekasi tender method statement (indotender)" },
+    "breakdown_rolling_c": { "range": [125, 145], "status": "ASSUMED", "source": "Kota Bekasi tender method statement" },
+    "intermediate_rolling_c": { "range": [100, 125], "status": "ASSUMED", "source": "Kota Bekasi tender method statement" },
+    "finish_rolling_min_c": { "value": 95, "status": "ASSUMED", "source": "Kota Bekasi tender method statement" }
+  }
+}

@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draf Berita Acara Pemeriksaan Lapangan {{public_code}}</title>
+<!--
+  PAVEMENT-PINN v5 — Output B: Draft for agency (Draf untuk instansi)
+  Spec: 07_AUDIT_INTEGRITY.md §11.3, §11.4.
+  This document is UNBRANDED on purpose: no product letterhead, no government kop, no lambang, no number, no signature.
+  The agency imports it (PDF/DOCX/JSON) into its own TNDE system, adds its own kop, numbers it via its unit tata usaha
+  (Permendagri 1/2023 Pasal 26, 68), and signs it with a certified TTE from BSrE (Pasal 43(2), 45).
+  Layout follows the berita acara element order (naskah dinas khusus, Permendagri 1/2023 Pasal 14 huruf d).
+  TODO_VERIFY: exact kop size, margins, font and number format are in the Permendagri 1/2023 lampiran and regional Perbup
+  (not retrieved) — keep this draft neutral so the agency template governs.
+  Placeholder rules: double-curly scalar names are HTML-escaped; names ending _table/_list/_block, plus timeline,
+  evidence_hashes, verify_qr, demo_watermark are code-built fragments. Bracketed text like [NAMA PEJABAT] is intentionally
+  left for the agency. Comments must never contain double-curly syntax.
+-->
+<style>
+  :root { --ink: #000000; --muted: #444444; --line: #888888; }
+
+  @page {
+    size: A4;
+    margin: 25mm 20mm 25mm 25mm; /* neutral default; agency template governs (TODO_VERIFY lampiran Permendagri 1/2023) */
+    @bottom-center { content: "DRAF — tidak sah tanpa penomoran dan penandatanganan pejabat berwenang · Halaman " counter(page) " dari " counter(pages); font: 7.5pt Arial, sans-serif; color: #444444; }
+  }
+
+  html, body { background: #FFFFFF; }
+  body {
+    margin: 0; color: var(--ink);
+    font: 11pt/1.5 Arial, "Liberation Sans", Helvetica, sans-serif;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  p { margin: 0 0 6pt; text-align: justify; }
+  h1 { font-size: 12pt; text-align: center; text-transform: uppercase; margin: 0; letter-spacing: 0.3px; }
+  h2 { font-size: 11pt; margin: 12pt 0 4pt; break-after: avoid; }
+  .center { text-align: center; }
+  .muted { color: var(--muted); }
+  .mono { font-family: "Courier New", monospace; font-size: 7.5pt; word-break: break-all; }
+
+  /* Watermark repeated on every page (fixed elements repeat in Chromium print). */
+  .draft-watermark {
+    position: fixed; top: 38%; left: -15%; width: 130%;
+    transform: rotate(-35deg); text-align: center; pointer-events: none; z-index: 0;
+    color: rgba(0, 0, 0, 0.09); font: 700 96pt Arial, sans-serif; letter-spacing: 8pt;
+  }
+  .draft-watermark small { display: block; font-size: 13pt; letter-spacing: 1pt; font-weight: 700; }
+  .demo-watermark {
+    position: fixed; top: 62%; left: -10%; width: 120%; transform: rotate(-35deg);
+    text-align: center; font: 700 40pt Arial, sans-serif; color: rgba(200, 0, 0, 0.12); pointer-events: none; z-index: 0;
+  }
+
+  /* Blank kop area: the agency places its own kop here. Nothing is rendered inside except the placeholder text. */
+  .kop-placeholder {
+    height: 30mm; border: 1pt dashed var(--line);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 10pt; letter-spacing: 1px; margin-bottom: 4pt;
+  }
+  .kop-rule { border-top: 2.2pt solid var(--ink); border-bottom: 0.6pt solid var(--ink); height: 2pt; margin-bottom: 10pt; }
+
+  .draft-banner { border: 1pt solid var(--ink); padding: 4pt 8pt; font-size: 8.5pt; margin: 0 0 10pt; }
+
+  table.fields { border-collapse: collapse; margin: 6pt 0 10pt; font-size: 10.5pt; }
+  table.fields td { padding: 1pt 4pt; vertical-align: top; }
+  table.fields td:first-child { width: 28mm; }
+
+  table.data { width: 100%; border-collapse: collapse; margin: 4pt 0 8pt; font-size: 9pt; }
+  table.data th, table.data td { border: 0.6pt solid var(--ink); padding: 3pt 5pt; text-align: left; vertical-align: top; }
+  table.data th { background: #EEEEEE; }
+  table.data td.num { text-align: right; white-space: nowrap; }
+  tr { break-inside: avoid; }
+
+  ol.items { margin: 4pt 0 8pt 16pt; padding: 0; }
+  ol.items li { margin-bottom: 4pt; }
+
+  .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 14mm; margin-top: 14pt; break-inside: avoid; }
+  .sign-block { text-align: center; font-size: 10.5pt; }
+  .tte-box {
+    margin: 6pt auto; width: 60mm; min-height: 30mm; border: 1pt dashed var(--line);
+    display: flex; align-items: center; justify-content: center; padding: 4pt;
+    color: var(--muted); font-size: 8pt; line-height: 1.3;
+  }
+
+  .note { border-top: 0.6pt solid var(--line); margin-top: 14pt; padding-top: 6pt; font-size: 8pt; color: var(--muted); }
+  .page-break { break-before: page; }
+  .ref-grid { display: grid; grid-template-columns: 1fr 32mm; gap: 8pt; align-items: start; }
+  .ref-qr { border: 0.6pt solid var(--line); padding: 3pt; text-align: center; font-size: 6.8pt; }
+  .ref-qr img { width: 28mm; height: 28mm; display: block; margin: 0 auto 2pt; }
+</style>
+</head>
+<body>
+
+<div class="draft-watermark">DRAF<small>tidak sah tanpa penomoran dan penandatanganan pejabat berwenang</small></div>
+{{demo_watermark}}
+
+<!-- ============ KOP (left blank for the agency) ============ -->
+<div class="kop-placeholder">[KOP INSTANSI]</div>
+<div class="kop-rule"></div>
+
+<div class="draft-banner">
+  <strong>DRAF UNTUK INSTANSI.</strong> Draf ini disusun dari catatan data kasus {{public_code}}. Draf tidak sah sebelum diberi kop, nomor, dan ditandatangani secara elektronik oleh pejabat berwenang melalui sistem tata naskah dinas instansi. Seluruh bagian dalam tanda kurung siku [ ] diisi atau disesuaikan oleh instansi.
+</div>
+
+<h1>Berita Acara Pemeriksaan Lapangan</h1>
+<p class="center">Nomor: [..................................................]</p>
+
+<table class="fields">
+  <tr><td>Sifat</td><td>: [..........................]</td></tr>
+  <tr><td>Lampiran</td><td>: [..........................]</td></tr>
+  <tr><td>Hal</td><td>: Pemeriksaan lapangan atas kerusakan jalan pada ruas {{road_name}}</td></tr>
+</table>
+
+<p>{{place_date_line}}</p>
+<p>Pada hari ini [hari], tanggal [tanggal], bulan [bulan], tahun [tahun], bertempat di {{sta_or_coordinates}}, ruas {{road_name}}, telah dilakukan pemeriksaan lapangan atas laporan kerusakan jalan dengan kode kasus {{case_id}} (kode publik {{public_code}}), oleh pihak-pihak sebagai berikut:</p>
+
+{{parties_block}}
+
+<h2>I. Dasar Pemeriksaan</h2>
+<ol class="items">
+  <li>[Dasar pemeriksaan diisi instansi, misalnya surat tugas atau disposisi pimpinan.]</li>
+  <li>Laporan warga dan data kasus {{case_id}} yang tercatat pada sistem pencatatan data pihak ketiga, sebagaimana dirujuk pada Lampiran.</li>
+</ol>
+
+<h2>II. Lokasi dan Status Ruas</h2>
+<table class="data">
+  <tr><th style="width:36%">Nama ruas</th><td>{{road_name}} ({{segment_id}})</td></tr>
+  <tr><th>Lokasi / STA</th><td>{{sta_or_coordinates}}</td></tr>
+  <tr><th>Status jalan</th><td>{{road_status}}</td></tr>
+  <tr><th>Dasar penetapan status</th><td>{{status_basis}}</td></tr>
+  <tr><th>Instansi berwenang</th><td>{{authority_name}}</td></tr>
+  <tr><th>Tingkat keyakinan penentuan kewenangan</th><td>{{routing_confidence}} [konfirmasi instansi]</td></tr>
+</table>
+
+<h2>III. Hasil Pemeriksaan</h2>
+<table class="data">
+  <thead><tr><th>Besaran</th><th class="num">Nilai</th><th class="num">Ketidakpastian</th><th>Metode</th><th>Status data</th></tr></thead>
+  <tbody>
+    {{measurement_table}}
+  </tbody>
+</table>
+<p>[Uraian pengamatan tambahan oleh pemeriksa instansi.]</p>
+
+<h2>IV. Kronologi Data Kasus</h2>
+<table class="data">
+  <thead><tr><th style="width:22%">Waktu (WIB)</th><th>Tahap</th><th style="width:22%">Peran</th><th style="width:12%">Bukti</th></tr></thead>
+  <tbody>
+    {{timeline}}
+  </tbody>
+</table>
+
+<h2>V. Estimasi Biaya (sebagai bahan pertimbangan)</h2>
+<table class="data">
+  <thead><tr><th>Item (kode AHSP)</th><th class="num">Volume</th><th>Satuan</th><th class="num">Harga satuan (rentang)</th><th class="num">Jumlah (rentang)</th><th>Status &amp; sumber</th></tr></thead>
+  <tbody>
+    {{cost_table}}
+  </tbody>
+</table>
+<p>Rentang biaya wajar: {{cost_summary}}. Nilai yang dilaporkan: {{reported_spend}}. {{cost_diff_line}}</p>
+<p class="muted">Estimasi disusun menurut struktur AHSP dengan masukan berstatus (terukur, resmi, masukan, asumsi, perlu verifikasi) dan bukan merupakan temuan audit.</p>
+
+<h2>VI. Tahap Kontrak dan Masa Pemeliharaan</h2>
+{{contract_stage_block}}
+
+<h2>VII. Catatan Indikasi dan Tindak Lanjut</h2>
+<ol class="items">
+  {{indication_list}}
+</ol>
+<ol class="items">
+  {{recommendation_list}}
+</ol>
+
+<h2>VIII. Kesimpulan</h2>
+<p>[Kesimpulan diisi oleh pejabat berwenang berdasarkan pemeriksaan lapangan. Catatan pada bagian VII merupakan indikasi yang memerlukan verifikasi dan bukan kesimpulan audit, penilaian kerugian negara, maupun tuduhan terhadap pihak mana pun, dengan menghormati asas praduga tak bersalah.]</p>
+
+<p>Demikian berita acara ini dibuat dengan sebenarnya untuk dipergunakan sebagaimana mestinya.</p>
+
+<!-- ============ SIGNATURES (TTE by the agency, BSrE) ============ -->
+<div class="signatures">
+  <div class="sign-block">
+    <div>[Pihak yang memeriksa]</div>
+    <div>[JABATAN]</div>
+    <div class="tte-box">[Ruang Tanda Tangan Elektronik (TTE) — dibubuhkan melalui sistem instansi dengan sertifikat elektronik BSrE]</div>
+    <div><strong>[NAMA PEJABAT]</strong></div>
+    <div>NIP. [..................................]</div>
+  </div>
+  <div class="sign-block">
+    <div>{{signatory_block}}</div>
+    <div>[JABATAN PENANDATANGAN]</div>
+    <div class="tte-box">[Ruang Tanda Tangan Elektronik (TTE) — dibubuhkan melalui sistem instansi dengan sertifikat elektronik BSrE]</div>
+    <div><strong>[NAMA PEJABAT]</strong></div>
+    <div>NIP. [..................................]</div>
+  </div>
+</div>
+
+<div class="note">
+  Catatan penyusunan: draf ini dibuat otomatis dari catatan peristiwa yang tidak dapat diubah. Isi bertanda [ ] wajib dilengkapi instansi. Pemberian kop, nomor, dan tanda tangan elektronik dilakukan sepenuhnya oleh instansi (Permendagri 1/2023). Setelah ditandatangani, instansi dapat mencatat sidik jari berkas resminya agar riwayat kasus tetap lengkap; isi berkas resmi tidak disimpan.
+</div>
+
+<!-- ============ LAMPIRAN: data reference (may be removed or kept by the agency) ============ -->
+<div class="page-break"></div>
+<h2>Lampiran — Rujukan Bukti Elektronik Data Sumber</h2>
+<p class="muted">Bagian ini menunjukkan sidik jari (SHA-256) data sumber yang dirujuk draf. Kode QR di bawah hanya untuk memeriksa keutuhan data sumber dan <strong>bukan</strong> tanda tangan elektronik instansi.</p>
+<div class="ref-grid">
+  <div>
+    <table class="data">
+      <tr><th style="width:36%">Kode kasus</th><td>{{case_id}}</td></tr>
+      <tr><th>Nomor draf data</th><td>{{doc_id}} versi {{doc_version}}</td></tr>
+      <tr><th>Akar Merkle titik periksa</th><td class="mono">{{snapshot_root}}</td></tr>
+      <tr><th>Rentang catatan peristiwa</th><td>{{snapshot_range}} ({{checkpoint_period}})</td></tr>
+      <tr><th>Status jangkar waktu</th><td>{{ots_status}}</td></tr>
+    </table>
+    <table class="data">
+      <thead><tr><th>Bukti</th><th>Versi publik (disamarkan)</th><th>Berkas asli terenkripsi</th></tr></thead>
+      <tbody>
+        {{evidence_hashes}}
+      </tbody>
+    </table>
+  </div>
+  <div class="ref-qr">
+    {{verify_qr}}
+    Verifikasi keutuhan data sumber<br>{{verify_url}}
+  </div>
+</div>
+
+</body>
+</html>

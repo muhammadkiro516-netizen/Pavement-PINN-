@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laporan Audit Perbaikan Independen {{doc_id}}</title>
+<!--
+  PAVEMENT-PINN v5 — Output A: Independent Repair Audit Report (Laporan Audit Perbaikan Independen)
+  Spec: 07_AUDIT_INTEGRITY.md §11.2, §11.4. Rendered by headless Chromium (pinned) from a checkpointed snapshot.
+  Placeholder rules (double-curly names in the body):
+    scalar names                                   -> HTML-escaped value inserted by the renderer.
+    names ending _table/_rows/_list/_block, plus timeline, evidence_hashes, verify_qr, demo_watermark
+                                                   -> HTML fragments built by code from escaped values (never raw user text).
+    Comments must never contain double-curly syntax (the renderer must fail on unknown placeholders).
+  Legal rules (do not change without counsel review):
+    - No lambang negara / lambang daerah / government kop anywhere (Permendagri 1/2023 Pasal 22-25; UU ITE Pasal 35 jo. 51).
+    - "Bukan naskah dinas" banner + footer must stay.
+    - QR is labelled as an integrity check, not styled like a government TTE QR (Permendagri 1/2023 Pasal 45).
+    - Agency directory data is used to ADDRESS the report, never as this document's kop.
+  Fonts: embed Barlow / Barlow Condensed (SIL OFL) from local files for deterministic output; licence file ships with the renderer.
+-->
+<style>
+  @font-face { font-family: "Barlow"; src: url("fonts/Barlow-Regular.ttf"); font-weight: 400; }
+  @font-face { font-family: "Barlow"; src: url("fonts/Barlow-SemiBold.ttf"); font-weight: 600; }
+  @font-face { font-family: "Barlow Condensed"; src: url("fonts/BarlowCondensed-SemiBold.ttf"); font-weight: 600; }
+
+  :root {
+    --ink: #0D1015;
+    --muted: #4A5260;
+    --line: #C9CED6;
+    --soft: #F3F4F6;
+    --signal: #FFC72C;
+    --signal-dark: #E0A100;
+    --hazard: #E5391A;
+    --cyan: #0A9CC2;
+    --green: #12A06A;
+  }
+
+  @page {
+    size: A4;
+    margin: 20mm 18mm 24mm 22mm;
+    @bottom-right { content: "Halaman " counter(page) " dari " counter(pages); font: 8pt "Barlow", Arial, sans-serif; color: #4A5260; }
+  }
+  /* Page margin boxes (page numbers) need Chromium >= 131; older renderers simply omit page numbers. */
+
+  html, body { background: #FFFFFF; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    font: 10pt/1.45 "Barlow", Arial, "Liberation Sans", sans-serif;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  h1, h2, h3 { font-family: "Barlow Condensed", "Arial Narrow", Arial, sans-serif; font-weight: 600; margin: 0; }
+  h1 { font-size: 18pt; letter-spacing: 0.2px; }
+  h2 { font-size: 12.5pt; margin: 14pt 0 6pt; padding-bottom: 3pt; border-bottom: 1.5pt solid var(--ink); break-after: avoid; }
+  h3 { font-size: 10.5pt; margin: 8pt 0 4pt; break-after: avoid; }
+  p { margin: 0 0 6pt; }
+  small, .muted { color: var(--muted); }
+  .mono { font-family: "DejaVu Sans Mono", "Courier New", monospace; font-size: 7.5pt; word-break: break-all; }
+
+  /* Letterhead: PAVEMENT-PINN only. No government emblem, no government kop. */
+  .letterhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12pt; padding-bottom: 8pt; border-bottom: 3pt solid var(--ink); }
+  .brand { display: flex; align-items: center; gap: 8pt; }
+  .brand-mark { width: 30pt; height: 30pt; }
+  .brand-name { font-family: "Barlow Condensed", Arial, sans-serif; font-weight: 600; font-size: 17pt; line-height: 1; }
+  .brand-tag { font-size: 8pt; color: var(--muted); letter-spacing: 0.6px; text-transform: uppercase; }
+  .operator { text-align: right; font-size: 8pt; color: var(--muted); line-height: 1.35; }
+
+  .not-official {
+    margin: 8pt 0 10pt;
+    padding: 6pt 9pt;
+    border: 1.2pt solid var(--ink);
+    background: var(--signal);
+    font-weight: 600;
+    font-size: 9pt;
+  }
+  .not-official span { font-weight: 400; }
+
+  .meta { width: 100%; border-collapse: collapse; margin: 4pt 0 10pt; }
+  .meta td { padding: 2pt 4pt; vertical-align: top; font-size: 9pt; }
+  .meta td:first-child { width: 34%; color: var(--muted); }
+
+  .addressee { margin: 8pt 0 10pt; }
+  .addressee p { margin: 0; }
+
+  table.data { width: 100%; border-collapse: collapse; margin: 4pt 0 8pt; font-size: 8.8pt; }
+  table.data th, table.data td { border: 0.6pt solid var(--line); padding: 3pt 5pt; text-align: left; vertical-align: top; }
+  table.data th { background: var(--soft); font-weight: 600; }
+  table.data td.num { text-align: right; white-space: nowrap; }
+  tr { break-inside: avoid; }
+
+  .status { display: inline-block; padding: 0 4pt; border: 0.6pt solid var(--ink); border-radius: 2pt; font-size: 7pt; font-weight: 600; white-space: nowrap; }
+  .status-measured { background: #E3F4EC; }
+  .status-official { background: #E1EEF8; }
+  .status-input { background: #FFFFFF; }
+  .status-assumed { background: #FFF4D1; }
+  .status-ai { background: #E2F4F9; }
+  .status-todo { background: #FCE3DE; }
+
+  .callout { border-left: 3pt solid var(--cyan); background: #F1F9FC; padding: 5pt 8pt; margin: 6pt 0; font-size: 9pt; }
+  .callout.warn { border-left-color: var(--signal-dark); background: #FFF8E3; }
+
+  ul.indications, ul.recs, ul.responses { margin: 4pt 0 8pt 14pt; padding: 0; }
+  ul.indications li, ul.recs li, ul.responses li { margin-bottom: 4pt; }
+
+  .integrity { display: grid; grid-template-columns: 1fr 34mm; gap: 10pt; align-items: start; break-inside: avoid; }
+  .qr-box { border: 0.8pt solid var(--ink); padding: 4pt; text-align: center; }
+  .qr-box img { width: 30mm; height: 30mm; display: block; margin: 0 auto 3pt; }
+  .qr-box .qr-label { font-size: 6.8pt; line-height: 1.25; }
+
+  .disclaimer { margin-top: 12pt; padding: 8pt 10pt; border: 1pt solid var(--ink); font-size: 8.8pt; break-inside: avoid; }
+  .legend { font-size: 7.8pt; color: var(--muted); margin-top: 6pt; }
+
+  /* Repeated footer (fixed elements repeat on every printed page in Chromium). */
+  .page-footer {
+    position: fixed; bottom: -16mm; left: 0; right: 0;
+    font-size: 7.5pt; color: var(--muted);
+    border-top: 0.6pt solid var(--line); padding-top: 2pt;
+  }
+
+  /* DEMO watermark fragment ({{demo_watermark}}) uses this class when the case is DEMO. */
+  .demo-watermark {
+    position: fixed; top: 40%; left: -10%; width: 120%;
+    transform: rotate(-30deg); text-align: center;
+    font: 600 54pt "Barlow Condensed", Arial, sans-serif; color: rgba(229, 57, 26, 0.16);
+    pointer-events: none; z-index: 0;
+  }
+</style>
+</head>
+<body>
+
+{{demo_watermark}}
+
+<div class="page-footer">
+  Dokumen ini bukan naskah dinas dan tidak diterbitkan oleh instansi pemerintah. · {{doc_id}} versi {{doc_version}} · Verifikasi: {{verify_url}}
+</div>
+
+<!-- ============ LETTERHEAD (PAVEMENT-PINN only) ============ -->
+<header class="letterhead">
+  <div class="brand">
+    <!-- Neutral product mark (traffic cone). Not a government emblem. -->
+    <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+      <rect x="0" y="0" width="40" height="40" rx="6" fill="#0D1015"/>
+      <path d="M20 6 L29 31 H11 Z" fill="#FF7A1A"/>
+      <rect x="14.2" y="16" width="11.6" height="3" fill="#FFFFFF"/>
+      <rect x="12.6" y="23" width="14.8" height="3" fill="#FFFFFF"/>
+      <rect x="8" y="31" width="24" height="3.4" rx="1" fill="#FFC72C"/>
+    </svg>
+    <div>
+      <div class="brand-name">PAVEMENT-PINN</div>
+      <div class="brand-tag">Lapor · Kawal · Audit</div>
+    </div>
+  </div>
+  <div class="operator">
+    {{operator_entity}}<br>
+    {{operator_address}}<br>
+    {{operator_website}}<br>
+    No. Laporan: <strong>{{doc_id}}</strong>
+  </div>
+</header>
+
+<div class="not-official">
+  BUKAN NASKAH DINAS — <span>Dokumen ini bukan naskah dinas dan tidak diterbitkan oleh instansi pemerintah. Laporan ini disusun secara independen dari data yang tercatat dan dapat diverifikasi keutuhannya melalui kode QR di bagian akhir.</span>
+</div>
+
+<h1>Laporan Audit Perbaikan Independen</h1>
+<p class="muted">Kasus {{public_code}} · {{road_name}}</p>
+
+<table class="meta">
+  <tr><td>Nomor laporan</td><td><strong>{{doc_id}}</strong></td></tr>
+  <tr><td>Versi</td><td>{{doc_version}} {{supersedes_line}}</td></tr>
+  <tr><td>Kode kasus</td><td>{{case_id}} (kode publik {{public_code}})</td></tr>
+  <tr><td>Tanggal terbit</td><td>{{issued_at_wib}}</td></tr>
+  <tr><td>Data yang digunakan</td><td>Catatan peristiwa {{snapshot_range}}, titik periksa {{checkpoint_period}}</td></tr>
+</table>
+
+<div class="addressee">
+  <p>Kepada Yth.</p>
+  <p><strong>{{authority_name}}</strong></p>
+  <p>{{authority_address}}</p>
+  <p class="muted">{{authority_contact}}</p>
+</div>
+
+<p><strong>Hal:</strong> Laporan audit perbaikan independen atas kasus kerusakan jalan {{public_code}} pada ruas {{road_name}}.</p>
+
+<p>Dengan hormat, bersama ini kami sampaikan rangkuman data lapangan, kronologi penanganan, estimasi biaya wajar, dan catatan ketahanan perbaikan untuk kasus tersebut di atas. Seluruh isi laporan diambil dari catatan peristiwa yang tidak dapat diubah dan disajikan sebagai indikasi untuk diverifikasi oleh instansi berwenang.</p>
+
+<!-- ============ 1. RUAS & KEWENANGAN ============ -->
+<h2>1. Ruas Jalan dan Kewenangan</h2>
+<table class="data">
+  <tr><th style="width:34%">Nama ruas</th><td>{{road_name}} ({{segment_id}})</td></tr>
+  <tr><th>Lokasi</th><td>{{sta_or_coordinates}}</td></tr>
+  <tr><th>Status jalan</th><td>{{road_status}}</td></tr>
+  <tr><th>Dasar penetapan status</th><td>{{status_basis}}</td></tr>
+  <tr><th>Instansi berwenang</th><td>{{authority_name}} ({{authority_level}})</td></tr>
+  <tr><th>Tingkat keyakinan penentuan kewenangan</th><td>{{routing_confidence}}</td></tr>
+</table>
+<p class="legend">Kewenangan ditentukan dari status ruas menurut surat keputusan penetapan status jalan (PP 34/2006 Pasal 62). Bila tingkat keyakinan RENDAH, kewenangan perlu dikonfirmasi oleh instansi.</p>
+
+<!-- ============ 2. KRONOLOGI ============ -->
+<h2>2. Kronologi Penanganan</h2>
+<table class="data">
+  <thead><tr><th style="width:22%">Waktu (WIB)</th><th>Tahap</th><th style="width:20%">Peran</th><th style="width:12%">Bukti</th></tr></thead>
+  <tbody>
+    {{timeline}}
+  </tbody>
+</table>
+<p class="legend">Waktu berasal dari server saat data diterima. Nama orang tidak dicantumkan; pelaku dicatat menurut peran.</p>
+
+<!-- ============ 3. PENGUKURAN ============ -->
+<h2>3. Hasil Pengukuran Lapangan</h2>
+<table class="data">
+  <thead><tr><th>Besaran</th><th class="num">Nilai</th><th class="num">Ketidakpastian</th><th>Metode</th><th>Status</th></tr></thead>
+  <tbody>
+    {{measurement_table}}
+  </tbody>
+</table>
+<div class="callout">Pengukuran warga bersifat indikatif dan tidak setara dengan hasil uji lapangan. Kedalaman hanya dicatat dari foto mistar perata dan penggaris oleh petugas; pembacaan AI dipakai sebagai pemeriksaan silang, bukan nilai resmi.</div>
+
+<!-- ============ 4. BIAYA WAJAR ============ -->
+<h2>4. Estimasi Biaya Wajar</h2>
+<table class="data">
+  <thead><tr><th>Item (kode AHSP)</th><th class="num">Volume</th><th>Satuan</th><th class="num">Harga satuan (rentang)</th><th class="num">Jumlah (rentang)</th><th>Status &amp; sumber</th></tr></thead>
+  <tbody>
+    {{cost_table}}
+  </tbody>
+</table>
+<table class="meta">
+  <tr><td>Rentang biaya wajar</td><td><strong>{{cost_summary}}</strong></td></tr>
+  <tr><td>Nilai yang dilaporkan</td><td>{{reported_spend}}</td></tr>
+  <tr><td>Perbandingan</td><td>{{cost_diff_line}}</td></tr>
+</table>
+<div class="callout warn">Estimasi disusun menurut struktur AHSP (Permen PUPR 8/2023; SE Dirjen Bina Konstruksi 30/SE/Dk/2025 Lampiran V) dengan harga wilayah yang tercantum. Setiap masukan diberi status: TERUKUR, RESMI, MASUKAN, ASUMSI, atau PERLU VERIFIKASI. Estimasi ini bukan temuan audit dan bukan penilaian kerugian negara.</div>
+
+<!-- ============ 5. TAHAP KONTRAK ============ -->
+<h2>5. Tahap Kontrak dan Masa Pemeliharaan</h2>
+{{contract_stage_block}}
+<p class="legend">Data paket diambil dari sumber publik yang tercantum (mis. SiRUP/LPSE, papan proyek, atau data instansi). Nama orang tidak dicantumkan.</p>
+
+<!-- ============ 6. KETAHANAN ============ -->
+<h2>6. Ketahanan Perbaikan</h2>
+{{durability_block}}
+<p class="legend">Rentang umur perkiraan (P10–P90) dihitung oleh model pengganti berbasis fisika (teori lapis elastis) dengan masukan berstatus. Foto saja tidak dapat membuktikan ketahanan; pemeriksaan lanjutan dilakukan pada bulan ke-1, ke-3, ke-6, setelah hujan lebat pertama, dan sebelum serah terima akhir.</p>
+
+<!-- ============ 7. INDIKASI ============ -->
+<h2>7. Catatan Indikasi</h2>
+<ul class="indications">
+  {{indication_list}}
+</ul>
+
+<!-- ============ 8. REKOMENDASI ============ -->
+<h2>8. Rekomendasi Pemeriksaan oleh Instansi Berwenang</h2>
+<ul class="recs">
+  {{recommendation_list}}
+</ul>
+
+<!-- ============ 9. TANGGAPAN ============ -->
+<h2>9. Tanggapan Pihak Terkait</h2>
+<ul class="responses">
+  {{response_list}}
+</ul>
+<p class="legend">Instansi, pejabat terkait, atau penyedia dapat menyampaikan tanggapan melalui kanal hak jawab. Tanggapan dicatat sebagai peristiwa baru dan dimuat pada versi laporan berikutnya.</p>
+
+<!-- ============ 10. INTEGRITAS ============ -->
+<h2>10. Bukti Integritas Data</h2>
+<div class="integrity">
+  <div>
+    <table class="data">
+      <tr><th style="width:36%">Akar Merkle titik periksa</th><td class="mono">{{snapshot_root}}</td></tr>
+      <tr><th>Rentang catatan peristiwa</th><td>{{snapshot_range}}</td></tr>
+      <tr><th>Periode titik periksa</th><td>{{checkpoint_period}}</td></tr>
+      <tr><th>Status jangkar waktu (OpenTimestamps)</th><td>{{ots_status}}</td></tr>
+    </table>
+    <h3>Sidik jari (SHA-256) bukti foto</h3>
+    <table class="data">
+      <thead><tr><th>Bukti</th><th>Versi publik (disamarkan)</th><th>Berkas asli terenkripsi</th></tr></thead>
+      <tbody>
+        {{evidence_hashes}}
+      </tbody>
+    </table>
+  </div>
+  <div class="qr-box">
+    {{verify_qr}}
+    <div class="qr-label"><strong>Verifikasi integritas laporan PAVEMENT-PINN</strong><br>{{verify_url}}</div>
+  </div>
+</div>
+<p class="legend">Yang dibuktikan: berkas ini tidak berubah sejak diterbitkan, dan catatan yang digunakan sudah ada di log pada waktu tersebut. Yang tidak dibuktikan: kebenaran pengamatan lapangan — hal itu diverifikasi oleh instansi di lokasi. Sidik jari berkas PDF ini dicatat pada saat penerbitan dan dapat dicocokkan di halaman verifikasi.</p>
+
+<!-- ============ PENAFIAN ============ -->
+<div class="disclaimer">
+  <strong>Penafian.</strong> Laporan ini disusun dari data yang dicatat warga dan petugas melalui PAVEMENT-PINN serta data publik yang dirujuk. Laporan ini memuat indikasi kondisi lapangan yang memerlukan verifikasi oleh instansi berwenang, dan bukan merupakan kesimpulan audit, penilaian kerugian negara, maupun tuduhan terhadap pihak mana pun. Seluruh pihak dihormati haknya berdasarkan asas praduga tak bersalah.
+  <br><br>
+  Dokumen ini bukan naskah dinas dan tidak diterbitkan oleh instansi pemerintah. Lambang negara, lambang daerah, dan kop instansi tidak digunakan. Penomoran dan penandatanganan naskah dinas, bila diperlukan, dilakukan oleh instansi berwenang melalui sistemnya sendiri.
+  <br><br>
+  {{ai_assist_line}}
+</div>
+
+<p class="legend">
+  Keterangan status: <span class="status status-measured">TERUKUR</span> diukur dengan bukti foto/alat ·
+  <span class="status status-official">RESMI</span> dari dokumen resmi yang dirujuk ·
+  <span class="status status-input">MASUKAN</span> dimasukkan petugas dari sumber yang disebut ·
+  <span class="status status-assumed">ASUMSI</span> nilai baku yang dapat diganti ·
+  <span class="status status-ai">PERKIRAAN AI</span> hasil model, perlu konfirmasi ·
+  <span class="status status-todo">PERLU VERIFIKASI</span> belum dikonfirmasi dari sumber primer.
+</p>
+
+</body>
+</html>

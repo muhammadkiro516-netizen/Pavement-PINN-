@@ -1,0 +1,1237 @@
+{
+  "version": "5.0.0",
+  "generated": "2026-11-01",
+  "note": "Machine-readable twin of 03_ROLES_RBAC.md. English names are product names; Indonesian regulations define no official English role names. status IN_NOTES = confirmed in research notes; TODO_VERIFY = must be checked at the given source.",
+  "roles": [
+    {
+      "key": "CITIZEN",
+      "name_en": "Citizen",
+      "name_id": "Warga",
+      "legacy_keys": [
+        "PUBLIC_REPORTER"
+      ],
+      "line": "VERIFICATION",
+      "login": "DEVICE_KEY",
+      "optional_trust": "PHONE_OTP",
+      "equivalents_id": [
+        "Warga",
+        "Masyarakat",
+        "Pelapor"
+      ],
+      "legal_basis": [
+        {
+          "ref": "UU 2/2022 Pasal 62(1)",
+          "status": "IN_NOTES",
+          "source": "https://peraturan.go.id/files/uu2-2022.pdf"
+        },
+        {
+          "ref": "PP 34/2006 Pasal 120(1)",
+          "status": "IN_NOTES",
+          "source": "https://peraturan.go.id/files/pp34-2006.pdf"
+        },
+        {
+          "ref": "UU 25/2009; Perpres 76/2013 (as cited by Ombudsman RI)",
+          "status": "IN_NOTES",
+          "source": "https://ombudsman.go.id/news/download/pwkmedia--no-viral-no-justice-cermin-krisis-kepercayaan-terhadap-pengaduan-publik"
+        },
+        {
+          "ref": "UU 22/2009 Pasal 24, 273 (agency duty; evidentiary value of timestamps)",
+          "status": "IN_NOTES"
+        }
+      ],
+      "real_world_duties": [
+        "None (rights to give input, obtain information, report)"
+      ],
+      "app_duties": [
+        "Report with live camera",
+        "Large-damage GPS trace",
+        "Witness existing case",
+        "Confirm repairs at 1/3/6 months and after heavy rain",
+        "Propose road-status correction",
+        "Claim certificate (name entered at claim time)"
+      ],
+      "cannot": [
+        "Close, reassign or merge",
+        "See identities of others",
+        "See unblurred originals",
+        "See provider/official names"
+      ]
+    },
+    {
+      "key": "FIELD_INSPECTOR",
+      "name_en": "Field Inspector",
+      "name_id": "Petugas Inspeksi",
+      "legacy_keys": [
+        "FIELD_ENGINEER"
+      ],
+      "line": "AUTHORITY",
+      "login": "STAFF",
+      "equivalents_id": [
+        "Staf Satpel Bina Marga Kecamatan (DKI)",
+        "Seksi Pemeliharaan / UPTD (provinsi, kab/kota)",
+        "Tim Preservasi / Satker PJN (nasional)",
+        "Penilik jalan"
+      ],
+      "legal_basis": [
+        {
+          "ref": "Pergub DKI 153/2019 Pasal 37-38 (Satpel Bina Marga Kecamatan)",
+          "status": "IN_NOTES",
+          "source": "https://pasal.id/peraturan/pergub/pergub-prov-dki-jakarta-no-153-tahun-2019"
+        },
+        {
+          "ref": "Pergub DKI 57/2022 (may supersede 153/2019)",
+          "status": "TODO_VERIFY",
+          "source": "JDIH DKI; LKIP 2023 Dinas Bina Marga"
+        },
+        {
+          "ref": "BBPJN Bidang Preservasi: pengendalian penilikan jalan",
+          "status": "IN_NOTES",
+          "source": "BBPJN Kaltim Dokumen Perencanaan Satker 2020-2024"
+        },
+        {
+          "ref": "Permen PUPR 13/PRT/M/2011 Tata Cara Pemeliharaan dan Penilikan Jalan",
+          "status": "TODO_VERIFY",
+          "source": "JDIH PU"
+        },
+        {
+          "ref": "PP 34/2006 Pasal 97 (rutin, berkala, rehabilitasi)",
+          "status": "IN_NOTES"
+        }
+      ],
+      "real_world_duties": [
+        "Site inspection (penilikan)",
+        "Condition survey",
+        "Propose treatment type"
+      ],
+      "app_duties": [
+        "Verify on site",
+        "Measure with marker card and straightedge+ruler (types depth; AI cross-checks)",
+        "Trace long damage with taped cross-widths",
+        "Run PINN and fair-cost",
+        "Propose repair plan",
+        "Follow-up inspections (3 months, heavy rain, pre-FHO)",
+        "Mark hazard"
+      ],
+      "cannot": [
+        "Approve own proposal",
+        "Verify or accept work they proposed",
+        "Close cases"
+      ]
+    },
+    {
+      "key": "COORDINATOR",
+      "name_en": "Maintenance Coordinator",
+      "name_id": "Koordinator Pemeliharaan",
+      "legacy_keys": [
+        "OPERATIONS_MANAGER"
+      ],
+      "line": "AUTHORITY",
+      "login": "STAFF",
+      "equivalents_id": [
+        "Kepala Seksi Pemeliharaan (Bidang Jalan dan Jembatan)",
+        "Seksi Jalan, Jembatan dan Kelengkapan Jalan (Suku Dinas)",
+        "Koordinator Satpel",
+        "Kepala UPTD",
+        "Bidang Preservasi (Balai)",
+        "Operator Posko / Pusdatin"
+      ],
+      "legal_basis": [
+        {
+          "ref": "Pergub DKI 153/2019 Pasal 4, 31-38",
+          "status": "IN_NOTES",
+          "source": "https://pasal.id/peraturan/pergub/pergub-prov-dki-jakarta-no-153-tahun-2019"
+        },
+        {
+          "ref": "Posko Dinas Bina Marga DKI 021-3844444",
+          "status": "IN_NOTES",
+          "source": "https://m.beritajakarta.id/en/read/61700/reporting-potholes-just-got-easier-with-jakartas-new-hotline"
+        }
+      ],
+      "real_world_duties": [
+        "Receive complaints",
+        "Disposisi",
+        "Schedule maintenance",
+        "Coordinate crews"
+      ],
+      "app_duties": [
+        "Triage",
+        "Accept/close invalid",
+        "Merge duplicates",
+        "Transfer with SK citation",
+        "Refer to SP4N-LAPOR!/JAKI",
+        "Assign inspector, crew, supervisor",
+        "Issue internal work orders (not SPK)",
+        "Set public delay reasons (max 3 consecutive)",
+        "Respond to flags",
+        "Schedule follow-ups"
+      ],
+      "cannot": [
+        "Approve plans",
+        "Verify work",
+        "Be crew/supervisor on same case",
+        "Accept a case they created as staff (SOD-11)"
+      ]
+    },
+    {
+      "key": "APPROVER",
+      "name_en": "Approving Officer",
+      "name_id": "Pejabat Penyetuju (PPK / pejabat berwenang)",
+      "legacy_keys": [],
+      "line": "AUTHORITY",
+      "login": "STAFF",
+      "sub_types": [
+        "PPK",
+        "KPA_AS_PPK",
+        "PPTK_AS_PPK",
+        "SWAKELOLA_OFFICIAL",
+        "KEPALA_DESA"
+      ],
+      "equivalents_id": [
+        "PPK",
+        "KPA merangkap PPK (APBD)",
+        "PPTK yang ditugaskan sebagai PPK",
+        "Pejabat yang ditetapkan PA/KPA untuk swakelola",
+        "Kepala Desa (jalan desa)"
+      ],
+      "legal_basis": [
+        {
+          "ref": "Perpres 16/2018 jo. 12/2021 jo. 46/2025 Pasal 11 (PPK), 11(1)(l), 11(2a)",
+          "status": "IN_NOTES",
+          "source": "https://bkd.jabarprov.go.id/ppid/storage/files/shares/Peraturan/PERPRES_NO_46_2025.pdf"
+        },
+        {
+          "ref": "Perpres 12/2021 Pasal 10(5) KPA may act as PPK (APBD); Pasal 11(3)-(4) PPTK",
+          "status": "IN_NOTES",
+          "source": "https://kaltim.bpk.go.id/wp-content/uploads/2023/11/Matriks-Perubahan-Perpres-Barjas-Pemerintah.pdf"
+        },
+        {
+          "ref": "Perpres 16/2018 Pasal 57-58 (serah terima)",
+          "status": "IN_NOTES"
+        },
+        {
+          "ref": "Permendagri 77/2020 (PPTK duties)",
+          "status": "TODO_VERIFY",
+          "source": "JDIH Kemendagri"
+        },
+        {
+          "ref": "Permendagri 20/2018 (desa finance)",
+          "status": "TODO_VERIFY",
+          "source": "JDIH Kemendagri"
+        }
+      ],
+      "real_world_duties": [
+        "Commit budget",
+        "Issue work instructions under contract",
+        "Accept verified work",
+        "Sign BA serah terima"
+      ],
+      "app_duties": [
+        "Approve/return plan with budget source",
+        "Accept verified work (PHO date, maintenance months as INPUT)",
+        "Declare conflicts of interest"
+      ],
+      "cannot": [
+        "Approve own proposal (SOD-2)",
+        "Act when provider-linked (SOD-3)",
+        "Accept before supervisor verification (SOD-5)"
+      ]
+    },
+    {
+      "key": "REPAIR_CREW",
+      "name_en": "Repair Crew",
+      "name_id": "Pelaksana Perbaikan",
+      "legacy_keys": [],
+      "line": "AUTHORITY",
+      "login": "STAFF_OR_PROVIDER",
+      "sub_types": [
+        "PROVIDER",
+        "SWAKELOLA_TEAM",
+        "PJLP",
+        "BUJT_MAINTENANCE"
+      ],
+      "equivalents_id": [
+        "Penyedia (kontraktor)",
+        "Tim Pelaksana Swakelola",
+        "PJLP pasukan kuning Dinas Bina Marga DKI",
+        "Unit pemeliharaan BUJT",
+        "UPR / tim reaksi cepat (nama per daerah)"
+      ],
+      "legal_basis": [
+        {
+          "ref": "Perpres 16/2018 jo. 12/2021 Pasal 16(1) Tim Pelaksana",
+          "status": "IN_NOTES"
+        },
+        {
+          "ref": "Perpres 46/2025 Pasal 47 (4 swakelola types)",
+          "status": "IN_NOTES"
+        },
+        {
+          "ref": "Permen PU 2/2025 Lampiran C.1 (BUJT preservasi)",
+          "status": "IN_NOTES",
+          "source": "https://jdih.kemenkoinfra.go.id/cfind/source/files/permen-pu/2025pmpu2.pdf"
+        },
+        {
+          "ref": "UPR naming in DKI and other regions",
+          "status": "TODO_VERIFY",
+          "source": "Dinas Bina Marga DKI"
+        }
+      ],
+      "real_world_duties": [
+        "Execute works",
+        "Daily/weekly/monthly reports; progress photos 0/50/100%",
+        "Repair defects at own cost during maintenance period"
+      ],
+      "app_duties": [
+        "Stage-gated live-capture evidence",
+        "Declared quantities (tickets)",
+        "Right of reply on own package flags"
+      ],
+      "cannot": [
+        "Verify, accept or close",
+        "See other bidders' data",
+        "See citizen identities"
+      ]
+    },
+    {
+      "key": "SUPERVISOR",
+      "name_en": "Works Supervisor",
+      "name_id": "Pengawas Pekerjaan",
+      "legacy_keys": [],
+      "line": "VERIFICATION",
+      "login": "STAFF_OR_CONSULTANT",
+      "sub_types": [
+        "KONSULTAN_PENGAWAS",
+        "TIM_PENGAWAS_SWAKELOLA",
+        "DIREKSI_TEKNIS",
+        "TIM_TEKNIS"
+      ],
+      "equivalents_id": [
+        "Konsultan Pengawas (Supervisi)",
+        "Tim Pengawas Swakelola",
+        "Direksi Teknis / Direksi Lapangan",
+        "Tim teknis pendamping PPK"
+      ],
+      "legal_basis": [
+        {
+          "ref": "Perpres 16/2018 jo. 12/2021 Pasal 16(1) Tim Pengawas",
+          "status": "IN_NOTES"
+        },
+        {
+          "ref": "Modul 04 Penyelesaian Kontrak, DPU Kutai Barat (PPK assisted by tim ahli/tim teknis/konsultan pengawas)",
+          "status": "IN_NOTES",
+          "source": "https://pu.kutaibaratkab.go.id/wp-content/uploads/2024/08/Modul_04_-_Penyelesian_Kontrak_Kerja_Konstruksi.pdf"
+        },
+        {
+          "ref": "Permen PUPR 14/2020 (konsultan pengawas duties, Direksi Teknis)",
+          "status": "TODO_VERIFY",
+          "source": "JDIH PU"
+        }
+      ],
+      "real_world_duties": [
+        "Control quality, quantity, time",
+        "Witness MC-0/MC-100"
+      ],
+      "app_duties": [
+        "Check crew evidence item by item",
+        "Own on-site after-photo with straightedge",
+        "Verify or reject work"
+      ],
+      "cannot": [
+        "Be crew or crew's organisation (SOD-1)",
+        "Be plan proposer",
+        "Accept work"
+      ]
+    },
+    {
+      "key": "AUDITOR",
+      "name_en": "Auditor",
+      "name_id": "Auditor / Pengawas",
+      "legacy_keys": [],
+      "line": "OVERSIGHT",
+      "login": "STAFF",
+      "read_only": true,
+      "sub_types": [
+        "APIP",
+        "BPK",
+        "BPKP",
+        "TOLL_REGULATOR",
+        "OMBUDSMAN",
+        "INDEPENDENT"
+      ],
+      "equivalents_id": [
+        "Inspektorat Jenderal Kementerian PU",
+        "Inspektorat Provinsi/Kabupaten/Kota",
+        "BPK",
+        "BPKP",
+        "BPJT (jalan tol)",
+        "Ombudsman RI (terbatas)",
+        "Auditor independen (universitas/LSM)"
+      ],
+      "legal_basis": [
+        {
+          "ref": "Perpres 46/2025 Pasal 1 angka 22 (APIP)",
+          "status": "IN_NOTES",
+          "source": "https://pasal.id/peraturan/perpres/perpres-no-46-tahun-2025"
+        },
+        {
+          "ref": "Perpres 170/2024 Pasal 7 (Inspektorat Jenderal PU)",
+          "status": "IN_NOTES",
+          "source": "https://pasal.id/peraturan/perpres/perpres-no-170-tahun-2024"
+        },
+        {
+          "ref": "Permen PU 2/2025 Pasal 1 angka 7 (BPJT)",
+          "status": "IN_NOTES",
+          "source": "https://jdih.kemenkoinfra.go.id/cfind/source/files/permen-pu/2025pmpu2.pdf"
+        },
+        {
+          "ref": "UU 15/2006 (BPK); Perpres 192/2014 (BPKP)",
+          "status": "TODO_VERIFY",
+          "source": "peraturan.bpk.go.id"
+        },
+        {
+          "ref": "PP 60/2008 SPIP (APIP independence)",
+          "status": "TODO_VERIFY",
+          "source": "peraturan.bpk.go.id"
+        },
+        {
+          "ref": "UU 37/2008 Ombudsman (as cited by Ombudsman RI)",
+          "status": "IN_NOTES"
+        }
+      ],
+      "real_world_duties": [
+        "Uji petik physical testing",
+        "Findings and recommendations"
+      ],
+      "app_duties": [
+        "Read all in scope incl. event chain",
+        "Request originals (logged)",
+        "Create neutral flags on case/segment/package",
+        "Export audit bundles",
+        "Generate audit reports"
+      ],
+      "cannot": [
+        "Any operational action (SOD-8)",
+        "TOLL_REGULATOR cannot close/approve BUJT jobs (SOD-9)"
+      ]
+    },
+    {
+      "key": "AGENCY_HEAD",
+      "name_en": "Agency Head",
+      "name_id": "Pimpinan Instansi",
+      "legacy_keys": [
+        "POLICY_MAKER"
+      ],
+      "line": "AUTHORITY",
+      "login": "STAFF",
+      "equivalents_id": [
+        "Kepala Dinas (PA)",
+        "Kepala Balai BBPJN/BPJN (KPA, inference)",
+        "Kepala Suku Dinas",
+        "Kepala Desa"
+      ],
+      "legal_basis": [
+        {
+          "ref": "Perpres 16/2018 jo. 46/2025 Pasal 9-10 (PA/KPA), Pasal 58 (handover to PA/KPA)",
+          "status": "IN_NOTES"
+        },
+        {
+          "ref": "Pergub DKI 153/2019 Pasal 3, 31",
+          "status": "IN_NOTES",
+          "source": "https://pasal.id/peraturan/pergub/pergub-prov-dki-jakarta-no-153-tahun-2019"
+        }
+      ],
+      "real_world_duties": [
+        "Accountable head",
+        "Budget owner",
+        "Answer escalations"
+      ],
+      "app_duties": [
+        "Dashboard",
+        "Receive H+7 escalations",
+        "Approve 4th+ delay extension",
+        "Publish delay reasons",
+        "Respond to flags"
+      ],
+      "cannot": [
+        "Approve plans or accept works unless also APPROVER (overlap logged)"
+      ]
+    },
+    {
+      "key": "ADMIN",
+      "name_en": "Region Admin",
+      "name_id": "Admin Wilayah",
+      "legacy_keys": [],
+      "line": "SYSTEM",
+      "login": "STAFF",
+      "equivalents_id": [
+        "Bagian Umum dan TU (Balai)",
+        "Sekretariat Dinas",
+        "Pusdatin Bina Marga (DKI)",
+        "Operator PAVEMENT-PINN (pilot)"
+      ],
+      "legal_basis": [
+        {
+          "ref": "System role; no specific regulation",
+          "status": "N/A"
+        }
+      ],
+      "real_world_duties": [
+        "Records, leger jalan, data"
+      ],
+      "app_duties": [
+        "Authorities and offices",
+        "Road-status registry (SK, versioned)",
+        "Prices, wages, IKK, asphalt (with source+status)",
+        "Users and role assignments (appointment reference)",
+        "Config"
+      ],
+      "cannot": [
+        "Any case transition (SOD-8)",
+        "Grant themselves roles (SOD-12)"
+      ]
+    }
+  ],
+  "permission_legend": {
+    "Y": "allowed",
+    "S": "allowed within own authority scope",
+    "S_ASSIGNED": "allowed only on work assigned to this account",
+    "O": "own records only",
+    "R": "read-only",
+    "-": "denied",
+    "C1": "only cases with a work order assigned to them; citizen-identifying data hidden",
+    "S2": "target authority only; must be a different person from the requester (SOD-7)",
+    "S3": "not the proposer/inspector (SOD-2) and not provider-linked (SOD-3)",
+    "C4": "only if the person also holds an APPROVER assignment; overlap logged (SOD-6)",
+    "C5": "only SWAKELOLA routine work when region config swakelola_accept_role=COORDINATOR; not crew or supervisor of that order",
+    "S6": "supervisor may record PRE_FHO joint inspection only; M3/HEAVY_RAIN/EVERY_6M verifier must differ from crew and supervisor (SOD-4)",
+    "O7": "provider representative only, flags on own package",
+    "S8": "coordinator of the target authority",
+    "C9": "cannot assign roles to themselves (SOD-12)"
+  },
+  "permissions": {
+    "report.create": {
+      "CITIZEN": "Y",
+      "FIELD_INSPECTOR": "S",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "report.witness": {
+      "CITIZEN": "Y",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "case.read_public": {
+      "CITIZEN": "Y",
+      "FIELD_INSPECTOR": "Y",
+      "COORDINATOR": "Y",
+      "APPROVER": "Y",
+      "REPAIR_CREW": "Y",
+      "SUPERVISOR": "Y",
+      "AUDITOR": "Y",
+      "AGENCY_HEAD": "Y",
+      "ADMIN": "Y"
+    },
+    "case.read_full": {
+      "CITIZEN": "O",
+      "FIELD_INSPECTOR": "S",
+      "COORDINATOR": "S",
+      "APPROVER": "S",
+      "REPAIR_CREW": "C1",
+      "SUPERVISOR": "C1",
+      "AUDITOR": "S",
+      "AGENCY_HEAD": "S",
+      "ADMIN": "-"
+    },
+    "case.accept": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "case.close_invalid": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "case.merge": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "case.transfer": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "case.transfer_confirm": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S2",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "S2"
+    },
+    "case.refer_external": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "inspection.assign": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "inspection.submit": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "S_ASSIGNED",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "inspection.verify": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "inspection.request_reinspection": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "measure.ai_crosscheck": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "S",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "S",
+      "AUDITOR": "R",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "plan.propose": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "S_ASSIGNED",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "plan.return": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "S",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "plan.approve": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "S3",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "C4",
+      "ADMIN": "-"
+    },
+    "work_order.issue": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "work.start": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "S_ASSIGNED",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "work.submit_evidence": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "S_ASSIGNED",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "work.verify": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "S_ASSIGNED",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "work.reject": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "S_ASSIGNED",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "work.accept": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "C5",
+      "APPROVER": "S3",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "C4",
+      "ADMIN": "-"
+    },
+    "case.set_pending": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "S",
+      "ADMIN": "-"
+    },
+    "case.pending_extend_4th": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "S",
+      "ADMIN": "-"
+    },
+    "case.mark_hazard": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "S",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "S_ASSIGNED",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "followup.citizen_confirm": {
+      "CITIZEN": "O",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "followup.record": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "S",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "S6",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "case.reopen": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "case.close_monitoring": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "flag.create": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "S",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "flag.respond": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "S",
+      "REPAIR_CREW": "O7",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "S",
+      "ADMIN": "-"
+    },
+    "evidence.request_original": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "S",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "S",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "pinn.run": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "S",
+      "COORDINATOR": "S",
+      "APPROVER": "S",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "S",
+      "AGENCY_HEAD": "R",
+      "ADMIN": "-"
+    },
+    "cost.run": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "S",
+      "COORDINATOR": "S",
+      "APPROVER": "S",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "S",
+      "AGENCY_HEAD": "R",
+      "ADMIN": "-"
+    },
+    "document.audit_report": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "S",
+      "AGENCY_HEAD": "S",
+      "ADMIN": "-"
+    },
+    "document.agency_draft": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "S",
+      "AGENCY_HEAD": "S",
+      "ADMIN": "-"
+    },
+    "document.record_agency_signed": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "S",
+      "ADMIN": "-"
+    },
+    "export.audit_bundle": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "S",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    },
+    "dashboard.agency": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S",
+      "APPROVER": "S",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "S",
+      "AGENCY_HEAD": "S",
+      "ADMIN": "-"
+    },
+    "registry.status_correction.propose": {
+      "CITIZEN": "Y",
+      "FIELD_INSPECTOR": "S",
+      "COORDINATOR": "S",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "S",
+      "AGENCY_HEAD": "S",
+      "ADMIN": "-"
+    },
+    "registry.status_correction.decide": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "S8",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "Y"
+    },
+    "registry.manage": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "Y"
+    },
+    "authorities.manage": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "Y"
+    },
+    "prices.manage": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "Y"
+    },
+    "users.manage": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "C9"
+    },
+    "role_assignment.manage": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "C9"
+    },
+    "config.manage": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "Y"
+    },
+    "conflict.declare": {
+      "CITIZEN": "-",
+      "FIELD_INSPECTOR": "Y",
+      "COORDINATOR": "Y",
+      "APPROVER": "Y",
+      "REPAIR_CREW": "Y",
+      "SUPERVISOR": "Y",
+      "AUDITOR": "Y",
+      "AGENCY_HEAD": "Y",
+      "ADMIN": "Y"
+    },
+    "certificate.claim": {
+      "CITIZEN": "O",
+      "FIELD_INSPECTOR": "-",
+      "COORDINATOR": "-",
+      "APPROVER": "-",
+      "REPAIR_CREW": "-",
+      "SUPERVISOR": "-",
+      "AUDITOR": "-",
+      "AGENCY_HEAD": "-",
+      "ADMIN": "-"
+    }
+  },
+  "sod_rules": [
+    {
+      "id": "SOD-1",
+      "name": "Executor != verifier",
+      "check": "person(supervisor) != person(crew); for CONTRACT also org(supervisor) != org(crew)",
+      "actions": [
+        "ISSUE_WORK_ORDER",
+        "VERIFY_WORK",
+        "REJECT_WORK"
+      ],
+      "basis": "Perpres 16/2018 jo. 12/2021 Pasal 16(1)"
+    },
+    {
+      "id": "SOD-2",
+      "name": "Recommender != approver",
+      "check": "person(approver) not in {plan.proposer, inspection.inspector}",
+      "actions": [
+        "APPROVE_PLAN",
+        "ACCEPT_WORK"
+      ],
+      "basis": "shared decision"
+    },
+    {
+      "id": "SOD-3",
+      "name": "No provider-linked official",
+      "check": "no conflict_declaration(person(actor), package.provider_org) and org(actor) != package.provider_org for FIELD_INSPECTOR, COORDINATOR, APPROVER, SUPERVISOR, AUDITOR, AGENCY_HEAD",
+      "actions": [
+        "*"
+      ],
+      "basis": "Perpres 46/2025 Pasal 7(2)"
+    },
+    {
+      "id": "SOD-4",
+      "name": "Crew != supervisor != post-repair verifier",
+      "check": "person(follow_up.recorder) not in {crew, supervisor} for M3, HEAVY_RAIN, EVERY_6M",
+      "actions": [
+        "RECORD_FOLLOW_UP"
+      ],
+      "basis": "shared decision"
+    },
+    {
+      "id": "SOD-5",
+      "name": "Acceptance after independent verification",
+      "check": "state == WORK_VERIFIED and work.verified event by SUPERVISOR exists",
+      "actions": [
+        "ACCEPT_WORK"
+      ],
+      "basis": "Perpres Pasal 11(1)(l), 57-58"
+    },
+    {
+      "id": "SOD-6",
+      "name": "Permitted overlaps logged",
+      "check": "if sub_type in {KPA_AS_PPK, PPTK_AS_PPK} or multiple roles in same authority then event.overlap_basis required",
+      "actions": [
+        "*"
+      ],
+      "basis": "Perpres 12/2021 Pasal 10(5), 11(3)-(4)"
+    },
+    {
+      "id": "SOD-7",
+      "name": "Transfer needs SK; cross-level needs second person",
+      "check": "payload.decree_ref required; if level changes then transfer_confirm by different person of target authority",
+      "actions": [
+        "TRANSFER_AUTHORITY"
+      ],
+      "basis": "PP 34/2006 Pasal 62"
+    },
+    {
+      "id": "SOD-8",
+      "name": "Auditors and admins never operate",
+      "check": "role in {AUDITOR, ADMIN} rejected on transitions; AUDITOR cannot hold operational role in same authority",
+      "actions": [
+        "*"
+      ],
+      "basis": "APIP independence (TODO_VERIFY PP 60/2008)"
+    },
+    {
+      "id": "SOD-9",
+      "name": "Toll regulator flag-only",
+      "check": "sub_type TOLL_REGULATOR may flag.create only",
+      "actions": [
+        "*"
+      ],
+      "basis": "KPK finding on BPJT-BUJT conflicts (IDX Channel, 9 Mar 2023)"
+    },
+    {
+      "id": "SOD-10",
+      "name": "Citizen dispute triggers verification",
+      "check": ">=2 independent devices DAMAGED (or 1 with photo and trust_tier 1) within window -> inspector follow-up task",
+      "actions": [
+        "RECORD_FOLLOW_UP"
+      ],
+      "basis": "design (note 04 SoD-8)"
+    },
+    {
+      "id": "SOD-11",
+      "name": "No self-accept of staff-created reports",
+      "check": "if case.created_by is staff then ACCEPT by different person",
+      "actions": [
+        "ACCEPT"
+      ],
+      "basis": "design"
+    },
+    {
+      "id": "SOD-12",
+      "name": "No self-granting",
+      "check": "role_assignment.created_by != role_assignment.account_id; APPROVER needs appointment_ref",
+      "actions": [
+        "role_assignment.manage"
+      ],
+      "basis": "design"
+    },
+    {
+      "id": "SOD-13",
+      "name": "Delay-extension cap",
+      "check": "4th consecutive SET_PENDING requires AGENCY_HEAD",
+      "actions": [
+        "SET_PENDING"
+      ],
+      "basis": "design"
+    }
+  ],
+  "legacy_role_aliases": {
+    "PUBLIC_REPORTER": "CITIZEN",
+    "FIELD_ENGINEER": "FIELD_INSPECTOR",
+    "OPERATIONS_MANAGER": "COORDINATOR",
+    "POLICY_MAKER": "AGENCY_HEAD",
+    "PUBLIC_VIEWER": null
+  },
+  "demo_accounts": [
+    {
+      "role": "FIELD_INSPECTOR",
+      "display_name": "Demo Field Inspector"
+    },
+    {
+      "role": "COORDINATOR",
+      "display_name": "Demo Maintenance Coordinator"
+    },
+    {
+      "role": "APPROVER",
+      "display_name": "Demo Approving Officer"
+    },
+    {
+      "role": "REPAIR_CREW",
+      "display_name": "Demo Repair Crew"
+    },
+    {
+      "role": "SUPERVISOR",
+      "display_name": "Demo Works Supervisor"
+    },
+    {
+      "role": "AUDITOR",
+      "display_name": "Demo Auditor"
+    },
+    {
+      "role": "AGENCY_HEAD",
+      "display_name": "Demo Agency Head"
+    },
+    {
+      "role": "ADMIN",
+      "display_name": "Demo Region Admin"
+    }
+  ]
+}

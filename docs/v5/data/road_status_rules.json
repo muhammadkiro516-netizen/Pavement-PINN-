@@ -1,0 +1,191 @@
+{
+  "$comment": "PAVEMENT-PINN road-status and routing rules. Read by the routing service (server/services/authorityResolver.ts successor) and the map legend. Every rule carries a source and a status. Status values: VERIFIED (read from an official/primary source on source_date), TODO_VERIFY (not yet confirmed; source to fetch is named), DESIGN (a product design choice, not a legal fact). See 04_AUTHORITY_ROUTING.md.",
+  "version": "2026-11-01.1",
+  "generated_from": [
+    "research_notes/04_kewenangan_dan_peran.md",
+    "research_notes/05_data_peta_dan_direktori.md",
+    "_shared_decisions.md"
+  ],
+
+  "status_enum": [
+    { "code": "NASIONAL", "label_en": "National road", "label_id": "Jalan nasional", "legal_basis": "UU 38/2004 jo UU 2/2022 Pasal 9(6)", "status_set_by": "Keputusan Menteri (PP 34/2006 Pasal 62(1)); current: Kepmen PUPR 1688/KPTS/M/2022", "status": "VERIFIED" },
+    { "code": "TOL", "label_en": "Toll road", "label_id": "Jalan tol", "legal_basis": "UU 2/2022 Pasal 9(6) (toll roads are national roads), Pasal 43, 51A", "status_set_by": "Menteri (part of national status); operator by PPJT concession", "status": "VERIFIED" },
+    { "code": "PROVINSI", "label_en": "Provincial road", "label_id": "Jalan provinsi", "legal_basis": "UU 2/2022 Pasal 9(7), 15(1)", "status_set_by": "Keputusan Gubernur (PP 34/2006 Pasal 62(2))", "status": "VERIFIED" },
+    { "code": "KABUPATEN", "label_en": "Regency road", "label_id": "Jalan kabupaten", "legal_basis": "UU 2/2022 Pasal 9(8), 16(1)", "status_set_by": "Keputusan Bupati (PP 34/2006 Pasal 62(3))", "status": "VERIFIED" },
+    { "code": "KOTA", "label_en": "City road", "label_id": "Jalan kota", "legal_basis": "UU 2/2022 Pasal 9(9), 16(2)", "status_set_by": "Keputusan Walikota (PP 34/2006 Pasal 62(4))", "status": "VERIFIED" },
+    { "code": "DESA", "label_en": "Village road", "label_id": "Jalan desa", "legal_basis": "UU 2/2022 Pasal 9(10), 16A(1)", "status_set_by": "Keputusan Bupati (PP 34/2006 Pasal 62(5))", "status": "VERIFIED" },
+    { "code": "KHUSUS", "label_en": "Special / private road", "label_id": "Jalan khusus", "legal_basis": "UU 2/2022 Pasal 57A-57D; PP 34/2006 Pasal 123-124", "status_set_by": "Owner (BUMN/BUMD/business/community/agency); becomes kab/kota road only after handover + designation", "status": "VERIFIED" },
+    { "code": "UNKNOWN", "label_en": "Status unknown", "label_id": "Status belum diketahui", "legal_basis": null, "status_set_by": null, "status": "DESIGN" }
+  ],
+
+  "authority_by_status": {
+    "NASIONAL": {
+      "legal_authority": "Pemerintah Pusat - Kementerian PU, Ditjen Bina Marga (UU 2/2022 Pasal 14(1); Perpres 170/2024)",
+      "office_chain": ["BBPJN/BPJN by province (data/authorities_national_balai.csv)", "Satker PJN (TODO_VERIFY per segment)", "PPK ruas (TODO_VERIFY per contract)"],
+      "office_lookup": "province -> balai via provinces_covered",
+      "oversight": ["Inspektorat Jenderal Kementerian PU (APIP)", "Ombudsman RI (escalation)"],
+      "status": "VERIFIED", "note": "Satker/PPK sub-routing not confirmed from a primary source (note 04 Gap)."
+    },
+    "TOL": {
+      "legal_authority": "BUJT operator under PPJT; preservation + SPM by BUJT (Permen PU 2/2025 Lampiran C.1 items 14-15)",
+      "office_chain": ["BUJT operator desk (data/toll_operators_jakarta.csv)", "BUJT regional office where known (e.g. jm-metro)"],
+      "office_lookup": "toll ruas match (name/operator alias) -> bujt_id -> route_to_office_id",
+      "watcher": "bpjt",
+      "watcher_rights": "read + flag + escalate; never close (SoD-6)",
+      "oversight": ["BPJT (Permen PU 2/2025)", "DJBM (laik fungsi)"],
+      "status": "VERIFIED"
+    },
+    "PROVINSI": {
+      "legal_authority": "Pemerintah Provinsi (UU 2/2022 Pasal 15(1))",
+      "office_chain": ["Dinas PU/Bina Marga provinsi (data/authorities_provincial_dinas.csv)", "UPTD wilayah (TODO_VERIFY per province)"],
+      "office_lookup": "province -> dinas; then UPTD polygon if loaded",
+      "oversight": ["Inspektorat Provinsi", "Ombudsman RI Perwakilan"],
+      "status": "VERIFIED", "note": "Dinas names vary by province; model generically (note 04 §4)."
+    },
+    "KABUPATEN": {
+      "legal_authority": "Pemerintah Kabupaten (UU 2/2022 Pasal 16(1))",
+      "office_chain": ["Dinas PU/PUPR/Bina Marga kabupaten (directory TODO_VERIFY; seed pipeline in note 05 §5)", "UPTD/seksi"],
+      "office_lookup": "kabupaten polygon (kode wilayah 4-digit) -> dinas",
+      "fallback_when_dinas_unknown": "Pemkab main address or SP4N-LAPOR! referral; never an invented dinas address",
+      "oversight": ["Inspektorat Kabupaten", "Ombudsman RI Perwakilan"],
+      "status": "VERIFIED"
+    },
+    "KOTA": {
+      "legal_authority": "Pemerintah Kota (UU 2/2022 Pasal 16(2))",
+      "office_chain": ["Dinas PU/PUPR/Bina Marga kota (directory TODO_VERIFY)"],
+      "office_lookup": "kota polygon -> dinas",
+      "fallback_when_dinas_unknown": "Pemkot main address or SP4N-LAPOR! referral",
+      "oversight": ["Inspektorat Kota", "Ombudsman RI Perwakilan"],
+      "status": "VERIFIED"
+    },
+    "DESA": {
+      "legal_authority": "Pemerintah Desa (UU 2/2022 Pasal 16A(1)); kabupaten regulates and guides (Pasal 16(1))",
+      "office_chain": ["Pemerintah Desa / Kepala Desa", "Dinas PU kabupaten (guidance, cc)"],
+      "office_lookup": "desa polygon (kode wilayah 10-digit) -> desa office (directory TODO_VERIFY)",
+      "oversight": ["Inspektorat Kabupaten (also audits Dana Desa)"],
+      "status": "VERIFIED", "note": "Desa directory not researched."
+    },
+    "KHUSUS": {
+      "legal_authority": "Registered owner (UU 2/2022 Pasal 57A)",
+      "office_chain": [],
+      "citizen_notice": "This looks like a private or special road. The owner maintains it. We cannot send it to a government office.",
+      "status": "VERIFIED"
+    },
+    "UNKNOWN": {
+      "legal_authority": null,
+      "office_chain": ["admin-boundary default office (see fallback)"],
+      "status": "DESIGN"
+    }
+  },
+
+  "routing_params": {
+    "snap_max_m": { "value": 25, "configurable": true, "status": "DESIGN", "source": "_shared_decisions.md (snap <= 25 m); note 05 suggests 15-25 m dense urban, 50 m rural" },
+    "snap_profiles": { "urban_dense": 25, "rural": 50, "status": "DESIGN" },
+    "snap_hard_cap_m": { "value": 50, "status": "DESIGN", "note": "Search radius r = max(snap_max_m, min(gps_accuracy_m, snap_hard_cap_m)). If gps_accuracy_m > snap_max_m, confidence is capped at MEDIUM and the citizen is asked to confirm the road." },
+    "ambiguity_delta_m": { "value": 8, "status": "DESIGN", "note": "Two candidates whose distances differ by less than this are 'ambiguous' (overpass/underpass, toll above arterial, parallel service road)." },
+    "bearing_tolerance_deg": { "value": 30, "status": "DESIGN" },
+    "official_match_min_score": { "value": 0.8, "status": "DESIGN", "note": "Design assumption; not validated (note 05 §7 Gaps)." },
+    "official_length_tolerance": { "value": 0.10, "status": "DESIGN", "note": "Summed matched OSM length within +/-10% of panjang_km in the SK list (note 05 pipeline step 3; design assumption)." }
+  },
+
+  "confidence_levels": {
+    "HIGH": {
+      "definition": "Segment status comes from an official list match (Kepmen/Kepgub/Kepbup/Kepwal lampiran, or BPJT ruas list) with match_score >= official_match_min_score, OR an OSM toll tag (highway=motorway|motorway_link or toll=yes); AND the snap is unambiguous AND gps_accuracy_m <= snap_max_m.",
+      "ui": "Shown as 'Sent to <office>'. Coordinator may still transfer (with SK citation).",
+      "line_style": "solid"
+    },
+    "MEDIUM": {
+      "definition": "Status from a regional open-data default (e.g. DKI non-toll public roads -> PROVINSI per Satu Data Jakarta 2025), OR an official match below threshold, OR OSM highway=trunk outside DKI, OR an ambiguous snap resolved by the citizen's toll/non-toll toggle, OR any HIGH case with gps_accuracy_m > snap_max_m.",
+      "ui": "Shown as 'Probably <office>'. Coordinator sees 'check status'.",
+      "line_style": "dashed"
+    },
+    "LOW": {
+      "definition": "OSM class heuristic only (primary/secondary/tertiary/residential/unclassified), OR DKI trunk without an SK match, OR no segment within the search radius (admin-boundary fallback).",
+      "ui": "Shown as 'We think this is <office>. Please confirm.' Coordinator must confirm or transfer before the SLA clock for 'acknowledged' starts.",
+      "line_style": "dotted, 60% opacity"
+    }
+  },
+
+  "precedence_of_sources": [
+    { "rank": 1, "source": "user_correction_accepted", "note": "Accepted correction creates a new segment version citing an SK." },
+    { "rank": 2, "source": "sk_official", "note": "Kepmen PUPR 1688/KPTS/M/2022 (national), Kepgub (provincial), Kepbup/Kepwal (kab/kota/desa)." },
+    { "rank": 3, "source": "bpjt_list", "note": "BPJT 'Daftar Ruas Jalan Tol dan BUJT Sedang Beroperasi'." },
+    { "rank": 4, "source": "bina_marga_list", "note": "IRMS / Buku Kondisi Jalan Nasional ruas tables if obtained." },
+    { "rank": 5, "source": "regional_open_data", "note": "e.g. Satu Data Jakarta status table (tabular, no geometry)." },
+    { "rank": 6, "source": "osm_tag_heuristic" },
+    { "rank": 7, "source": "admin_default" }
+  ],
+
+  "osm_heuristics": {
+    "$comment": "From note 05 §2 (OSM wiki Indonesia:Tags/Highway; archived Indonesian Tagging Guidelines). OSM highway class in Indonesia is contested (community thread 145030, July 2026, DWG blocks), so these are weak proxies. Applied only where no official match exists.",
+    "source": "https://wiki.openstreetmap.org/wiki/Indonesia:Tags/Highway ; https://community.openstreetmap.org/t/road-classification-in-indonesia/145030",
+    "rules": [
+      { "id": "OSM-TOLL", "match": { "highway": ["motorway", "motorway_link"] }, "or_match": { "toll": ["yes"] }, "status": "TOL", "confidence": "HIGH", "rule_status": "VERIFIED", "note": "Then join to BPJT ruas via name/operator alias; unmatched toll -> office = bpjt watcher queue, confidence MEDIUM." },
+      { "id": "OSM-TRUNK", "match": { "highway": ["trunk", "trunk_link"] }, "status": "NASIONAL", "confidence": "MEDIUM", "rule_status": "VERIFIED", "note": "OSM Id:Tag:highway=trunk says trunk roads 'masuk ke dalam kewenangan jalan nasional'. Overridden in DKI (see jakarta_overrides)." },
+      { "id": "OSM-PRIMARY", "match": { "highway": ["primary", "primary_link"] }, "status": "PROVINSI", "confidence": "LOW", "rule_status": "VERIFIED" },
+      { "id": "OSM-SECONDARY", "match": { "highway": ["secondary", "secondary_link"] }, "status": "KABUPATEN_OR_KOTA", "confidence": "LOW", "rule_status": "VERIFIED", "note": "Resolve KABUPATEN vs KOTA from the admin polygon type." },
+      { "id": "OSM-MINOR", "match": { "highway": ["tertiary", "tertiary_link", "residential", "unclassified", "living_street"] }, "status": "KABUPATEN_OR_KOTA", "confidence": "LOW", "rule_status": "VERIFIED", "note": "Or DESA in rural kabupaten - only if a desa road SK says so; otherwise KABUPATEN." },
+      { "id": "OSM-SERVICE", "match": { "highway": ["service", "track"] }, "status": "KHUSUS", "confidence": "LOW", "rule_status": "VERIFIED", "note": "service=parking_aisle|driveway|drive-through are dropped from the registry (DESIGN)." }
+    ],
+    "ref_hint": { "rule_status": "TODO_VERIFY", "note": "OSM wiki: national roads carry a national-number ref; primary/secondary carry provincial/regency refs. Whether OSM Indonesia uses consistent prefixes (N/P/K) or designation=* was NOT confirmed. Use ref only as a tie-breaker; never to raise confidence. The current authorityResolver.ts treats ref ^\\d{1,3}$ as national - keep as tie-breaker only." }
+  },
+
+  "jakarta_overrides": {
+    "$comment": "DKI Jakarta has no autonomous kabupaten/kota road authority: 5 kota administrasi + 1 kabupaten administrasi. Satu Data Jakarta 2025 shows STATUS_JALAN=PROVINSI for all road classes in Jakarta Pusat and Jakarta Utara.",
+    "applies_when": { "province": "DKI Jakarta" },
+    "default_non_toll_public_road": { "status": "PROVINSI", "authority_id": "pemprov-dki", "office_id": "sudin-bm-{kota_slug}", "then": "satpel-bm-{kota_slug}-{kecamatan_slug}", "confidence": "MEDIUM", "source": "https://satudata.jakarta.go.id/open-data/detail?kategori=dataset&page_url=panjang-luas-dan-status-jalan-menurut-jenisnya-di-provinsi-dki-jakarta&data_no=1", "rule_status": "VERIFIED", "note": "Only Pusat + Utara rows were read; confirm the other kota rows show PROVINSI too (TODO_VERIFY)." },
+    "trunk_without_sk_match": { "status": "PROVINSI", "confidence": "LOW", "flag": "POSSIBLE_NATIONAL", "coordinator_prompt": "This may be a national road. Check the Kepmen PUPR 1688/KPTS/M/2022 DKI list before sending.", "rule_status": "DESIGN", "note": "National non-toll ruas inside DKI are unknown; a 2016 headline reports 89.33 km transferred to provincial status (article not opened)." },
+    "national_segments_from_sk": { "segments": [], "authority_id": "kementerian-pu", "office_id": "bbpjn-jabar-dki", "confidence": "HIGH", "rule_status": "TODO_VERIFY", "source_to_fetch": "Kepmen PUPR 1688/KPTS/M/2022 lampiran (51.58 MB PDF, MD5 4776c9c4158abea64ee1fde3a10538a1) https://binamarga.pu.go.id/index.php/nspk/detail/keputusan-menteri-pupr-nomor-430kptsm2022-tentang-penetapan-ruas-jalan-menurut-statusnya-sebagai-jalan-nasional" },
+    "provincial_sk": { "number": null, "date": null, "rule_status": "TODO_VERIFY", "source_to_fetch": "JDIH DKI (jdih.jakarta.go.id) - Kepgub on ruas jalan provinsi" },
+    "segment_overrides": [],
+    "segment_override_schema": { "segment_id": "string", "osm_way_id": "integer|null", "status": "status_enum", "authority_id": "string", "office_id": "string", "sk_reference_id": "string (required)", "valid_from": "date", "reason": "string" },
+    "kepulauan_seribu": { "office_id": "sudin-bm-kepseribu", "fallback_office_id": "dbm-dki", "rule_status": "TODO_VERIFY", "note": "Sudin Bina Marga for the kabupaten administrasi not confirmed." },
+    "private_estates": { "status": "KHUSUS", "note": "Roads inside housing developments -> developer/pengelola, shown as non-public (note 05 §4 inference). Requires an estate polygon layer (TODO)." }
+  },
+
+  "defect_type_overrides": [
+    { "defect": "PJU (street light)", "region": "DKI Jakarta", "office": "dbm-dki -> Bidang Penerangan Jalan dan Sarana Umum / Sudin Seksi PJU", "source": "Pergub DKI 153/2019 Pasal 3, 4, 31-38", "rule_status": "VERIFIED" },
+    { "defect": "PJU (street light)", "region": "outside DKI", "office": "TODO_VERIFY (often Dishub or Perkim)", "rule_status": "TODO_VERIFY" },
+    { "defect": "saluran tepi jalan / trotoar", "region": "all", "office": "road authority by status (part of ruang manfaat jalan)", "source": "PP 34/2006 Pasal 34-37", "rule_status": "VERIFIED", "note": "In DKI, the Dinas SDA (drainage) and PPSU kelurahan roles vs Bina Marga are TODO_VERIFY." },
+    { "defect": "rambu / marka / APILL", "region": "outside DKI", "office": "TODO_VERIFY (likely Dishub via UU 22/2009 Pasal 25-26)", "rule_status": "TODO_VERIFY" }
+  ],
+
+  "sla_hooks": [
+    { "id": "LLAJ-24", "text": "Penyelenggara jalan wajib segera dan patut memperbaiki jalan rusak yang dapat mengakibatkan kecelakaan; if not yet repaired, must put up signs.", "source": "UU 22/2009 Pasal 24(1)-(2) (via Hukumonline 18 Feb 2026)", "hours": null, "rule_status": "VERIFIED", "note": "No numeric deadline in the law." },
+    { "id": "TOL-SPM-POTHOLE", "hours": 48, "rule_status": "TODO_VERIFY", "note": "Hukumonline op-ed (18 Feb 2026) says SPM requires toll potholes repaired within 2x24 h; detikOto (2021) states no pothole deadline; Permen PU 16/2014 Lampiran I not retrieved; new SPM Permen (2026) enactment not verified. Keep configurable." },
+    { "id": "JAKI-RESPONSE", "hours": 144, "applies": "DKI (response, not repair)", "source": "INP Polri 29 May 2025 (6-day response flag)", "rule_status": "VERIFIED" },
+    { "id": "SP4N-VERIFY", "working_days": 3, "source": "KemenPANRB Monev SP4N-LAPOR 2023", "rule_status": "VERIFIED" },
+    { "id": "SP4N-FIELD", "working_days": 60, "source": "KemenPANRB Monev SP4N-LAPOR 2023", "rule_status": "VERIFIED" },
+    { "id": "JATENG-PROV-POTHOLE", "hours": 24, "applies": "Jawa Tengah provincial roads", "source": "Antara Jateng 23 Oct 2019 (Jalan Cantik)", "rule_status": "VERIFIED" },
+    { "id": "SURABAYA-FOLLOWUP", "hours": 24, "applies": "Kota Surabaya", "source": "Suara Surabaya 20 Feb 2026", "rule_status": "VERIFIED" }
+  ],
+
+  "map_legend": {
+    "$comment": "Palette from _shared_decisions.md. Checked with a Machado-2009 CVD simulation: minimum pairwise dE76 = 34.5 normal, 16.4 deutan, 24.2 protan, 9.1 tritan. Colour is never the only cue: every line has a text label in the popup and the legend, confidence uses line style.",
+    "base_map": "light (white)",
+    "casing": { "color": "#0D1015", "opacity": 0.55, "width_px_extra": 1.5, "reason": "Cone orange (2.61:1) is below the WCAG 1.4.11 3:1 non-text contrast on white; the ink casing carries the contrast." },
+    "status_colors": {
+      "NASIONAL": { "hex": "#0068B5", "name": "Intel blue" },
+      "TOL": { "hex": "#0D1015", "name": "Asphalt ink", "width_px": 5 },
+      "PROVINSI": { "hex": "#FF7A1A", "name": "Cone orange" },
+      "KABUPATEN": { "hex": "#0A9CC2", "name": "Physics cyan" },
+      "KOTA": { "hex": "#0A9CC2", "name": "Physics cyan", "note": "Same as KABUPATEN; the two never overlap in one area." },
+      "DESA": { "hex": "#12A06A", "name": "Green" },
+      "KHUSUS": { "hex": "#8B8C8E", "name": "Asphalt ink at 45% on white", "width_px": 2 },
+      "UNKNOWN": { "hex": "#FFFFFF", "name": "hollow (white core, ink casing)", "width_px": 2 }
+    },
+    "reserved_colors": {
+      "#E5391A": "Hazard red - damage reports and SLA breaches only, never an authority",
+      "#FFC72C": "Signal yellow - selection / highlight only",
+      "#E0A100": "Signal yellow dark - text-safe yellow for badges"
+    },
+    "confidence_styles": {
+      "HIGH": { "dash": null, "opacity": 1.0 },
+      "MEDIUM": { "dash": [6, 4], "opacity": 1.0 },
+      "LOW": { "dash": [1, 4], "opacity": 0.6 }
+    },
+    "toggle": { "id": "verified_only", "label_en": "Show verified data only", "label_id": "Tampilkan hanya data terverifikasi", "effect": "hide segments with confidence != HIGH" },
+    "popup_fields": ["status", "authority name", "office name", "legal_basis (SK number + date)", "source", "confidence", "last_reviewed_at", "button: Report a status error / Laporkan kesalahan status"],
+    "rule_status": "DESIGN"
+  }
+}

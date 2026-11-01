@@ -1,0 +1,500 @@
+{
+  "version": "5.0.0",
+  "generated": "2026-11-01",
+  "note": "Twin of 05_CAPTURE_AND_MEASUREMENT.md section 7. Only D00/D10/D20/D40 are AI-detector classes; others are human-selected. Thresholds marked design are configurable defaults, not standards.",
+  "classes": [
+    {
+      "code": "LONG_CRACK",
+      "rdd2022": "D00",
+      "name_en": "Longitudinal crack",
+      "name_id": "Retak memanjang",
+      "ai_detectable": true,
+      "dataset_labels": {
+        "RDD2022": "D00",
+        "RDD_Indonesia": "Retakan_Memanjang"
+      },
+      "citizen_selectable": true,
+      "inspector_measurements": [
+        "LENGTH_M",
+        "WIDTH_MM"
+      ],
+      "severity_rule": "CRACK_WIDTH_CLASS",
+      "legacy_v4_codes": [
+        "retak_memanjang"
+      ]
+    },
+    {
+      "code": "TRANS_CRACK",
+      "rdd2022": "D10",
+      "name_en": "Transverse crack",
+      "name_id": "Retak melintang",
+      "ai_detectable": true,
+      "dataset_labels": {
+        "RDD2022": "D10",
+        "RDD_Indonesia": "Retakan_Melintang"
+      },
+      "citizen_selectable": true,
+      "inspector_measurements": [
+        "LENGTH_M",
+        "WIDTH_MM"
+      ],
+      "severity_rule": "CRACK_WIDTH_CLASS",
+      "legacy_v4_codes": [
+        "retak_melintang"
+      ]
+    },
+    {
+      "code": "ALLIGATOR",
+      "rdd2022": "D20",
+      "name_en": "Alligator (fatigue) cracking",
+      "name_id": "Retak buaya",
+      "ai_detectable": true,
+      "dataset_labels": {
+        "RDD2022": "D20",
+        "RDD_Indonesia": "Retakan_Buaya"
+      },
+      "citizen_selectable": true,
+      "inspector_measurements": [
+        "AREA_M2",
+        "WIDTH_MM"
+      ],
+      "severity_rule": "CRACK_AREA_SHARE",
+      "legacy_v4_codes": [
+        "retak_buaya"
+      ]
+    },
+    {
+      "code": "POTHOLE",
+      "rdd2022": "D40",
+      "name_en": "Pothole",
+      "name_id": "Lubang",
+      "ai_detectable": true,
+      "dataset_labels": {
+        "RDD2022": "D40",
+        "RDD_Indonesia": "Lubang",
+        "BPID": "pothole"
+      },
+      "citizen_selectable": true,
+      "inspector_measurements": [
+        "AREA_M2",
+        "DEPTH_MM",
+        "DIAMETER_MM",
+        "COUNT"
+      ],
+      "severity_rule": "POTHOLE_MATRIX",
+      "legacy_v4_codes": [
+        "lubang"
+      ]
+    },
+    {
+      "code": "RUTTING_DEPRESSION",
+      "rdd2022": null,
+      "name_en": "Rutting / depression / corrugation",
+      "name_id": "Alur / amblas / bergelombang",
+      "ai_detectable": false,
+      "dataset_labels": {},
+      "citizen_selectable": true,
+      "inspector_measurements": [
+        "DEPTH_MM",
+        "LENGTH_M",
+        "WIDTH_M"
+      ],
+      "severity_rule": "SDI_RUT_DEPTH",
+      "legacy_v4_codes": [
+        "amblas_bergelombang"
+      ],
+      "notes": "Not in RDD2022; human-selected. Depth under straightedge."
+    },
+    {
+      "code": "EDGE_BREAK",
+      "rdd2022": null,
+      "name_en": "Edge break",
+      "name_id": "Kerusakan tepi",
+      "ai_detectable": false,
+      "dataset_labels": {},
+      "citizen_selectable": true,
+      "inspector_measurements": [
+        "LENGTH_M",
+        "WIDTH_M"
+      ],
+      "severity_rule": "NONE",
+      "legacy_v4_codes": []
+    },
+    {
+      "code": "RAVELLING",
+      "rdd2022": null,
+      "name_en": "Ravelling / loss of aggregate",
+      "name_id": "Pelepasan butir",
+      "ai_detectable": false,
+      "dataset_labels": {},
+      "citizen_selectable": true,
+      "inspector_measurements": [
+        "AREA_M2"
+      ],
+      "severity_rule": "NONE",
+      "legacy_v4_codes": []
+    },
+    {
+      "code": "PATCH_FAILURE",
+      "rdd2022": null,
+      "name_en": "Failed patch",
+      "name_id": "Tambalan rusak",
+      "ai_detectable": false,
+      "dataset_labels": {},
+      "citizen_selectable": true,
+      "inspector_measurements": [
+        "AREA_M2",
+        "DEPTH_MM"
+      ],
+      "severity_rule": "PATCH_FAILURE_MODES",
+      "legacy_v4_codes": [],
+      "notes": "Future: train on follow-up photos."
+    },
+    {
+      "code": "STANDING_WATER",
+      "rdd2022": null,
+      "name_en": "Standing water on road",
+      "name_id": "Genangan",
+      "ai_detectable": false,
+      "dataset_labels": {},
+      "citizen_selectable": true,
+      "inspector_measurements": [
+        "AREA_M2"
+      ],
+      "severity_rule": "NONE",
+      "legacy_v4_codes": [
+        "genangan"
+      ],
+      "notes": "CLIP zero-shot triage only; label 'AI suspects'. Triggers drainage note."
+    },
+    {
+      "code": "SEVERE_BREAKUP",
+      "rdd2022": null,
+      "name_en": "Road broken up over a large area",
+      "name_id": "Rusak berat / rusak total",
+      "ai_detectable": false,
+      "dataset_labels": {},
+      "citizen_selectable": true,
+      "inspector_measurements": [
+        "LENGTH_M",
+        "AREA_M2"
+      ],
+      "severity_rule": "NONE",
+      "legacy_v4_codes": [
+        "rusak_total"
+      ],
+      "notes": "Use trace mode."
+    },
+    {
+      "code": "OTHER_ASSET",
+      "rdd2022": null,
+      "name_en": "Bridge / sidewalk / drainage / road furniture",
+      "name_id": "Jembatan / trotoar / drainase / perlengkapan jalan",
+      "ai_detectable": false,
+      "dataset_labels": {},
+      "citizen_selectable": true,
+      "inspector_measurements": [],
+      "severity_rule": "NONE",
+      "legacy_v4_codes": [
+        "JEMBATAN",
+        "TROTOAR",
+        "DRAINASE",
+        "PERLENGKAPAN"
+      ],
+      "notes": "CLIP zero-shot triage (v4 M1.2), always NEEDS_HUMAN; routed by asset rule. Trotoar and saluran tepi jalan are part of the road (PP 34/2006 Pasal 34)."
+    }
+  ],
+  "pothole_severity_matrix": {
+    "source": "FAA PAVEAIR 'Levels of severity for potholes' (mirrors ASTM D6433 PCI; ASTM text not read)",
+    "source_url": "https://faapaveair.faa.gov/Help/Documents/levelsofseverityforpotholes.htm",
+    "inputs": {
+      "max_depth_mm": "MEASURED by straightedge + ruler (inspector only)",
+      "avg_diameter_mm": "MEASURED (marker or tape)"
+    },
+    "depth_bands_mm": [
+      {
+        "id": "D1",
+        "min_excl": null,
+        "min_incl": 13,
+        "max_incl": 25
+      },
+      {
+        "id": "D2",
+        "min_excl": 25,
+        "max_incl": 50
+      },
+      {
+        "id": "D3",
+        "min_excl": 50,
+        "max_incl": null
+      }
+    ],
+    "diameter_bands_mm": [
+      {
+        "id": "W1",
+        "min_incl": 100,
+        "max_incl": 200
+      },
+      {
+        "id": "W2",
+        "min_excl": 200,
+        "max_incl": 450
+      },
+      {
+        "id": "W3",
+        "min_excl": 450,
+        "max_incl": 750
+      }
+    ],
+    "matrix": {
+      "D1": {
+        "W1": "L",
+        "W2": "L",
+        "W3": "M"
+      },
+      "D2": {
+        "W1": "L",
+        "W2": "M",
+        "W3": "H"
+      },
+      "D3": {
+        "W1": "M",
+        "W2": "M",
+        "W3": "H"
+      }
+    },
+    "edge_rules": {
+      "depth_below_13mm_or_diameter_below_100mm": "not rated as pothole (record as surface defect)",
+      "diameter_above_750mm": "rate by area per standard area rule",
+      "status": "TODO_VERIFY",
+      "verify_source": "ASTM D6433-23 counting rules"
+    },
+    "borderline_margin_mm": {
+      "value": 2,
+      "status": "design"
+    }
+  },
+  "crack_width_class": {
+    "threshold_mm": 3,
+    "status": "TODO_VERIFY",
+    "note": "SDI2 secondary source uses >3 mm in table and >5 mm in a worked example",
+    "verify_source": "Manual Konstruksi dan Bangunan No. 001-01/BM/2011"
+  },
+  "citizen_size_bands": {
+    "single": [
+      {
+        "id": "S",
+        "label_en": "small",
+        "label_id": "kecil",
+        "max_excl_m2": 0.1
+      },
+      {
+        "id": "M",
+        "label_en": "medium",
+        "label_id": "sedang",
+        "min_incl_m2": 0.1,
+        "max_incl_m2": 0.5
+      },
+      {
+        "id": "L",
+        "label_en": "large",
+        "label_id": "besar",
+        "min_excl_m2": 0.5
+      }
+    ],
+    "single_source": "note 07 Q8 (design proposal)",
+    "trace": [
+      {
+        "id": "T1",
+        "min_m": 10,
+        "max_m": 50
+      },
+      {
+        "id": "T2",
+        "min_m": 50,
+        "max_m": 200
+      },
+      {
+        "id": "T3",
+        "min_m": 200
+      }
+    ],
+    "trace_status": "design",
+    "display_status": "AI_ESTIMATE",
+    "rule": "Citizen UI never shows cm or precise m2."
+  },
+  "sdi": {
+    "source": "Manual Konstruksi dan Bangunan No. 001-01/BM/2011 (as reported by Jurnal Vokasi Sains & Teknologi UNG)",
+    "source_url": "https://jurnalvokasi.ung.ac.id/jvst/index.php/jvst/article/download/46/36",
+    "segment_length_m": 100,
+    "sdi1_crack_area_pct": [
+      {
+        "max_excl": 0.0001,
+        "score": 0
+      },
+      {
+        "max_excl": 10,
+        "score": 5
+      },
+      {
+        "min_incl": 10,
+        "max_incl": 30,
+        "score": 20
+      },
+      {
+        "min_excl": 30,
+        "score": 40
+      }
+    ],
+    "sdi2_crack_width": {
+      "rule": "if width > threshold_mm then SDI2 = SDI1 * 2 else SDI2 = SDI1",
+      "threshold_mm": 3,
+      "status": "TODO_VERIFY"
+    },
+    "sdi3_potholes_per_100m": [
+      {
+        "max_excl": 10,
+        "add": 15
+      },
+      {
+        "min_incl": 10,
+        "max_incl": 30,
+        "add": 75
+      },
+      {
+        "min_excl": 30,
+        "add": 225
+      }
+    ],
+    "sdi3_note": "Secondary source lists '<10 -> +15'; whether 0 potholes adds 0 is TODO_VERIFY",
+    "sdi4_rut_depth_cm": [
+      {
+        "max_excl": 1,
+        "add": 2.5
+      },
+      {
+        "min_incl": 1,
+        "max_incl": 3,
+        "add": 10
+      },
+      {
+        "min_excl": 3,
+        "add": 20
+      }
+    ],
+    "condition": [
+      {
+        "max_excl": 50,
+        "label_id": "Baik",
+        "label_en": "Good"
+      },
+      {
+        "min_incl": 50,
+        "max_incl": 100,
+        "label_id": "Sedang",
+        "label_en": "Fair"
+      },
+      {
+        "min_excl": 100,
+        "max_incl": 150,
+        "label_id": "Rusak Ringan",
+        "label_en": "Light damage"
+      },
+      {
+        "min_excl": 150,
+        "label_id": "Rusak Berat",
+        "label_en": "Heavy damage"
+      }
+    ],
+    "display_label": "Computed from app records, not an official survey",
+    "limitation": "SDI does not score pothole depth or size; store per-distress records too."
+  },
+  "repair_type_prefill": {
+    "status": "TODO_VERIFY",
+    "verify_source": "Bina Marga Pd/SE mapping SDI/IRI to pemeliharaan rutin/berkala/rehabilitasi/rekonstruksi",
+    "note": "Engineering convention, not sourced (note 07 Q3). Pre-fills the inspector plan only.",
+    "rules": [
+      {
+        "when": "POTHOLE severity L or M",
+        "suggest": [
+          "HOT_MIX_FULL_DEPTH_PATCH",
+          "COLD_MIX_TEMPORARY"
+        ]
+      },
+      {
+        "when": "widespread ALLIGATOR or many potholes per segment",
+        "suggest": [
+          "OVERLAY",
+          "MILL_AND_INLAY"
+        ]
+      },
+      {
+        "when": "SDI Rusak Berat with structural failure",
+        "suggest": [
+          "RECONSTRUCTION"
+        ]
+      }
+    ],
+    "legacy_v4_methods": {
+      "TAMBAL_DINGIN": "COLD_MIX_TEMPORARY",
+      "TAMBAL_PANAS": "HOT_MIX_PATCH",
+      "PATCHING_DALAM": "HOT_MIX_FULL_DEPTH_PATCH",
+      "OVERLAY": "OVERLAY",
+      "REKONSTRUKSI": "RECONSTRUCTION"
+    }
+  },
+  "patch_failure_modes": {
+    "source": "SHRP H-106 / FHWA LTPP pothole repair study (FHWA InfoPave report 99202)",
+    "source_url": "https://infopave.fhwa.dot.gov/InfoPave_Repository/Reports/C40/C40_80/99202.pdf",
+    "modes": [
+      {
+        "code": "BLEEDING",
+        "name_en": "Bleeding",
+        "name_id": "Kegemukan aspal"
+      },
+      {
+        "code": "CRACKING",
+        "name_en": "Cracking",
+        "name_id": "Retak"
+      },
+      {
+        "code": "DISHING",
+        "name_en": "Dishing / settlement",
+        "name_id": "Ambles / cekung"
+      },
+      {
+        "code": "EDGE_DISINTEGRATION",
+        "name_en": "Edge disintegration",
+        "name_id": "Tepi tambalan lepas"
+      },
+      {
+        "code": "MISSING",
+        "name_en": "Patch missing",
+        "name_id": "Tambalan hilang"
+      },
+      {
+        "code": "RAVELING",
+        "name_en": "Raveling",
+        "name_id": "Pelepasan butir"
+      },
+      {
+        "code": "SHOVING",
+        "name_en": "Shoving",
+        "name_id": "Sungkur / bergeser"
+      }
+    ],
+    "extra_app_modes": [
+      {
+        "code": "PONDING",
+        "name_en": "Water ponding on/next to patch",
+        "name_id": "Genangan di/ sekitar tambalan"
+      },
+      {
+        "code": "SEGREGATION",
+        "name_en": "Coarse open texture (segregation)",
+        "name_id": "Segregasi"
+      }
+    ],
+    "name_id_status": "Indonesian names are working translations; TODO_VERIFY against Bina Marga terminology"
+  }
+}
