@@ -1,0 +1,9 @@
+{
+  "source": "docs/v5/07_AUDIT_INTEGRITY.md §13.2",
+  "note": "Words the checker refuses in free text, flags and documents. This list exists only to block them.",
+  "words": [
+    "korupsi", "koruptor", "mark-up", "markup", "fiktif", "maling", "nakal", "lalai", "curang", "menggelapkan",
+    "merugikan negara", "kerugian negara", "kelebihan pembayaran", "kegagalan bangunan", "pasti", "terbukti",
+    "corruption", "corrupt", "fraud", "fake work", "stole", "negligent", "proven"
+  ]
+}
