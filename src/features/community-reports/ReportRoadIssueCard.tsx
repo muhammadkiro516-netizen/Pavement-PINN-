@@ -1,3 +1,5 @@
+import { LongDamageWalk, type LongDamageTrace } from './LongDamageWalk';
+import { RoadOwnerCard } from '../road-owner/RoadOwnerCard';
 import { Pavi } from '../../components/brand/Pavi';
 import { readPavi } from '../../components/brand/paviPrefs';
 import { nearestSegment } from '../../domain/geo/nearestSegment';
@@ -102,6 +104,7 @@ interface ReportRoadIssueCardProps {
 /* Shared look for every step of the report sheet: solid surface, thin borders, one yellow accent. */
 const SHEET =
   'w-full max-h-[90dvh] sm:max-h-[92vh] sm:max-w-lg bg-surface border-t sm:border border-white/[0.08] rounded-t-2xl sm:rounded-2xl px-5 pt-5 pb-3 sm:p-6 shadow-2xl text-slate-100 flex flex-col overflow-y-auto custom-scrollbar relative box-border';
+const MIN_LONG_DAMAGE_PHOTOS = 3;
 const CARD = 'rounded-2xl border border-white/[0.08] bg-white/[0.03]';
 const LABEL = 'text-sm font-medium text-slate-200';
 const HINT = 'text-xs text-slate-400';
@@ -119,6 +122,7 @@ const ERROR = 'flex items-start gap-2 rounded-2xl border border-red-400/30 bg-re
 const REPORT_STEPS = 3;
 
 /** Same header on every step: optional back, title + step count, optional close. */
+
 const SheetHeader: React.FC<{ step: number; title: string; subtitle: string; onBack?: () => void; onClose?: () => void }> = ({
   step,
   title,
@@ -302,6 +306,11 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
   // CV job (server-reported stages) and its stored analysis
   const [cvJob, setCvJob] = useState<CvJobView | null>(null);
   const [extraShots, setExtraShots] = useState<ExtraShots>({});
+  // Long damage: chosen before the camera. The walk gives the length; photos then follow as usual.
+  const [walkOpen, setWalkOpen] = useState(false);
+  const [longTrace, setLongTrace] = useState<LongDamageTrace | null>(null);
+  const longPhotoCount = (selectedImage ? 1 : 0) + Object.keys(extraShots).length;
+  const longNeedsPhotos = !!longTrace && longPhotoCount < MIN_LONG_DAMAGE_PHOTOS;
   const [cvAnalysis, setCvAnalysis] = useState<CvAnalysis | null>(null);
   const [cvError, setCvError] = useState<{ code: string; message: string } | null>(null);
   const [showOverlay, setShowOverlay] = useState<boolean>(true);
@@ -711,6 +720,8 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
 
   // Reset form
   const handleReset = () => {
+    setLongTrace(null);
+    setWalkOpen(false);
     stopCameraStream();
     cvRunRef.current?.abort.abort();
     cvRunRef.current = null;
@@ -837,7 +848,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
       estimatedDepthCm: 0,
       estimatedAreaM2: 0,
       photoUrl: selectedImage,
-      description: notes.trim() || `Laporan kerusakan jalan (${damageChoice.label}) dari warga.`,
+      description: [notes.trim() || `Laporan kerusakan jalan (${damageChoice.label}) dari warga.`, longTrace ? `Kerusakan panjang ±${Math.round(longTrace.lengthM)} m (jejak GPS warga, ${longTrace.points.length} titik).` : ''].filter(Boolean).join(' '),
       upvotesCount: 1,
       userUpvoted: true,
       // The server replaces this with the stored analysis when cvAnalysisId verifies;
@@ -923,6 +934,16 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
       {/* ========================================================================= */}
       {currentState === 'CAMERA_CAPTURE' ? (
         <div className="fixed inset-0 z-[2000] bg-black flex flex-col justify-between overflow-hidden select-none animate-in fade-in duration-200">
+          {!longTrace && (
+            <button
+              type="button"
+              onClick={() => { stopCameraStream(); setWalkOpen(true); setCurrentState('INPUT'); }}
+              className="absolute left-1/2 top-[max(64px,calc(env(safe-area-inset-top)+56px))] z-[2050] -translate-x-1/2 cursor-pointer whitespace-nowrap rounded-full bg-black/60 px-4 py-2 text-xs font-bold text-white backdrop-blur"
+              data-testid="long-damage-open"
+            >
+              Kerusakan panjang? Jalan dulu
+            </button>
+          )}
           {/* Shutter Screen Flash Animation Overlay */}
           {isShutterFlashing && (
             <div className="absolute inset-0 bg-white z-[2100] pointer-events-none transition-opacity duration-150" />
@@ -1218,6 +1239,24 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                     }}
                   />
 
+                  {walkOpen && (
+                    <LongDamageWalk
+                      onCancel={() => setWalkOpen(false)}
+                      onDone={(trace) => {
+                        setLongTrace(trace);
+                        setWalkOpen(false);
+                        setReportLocation((l) => ({ ...l, latitude: trace.start.lat, longitude: trace.start.lon, accuracyMeters: trace.start.accuracyM, source: 'device_gps' }));
+                        void handleOpenFullscreenCamera();
+                      }}
+                    />
+                  )}
+
+                  {!walkOpen && !longTrace && (
+                    <button type="button" onClick={() => setWalkOpen(true)} className={`${CARD} flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left`} data-testid="long-damage-open-input">
+                      <span className="min-w-0"><span className="block text-sm font-semibold text-white">Kerusakannya panjang?</span><span className={HINT}>Jalan sepanjang kerusakan, lalu foto.</span></span>
+                      <span className="shrink-0 rounded-full bg-white/[0.08] px-3 py-1.5 text-xs font-bold text-white">Mulai jalan</span>
+                    </button>
+                  )}
                   {/* 1. Notes */}
                   <div className="space-y-2">
                     <label htmlFor="report-notes" className="flex items-center justify-between">
@@ -1458,6 +1497,16 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
 
                   {selectedImage && <AiPhotoScan src={selectedImage} analysis={cvAnalysis} />}
 
+                  <RoadOwnerCard latitude={coordinates[0]} longitude={coordinates[1]} accuracyMeters={gpsAccuracy} />
+
+                  {longTrace && (
+                    <div className={`${CARD} px-4 py-3`} data-testid="long-summary">
+                      <p className={HINT}>Kerusakan panjang</p>
+                      <p className="text-lg font-extrabold text-[#FFD60A]">±{Math.round(longTrace.lengthM)} m</p>
+                      <p className={HINT}>{longNeedsPhotos ? `Tambah foto dari sisi lain: ${longPhotoCount} dari ${MIN_LONG_DAMAGE_PHOTOS}.` : `${longPhotoCount} foto sudah cukup.`} Lebar jalur dipastikan petugas.</p>
+                    </div>
+                  )}
+
                   <ReportExtraAngles shots={extraShots} onChange={setExtraShots} />
 
                   {/* Damage type */}
@@ -1551,7 +1600,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                 </div>
 
                 <div className="pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] space-y-3">
-                  <button type="button" onClick={handleSubmitReport} disabled={isSubmitting || Object.values(extraShots).some((x) => x?.state === "analysing")} aria-busy={isSubmitting} className={PRIMARY}>
+                  <button type="button" onClick={handleSubmitReport} disabled={isSubmitting || longNeedsPhotos || Object.values(extraShots).some((x) => x?.state === "analysing")} aria-busy={isSubmitting} className={PRIMARY}>
                     {isSubmitting ? 'Mengirim laporan…' : 'Kirim laporan'}
                   </button>
                   {submitError && (
@@ -1609,6 +1658,8 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                       </span>
                     </div>
                   </div>
+
+                  <RoadOwnerCard latitude={coordinates[0]} longitude={coordinates[1]} accuracyMeters={gpsAccuracy} />
 
                   {savedState === 'NEEDS_REVIEW' && (
                     <p className={`${HINT} text-center`}>

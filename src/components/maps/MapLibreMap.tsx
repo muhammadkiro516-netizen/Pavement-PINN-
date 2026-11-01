@@ -1,3 +1,4 @@
+import { attachRoadOwners } from './roadOwnerLayer';
 import React, { useEffect, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -600,6 +601,7 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
     // Below the first label layer, so place and road names stay readable on top of the data
     const beforeId = map.getStyle().layers?.find((layer) => layer.type === 'symbol')?.id;
     const empty = { type: 'FeatureCollection', features: [] } as never;
+    attachRoadOwners(map, beforeId);
     map.addSource(SEGMENT_SOURCE, { type: 'geojson', data: empty });
     map.addSource(REPORT_SOURCE, { type: 'geojson', data: empty });
     map.addSource(DENSITY_SOURCE, { type: 'geojson', data: empty });

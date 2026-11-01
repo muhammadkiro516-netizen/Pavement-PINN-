@@ -16,6 +16,13 @@ const EVERYONE: readonly UserRole[] = [...ALL_ROLES, 'PUBLIC_VIEWER', 'POLICY_MA
 export type RouteId =
   | 'landing'
   | 'login'
+  | 'roles'
+  | 'workCase'
+  | 'publicCase'
+  | 'why'
+  | 'tour'
+  | 'verify'
+  | 'verifyDoc'
   | 'track'
   | 'evidence'
   | 'map'
@@ -57,6 +64,13 @@ const STAFF: readonly UserRole[] = ['FIELD_ENGINEER', 'OPERATIONS_MANAGER'];
 export const ROUTES: readonly RouteDefinition[] = [
   { id: 'landing', path: '/beranda/', title: 'PavementPINN', access: 'PUBLIC', kind: 'page' },
   { id: 'login', path: '/login/', title: 'Masuk', access: 'PUBLIC', kind: 'page' },
+  { id: 'roles', path: '/peran/', title: 'Pilih Peran', access: 'PUBLIC', kind: 'page' },
+  { id: 'workCase', path: '/kerja/:id/', title: 'Kasus', access: 'PUBLIC', kind: 'page' },
+  { id: 'publicCase', path: '/pantau/:code/', title: 'Perjalanan Laporan', access: 'PUBLIC', kind: 'page' },
+  { id: 'why', path: '/why/', title: 'Kenapa Ini Penting', access: 'PUBLIC', kind: 'page' },
+  { id: 'tour', path: '/tour/', title: 'Tur', access: 'PUBLIC', kind: 'page' },
+  { id: 'verify', path: '/verify/', title: 'Periksa Keaslian', access: 'PUBLIC', kind: 'page' },
+  { id: 'verifyDoc', path: '/v/:docId/', title: 'Periksa Keaslian', access: 'PUBLIC', kind: 'page' },
   { id: 'track', path: '/lacak/:code/', title: 'Lacak Laporan', access: 'PUBLIC', kind: 'page' },
   { id: 'evidence', path: '/bukti/', title: 'Bukti & Transparansi', access: 'PUBLIC', kind: 'page' },
   { id: 'map', path: '/peta/', title: 'Peta', access: SIGNED_IN, kind: 'tab' },

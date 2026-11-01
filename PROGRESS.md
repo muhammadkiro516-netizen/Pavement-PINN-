@@ -1,3 +1,10 @@
+# UI restore (current work; plan: docs/v5/UI_RESTORE_PLAN.md, temporary wiring: UI_FIXTURES.md)
+
+- Branch `ui-restore`, baseline tag `ui-baseline` (18918cd). Prompt 1 done. Prompt 2 mostly done. Prompt 3 not started.
+- Citizen features sit on the original screens. New roles are in `src/pages/roles` + `src/features/roles`, on the v5 API, in the original look.
+- Next: Prompt 3 joins citizen reports to the v5 store and removes demo paths.
+- Host: `scripts/v5-live.ps1` once, then `scripts/v5-reload.ps1` keeps the same URL. Test accounts: `server/v5/demoPeople.ts`, `scripts/v5-seed-accounts.ts`.
+
 # v5 progress (handoff; spec: docs/v5/, read 00_README then 01_CLAUDE_CODE_PROMPT)
 
 - Branch `v5` from `v4`. Demo path work order A to F is in the kickoff request; A is done.

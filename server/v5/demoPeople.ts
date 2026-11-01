@@ -28,6 +28,21 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   { accountId: 'ACC-ADMIN', personId: 'P-ADMIN', role: 'ADMIN', displayName: 'Demo Region Admin', orgId: 'ORG-OPERATOR' }
 ];
 
+/** Test logins for the sign-in form, one per role, DEMO MODE only. Public dummy values. */
+export const DEMO_PASSWORD = 'PinnUji2026!';
+export const DEMO_EMAILS: Readonly<Record<string, string>> = {
+  'koordinator@pavement-pinn.example': 'ACC-COORD',
+  'koordinator2@pavement-pinn.example': 'ACC-COORD-2',
+  'petugas@pavement-pinn.example': 'ACC-INSPECT',
+  'penyetuju@pavement-pinn.example': 'ACC-APPROVE',
+  'petugas.penyetuju@pavement-pinn.example': 'ACC-INSPECT-AS-APPROVER',
+  'regu@pavement-pinn.example': 'ACC-CREW',
+  'pengawas@pavement-pinn.example': 'ACC-SUPERVISE',
+  'auditor@pavement-pinn.example': 'ACC-AUDIT',
+  'pimpinan@pavement-pinn.example': 'ACC-HEAD',
+  'admin@pavement-pinn.example': 'ACC-ADMIN'
+};
+
 export const findDemoAccount = (accountId: string) => DEMO_ACCOUNTS.find((a) => a.accountId === accountId) ?? null;
 
 export function actorFor(account: DemoAccount): V5Actor {

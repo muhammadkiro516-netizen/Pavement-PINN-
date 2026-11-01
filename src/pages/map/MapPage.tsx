@@ -10,6 +10,8 @@ import type { PublicReportView } from '../../domain/workflow/projections';
 import { lastDeviceFix, requestDeviceLocation } from '../../features/location/deviceLocation';
 import { PavementMap } from '../../components/maps/PavementMap';
 import { MapSheet } from '../../components/maps/MapSheet';
+import { ROAD_OWNER_COLORS, onRoadOwnerTap, onRoadOwnerZoom, setRoadOwnersVisible, type RoadOwnerTap } from '../../components/maps/roadOwnerLayer';
+import { CONFIDENCE_WORD, ROAD_STATUS_WORD } from '../../features/road-owner/RoadOwnerCard';
 import type { MapSheetState } from '../../components/maps/sheetState';
 import { ReportList } from '../../features/road-health/RoadSegmentSheet';
 import { ReportDetailBottomSheet } from '../../features/community-reports/ReportDetailBottomSheet';
@@ -27,6 +29,8 @@ import type { DamageReport, RoadSegment } from '../../types';
  */
 type MapFilter = 'ALL' | 'POTHOLE' | 'CRACK' | 'WATER' | 'SIGN' | 'FIXED';
 const FILTERS: ReadonlyArray<[MapFilter, string]> = [['ALL', 'Semua'], ['POTHOLE', 'Lubang'], ['CRACK', 'Retak'], ['WATER', 'Genangan'], ['SIGN', 'Ada rambu'], ['FIXED', 'Sudah diperbaiki']];
+
+const OWNER_LEGEND: ReadonlyArray<[string, string]> = [['NASIONAL', 'Nasional'], ['PROVINSI', 'Provinsi'], ['KABUPATEN', 'Kabupaten / kota'], ['TOL', 'Tol']];
 
 function matchesFilter(r: DamageReport, f: MapFilter, c?: { hazard?: unknown | null }): boolean {
   switch (f) {
@@ -59,6 +63,23 @@ export const MapPage: React.FC = () => {
   const [locating, setLocating] = useState(false);
   const [filter, setFilter] = useState<MapFilter>('ALL');
   const [target, setTarget] = useState<{ coords: [number, number]; zoom?: number; timestamp: number } | null>(null);
+  // "Pemilik jalan": colours each road by the agency that must fix it.
+  const [ownersOn, setOwnersOn] = useState(false);
+  const [ownersTooFar, setOwnersTooFar] = useState(false);
+  const [tappedRoad, setTappedRoad] = useState<RoadOwnerTap | null>(null);
+  useEffect(() => {
+    onRoadOwnerTap(setTappedRoad);
+    const off = onRoadOwnerZoom(setOwnersTooFar);
+    return () => { onRoadOwnerTap(null); off(); setRoadOwnersVisible(false); };
+  }, []);
+  const toggleOwners = () => {
+    const on = !ownersOn;
+    setOwnersOn(on);
+    setTappedRoad(null);
+    setRoadOwnersVisible(on);
+    // Road colours need a street-level view; the pilot starts around Jakarta without a GPS fix.
+    if (on) setTarget({ coords: userLocation?.coordinates ?? [-6.2, 106.85], zoom: 13.5, timestamp: Date.now() });
+  };
   const caseOf = (id: string) => app.workflow.views[id]?.case as (ReportCase & PublicReportView) | undefined;
   const shown = useMemo(() => app.communityReports.filter((r) => matchesFilter(r, filter, caseOf(r.id))), [app.communityReports, filter, app.workflow.views]);
   const signedReportIds = useMemo(() => new Set(Object.values(app.workflow.views).filter((v) => (v.case as { hazard?: unknown }).hazard).map((v) => v.case.id)), [app.workflow.views]);
@@ -139,7 +160,34 @@ export const MapPage: React.FC = () => {
               {label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={toggleOwners}
+            aria-pressed={ownersOn}
+            data-testid="owners-toggle"
+            className={`shrink-0 cursor-pointer rounded-full px-4 py-2.5 text-sm font-bold backdrop-blur ${ownersOn ? 'bg-[#FFD60A] text-[#000000]' : 'bg-[#15181D]/85 text-[#FFFFFF]'}`}
+          >
+            Pemilik jalan
+          </button>
         </div>
+        {ownersOn && (
+          <div className="pp-rise pointer-events-auto mt-1 rounded-2xl bg-[#15181D]/90 p-3 backdrop-blur" data-testid="owners-legend">
+            <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+              {OWNER_LEGEND.map(([status, label]) => (
+                <span key={status} className="flex items-center gap-1.5 text-xs font-bold text-[#FFFFFF]">
+                  <i className="inline-block h-1.5 w-5 rounded-full" style={{ background: ROAD_OWNER_COLORS[status] }} />{label}
+                </span>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[11px] text-[#FFFFFF]/60">{ownersTooFar ? 'Perbesar peta untuk melihat warna jalan.' : 'Garis penuh: pasti. Putus-putus: kemungkinan besar. Titik-titik: petugas memastikan. Ketuk jalan untuk detail.'}</p>
+            {tappedRoad && (
+              <div className="mt-2 border-t border-white/10 pt-2" data-testid="owners-tapped">
+                <p className="truncate text-sm font-extrabold text-[#FFFFFF]">{tappedRoad.name ?? 'Jalan tanpa nama'}</p>
+                <p className="text-xs text-[#FFFFFF]/70">{ROAD_STATUS_WORD[tappedRoad.status] ?? tappedRoad.status} · {CONFIDENCE_WORD[tappedRoad.confidence]}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       {nearby.length > 0 && !live && !cluster && (
         <div className="absolute inset-x-0 bottom-[104px] z-30">

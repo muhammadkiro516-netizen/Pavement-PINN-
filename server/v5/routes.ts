@@ -16,7 +16,7 @@ import { bannedWordsIn } from '../../src/domain/v5/wording';
 import wordingLibrary from '../../config/wording/neutral_v1.json';
 import { callInference } from '../services/inferenceClient';
 import { rateLimit } from '../middleware/rateLimit';
-import { DEMO_ACCOUNTS, actorFor, deviceActor, findDemoAccount } from './demoPeople';
+import { DEMO_ACCOUNTS, DEMO_EMAILS, DEMO_PASSWORD, actorFor, deviceActor, findDemoAccount } from './demoPeople';
 import { canonicalize, sha256Hex, verifyChainText, type ChainEvent, type ChainId } from './chain';
 import { V5Store, type IssuedDocument } from './store';
 import { RoadRegistry, parseCsv, type RoutingDecision } from './routing';
@@ -250,6 +250,15 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     if (!options.demoMode) return sendFail(res, 404, 'NOT_FOUND', 'Demo accounts are off.');
     const account = findDemoAccount(String(req.body?.accountId ?? ''));
     if (!account) return sendFail(res, 400, 'VALIDATION', 'Unknown demo account.');
+    res.json({ success: true, data: { token: sessions.issue('STAFF', account.accountId), account } });
+  });
+
+  // The sign-in form's test accounts for the role workspaces. Same DEMO MODE gate as the picker.
+  router.post('/api/v5/session/login', rateLimit('v5-login', 30, 60_000), (req, res) => {
+    if (!options.demoMode) return sendFail(res, 404, 'NOT_FOUND', 'Demo accounts are off.');
+    const accountId = DEMO_EMAILS[String(req.body?.email ?? '').trim().toLowerCase()];
+    const account = accountId ? findDemoAccount(accountId) : null;
+    if (!account || req.body?.password !== DEMO_PASSWORD) return sendFail(res, 401, 'UNAUTHENTICATED', 'Email atau kata sandi salah.');
     res.json({ success: true, data: { token: sessions.issue('STAFF', account.accountId), account } });
   });
 

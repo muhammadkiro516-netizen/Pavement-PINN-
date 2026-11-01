@@ -7,6 +7,7 @@ import { accountFromProfile, useSession } from '../../app/providers/SessionProvi
 import { WorkflowApiError } from '../../services/api/workflowClient';
 import { SnapInput } from '../../components/ui/snap';
 import { LogoMark, Wordmark } from '../../components/ui/brand';
+import { signInToRoleWorkspace } from '../../features/roles/api';
 
 /**
  * Route /login/ — staff sign-in (Petugas Lapangan, Koordinator). Citizens never need it:
@@ -25,6 +26,11 @@ export const LoginPage: React.FC = () => {
     event.preventDefault();
     setBusy(true);
     setError(null);
+    // Accounts of the role workspaces first; anything else goes to the original sign-in below.
+    if (await signInToRoleWorkspace(form.email, form.password)) {
+      navigateTo('roles');
+      return;
+    }
     try {
       const signed = await workflow.gateway.login({ username: form.email.trim(), password: form.password });
       if (!signed.account) throw new WorkflowApiError('UNKNOWN_ACCOUNT', 'Akun tidak dikenal.', 0);
@@ -67,6 +73,9 @@ export const LoginPage: React.FC = () => {
         </div>
         <button type="button" onClick={() => navigateTo('landing')} className="mt-5 w-full cursor-pointer text-center text-sm font-bold text-[#FF6B2C]">
           Warga? Lapor tanpa daftar
+        </button>
+        <button type="button" onClick={() => navigateTo('roles')} className="mt-3 w-full cursor-pointer text-center text-sm font-bold text-[#FFD60A]" data-testid="open-roles">
+          Coba peran lain
         </button>
       </div>
     </div>

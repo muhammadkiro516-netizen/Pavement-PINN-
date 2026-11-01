@@ -18,12 +18,20 @@ import { WorkOrdersPage } from '../pages/engineering/WorkOrdersPage';
 import { PinnIndexPage } from '../pages/operations/PinnIndexPage';
 import { PinnWorkspacePage } from '../pages/operations/PinnWorkspacePage';
 import { RoadDetailPage } from '../pages/roads/RoadDetailPage';
+import { CasePage, PublicTrackPage, RolesPage, TourPage, VerifyDocPage, VerifyPage, WhyPage } from '../pages/roles/RolePages';
 
 export type PageComponent = React.ComponentType<{ params: Record<string, string> }>;
 
 export const PAGE_COMPONENTS: Record<RouteId, PageComponent> = {
   landing: LandingPage,
   login: LoginPage,
+  roles: RolesPage,
+  workCase: CasePage,
+  publicCase: PublicTrackPage,
+  why: WhyPage,
+  tour: TourPage,
+  verify: VerifyPage,
+  verifyDoc: VerifyDocPage,
   track: TrackPage,
   evidence: EvidencePage,
   map: MapPage,
@@ -43,4 +51,4 @@ export const PAGE_COMPONENTS: Record<RouteId, PageComponent> = {
 };
 
 /** Pages shown without the shell's bottom bar. */
-export const STANDALONE_ROUTES: readonly RouteId[] = ['landing', 'login', 'track', 'evidence'];
+export const STANDALONE_ROUTES: readonly RouteId[] = ['landing', 'login', 'track', 'evidence', 'roles', 'workCase', 'publicCase', 'why', 'tour', 'verify', 'verifyDoc'];

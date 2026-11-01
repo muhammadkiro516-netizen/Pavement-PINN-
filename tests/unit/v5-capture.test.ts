@@ -23,7 +23,13 @@ const GPS = { lat: -6.2, lon: 106.85, accuracyM: 8, speedMps: 0 };
 // have a file input (ReportRoadIssueCard, ReportExtraAngles, GuidedInspection), so these stay open
 // until UI_RESTORE_PLAN.md Prompt 3 makes capture live-only, and then assert it there.
 test('production has no gallery: no file input in the capture screens', { todo: 'UI_RESTORE_PLAN Prompt 3: live camera only on the original screens' });
-test('a citizen is never asked for depth (C-2.6)', { todo: 'UI_RESTORE_PLAN Prompt 2: assert on the original report screen' });
+test('a citizen is never asked for depth (C-2.6)', () => {
+  // The report screen fixes depth at "not measured"; no field or label asks for it.
+  const text = fs.readFileSync('src/features/community-reports/ReportRoadIssueCard.tsx', 'utf8');
+  assert.match(text, /estimatedDepthCm: 0,/);
+  assert.doesNotMatch(text, /<(input|label)[^>]*(depth|kedalaman)/i);
+  assert.doesNotMatch(text, />\s*Kedalaman/);
+});
 
 test('nonce: reuse and expiry are refused in production', async () => {
   const service = new CaptureService(tmp(), false);
