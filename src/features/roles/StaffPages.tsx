@@ -53,9 +53,9 @@ const NEXT_STEP: Partial<Record<V5State, string>> = {
 };
 
 export function StaffHome() {
-  const { role, go, account } = useV5();
+  const { role, go } = useV5();
   const queue = QUEUES[role];
-  const { data, error } = useLoad(() => v5<StaffCase[]>('/cases'), [role, account?.accountId]);
+  const { data, error } = useLoad(() => v5<StaffCase[]>('/cases'), [role]);
   if (role === 'AUDITOR') return <AuditorHome />;
   if (role === 'AGENCY_HEAD') return <HeadHome />;
   if (role === 'ADMIN') return <AdminHome />;
@@ -82,13 +82,13 @@ export function StaffHome() {
 }
 
 export function CaseScreen({ id }: { id: string }) {
-  const { role, go, account } = useV5();
-  const { data: c, error, reload, setData } = useLoad(() => v5<StaffCase>(`/cases/${id}`), [id, account?.accountId]);
+  const { role, go } = useV5();
+  const { data: c, error, reload, setData } = useLoad(() => v5<StaffCase>(`/cases/${id}`), [id]);
   if (error) return <Card title="Kasus ini tidak bisa dibuka"><p>{error.message}</p></Card>;
   if (!c) return <Card><p>Memuat…</p></Card>;
   return (
     <>
-      <button type="button" className="v5-link" onClick={() => go('/peran/')}>Kembali ke antrian</button>
+      <button type="button" className="v5-link" onClick={() => go('/kerja/')}>Kembali ke antrian</button>
       <Card testId="v5-case-head">
         <div className="v5-row-between">
           <div>
@@ -98,8 +98,7 @@ export function CaseScreen({ id }: { id: string }) {
           <RolePavi role={role} mood="scan" />
         </div>
         <p className="v5-state" data-testid="v5-state-label">{stateWord(c)}</p>
-        {c.captureTrust === 'DEMO' && <p className="v5-caption">Kasus contoh dengan foto contoh.</p>}
-        <button type="button" className="v5-link" onClick={() => go(`/pantau/${c.publicCode}`)}>Lihat halaman publik</button>
+                <button type="button" className="v5-link" onClick={() => go(`/pantau/${c.publicCode}`)}>Lihat halaman publik</button>
       </Card>
       <ActionPanel c={c} onChange={(next) => { if (next) setData({ ...c, ...next }); reload(); }} />
       <CaseRecord c={c} />
@@ -107,7 +106,7 @@ export function CaseScreen({ id }: { id: string }) {
   );
 }
 
-const EVENT_WORD: Record<string, string> = { 'demo.seeded': 'Kasus contoh dimuat', 'case.submitted': 'Laporan warga', 'case.screening_started': 'Penyaringan dimulai', 'case.screened': 'Disaring dan diarahkan', 'case.accepted': 'Diterima instansi', 'case.transfer_requested': 'Pengalihan diminta', 'case.transfer_confirmed': 'Pengalihan dikonfirmasi', 'case.pending_set': 'Alasan menunggu', 'case.hazard_marked': 'Rambu dicatat', 'inspection.assigned': 'Petugas ditugaskan', 'inspection.submitted': 'Inspeksi selesai', 'inspection.verified': 'Inspeksi diperiksa', 'pinn.run': 'Umur dihitung', 'cost.estimated': 'Biaya dihitung', 'plan.proposed': 'Rencana diusulkan', 'plan.approved': 'Rencana disetujui', 'plan.returned': 'Rencana dikembalikan', 'work_order.issued': 'Perintah kerja', 'work.started': 'Perbaikan dimulai', 'work.stage_evidence': 'Foto tahap kerja', 'work.declared': 'Biaya dan volume dilaporkan', 'work.submitted': 'Bukti dikirim', 'work.rejected': 'Perlu diulang', 'work.verified': 'Diperiksa pengawas', 'work.accepted': 'Diterima, mulai dipantau', 'follow_up.recorded': 'Pemeriksaan lanjutan', 'follow_up.scheduled': 'Pemeriksaan dijadwalkan', 'flag.created': 'Catatan klarifikasi', 'response.added': 'Tanggapan', 'case.reopened': 'Dibuka kembali', 'case.closed': 'Ditutup', 'document.issued': 'Laporan diterbitkan', 'demo.time_advanced': 'Waktu uji dimajukan' };
+const EVENT_WORD: Record<string, string> = { 'case.submitted': 'Laporan warga', 'case.screening_started': 'Penyaringan dimulai', 'case.screened': 'Disaring dan diarahkan', 'case.accepted': 'Diterima instansi', 'case.transfer_requested': 'Pengalihan diminta', 'case.transfer_confirmed': 'Pengalihan dikonfirmasi', 'case.pending_set': 'Alasan menunggu', 'case.hazard_marked': 'Rambu dicatat', 'inspection.assigned': 'Petugas ditugaskan', 'inspection.submitted': 'Inspeksi selesai', 'inspection.verified': 'Inspeksi diperiksa', 'pinn.run': 'Umur dihitung', 'cost.estimated': 'Biaya dihitung', 'plan.proposed': 'Rencana diusulkan', 'plan.approved': 'Rencana disetujui', 'plan.returned': 'Rencana dikembalikan', 'work_order.issued': 'Perintah kerja', 'work.started': 'Perbaikan dimulai', 'work.stage_evidence': 'Foto tahap kerja', 'work.declared': 'Biaya dan volume dilaporkan', 'work.submitted': 'Bukti dikirim', 'work.rejected': 'Perlu diulang', 'work.verified': 'Diperiksa pengawas', 'work.accepted': 'Diterima, mulai dipantau', 'follow_up.recorded': 'Pemeriksaan lanjutan', 'follow_up.scheduled': 'Pemeriksaan dijadwalkan', 'flag.created': 'Catatan klarifikasi', 'response.added': 'Tanggapan', 'case.reopened': 'Dibuka kembali', 'case.closed': 'Ditutup', 'document.issued': 'Laporan diterbitkan' };
 const eventWord = (t: string) => EVENT_WORD[t] ?? t;
 
 function Num({ children, kind, title }: { children: ReactNode; kind: ChipKind; title?: string }) {
@@ -257,11 +256,11 @@ function useTransition(c: StaffCase, onChange: PanelProps['onChange']) {
 }
 
 function ActionPanel({ c, onChange }: PanelProps) {
-  const { role, account } = useV5();
+  const { role, accountId } = useV5();
   const state = c.state as V5State;
   if (role === 'COORDINATOR') return <CoordinatorPanel c={c} onChange={onChange} />;
   if (role === 'FIELD_INSPECTOR') {
-    if (c.inspection?.inspectorAccountId !== account?.accountId && (state === 'INSPECTION_ASSIGNED' || state === 'INSPECTION_VERIFIED')) return <Card><p>Inspeksi ini ditugaskan ke orang lain.</p></Card>;
+    if (c.inspection?.inspectorAccountId !== accountId && (state === 'INSPECTION_ASSIGNED' || state === 'INSPECTION_VERIFIED')) return <Card><p>Inspeksi ini ditugaskan ke orang lain.</p></Card>;
     if (state === 'INSPECTION_ASSIGNED') return <InspectPanel c={c} onChange={onChange} />;
     if (state === 'INSPECTION_VERIFIED') return <PlanPanel c={c} onChange={onChange} />;
     if (state === 'MONITORING') return <FollowUpPanel c={c} onChange={onChange} />;
@@ -292,19 +291,20 @@ const TRANSFER_TARGETS = [
 ];
 
 function CoordinatorPanel({ c, onChange }: PanelProps) {
-  const { accounts, account } = useV5();
+  const { staff } = useV5();
+  const firstOf = (role: string) => staff.find((a) => a.role === role)?.accountId ?? '';
   const t = useTransition(c, onChange);
   const state = c.state as V5State;
   const [reason, setReason] = useState('');
-  const [inspector, setInspector] = useState('ACC-INSPECT');
+  const [inspector, setInspector] = useState(() => firstOf('FIELD_INSPECTOR'));
   const [due, setDue] = useState(() => new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10));
   const [showTransfer, setShowTransfer] = useState(false);
   const [target, setTarget] = useState(0);
   const [decreeNo, setDecreeNo] = useState('');
   const [decreeDate, setDecreeDate] = useState('');
   const [damage, setDamage] = useState(c.damageClass ?? c.screening?.label ?? 'POTHOLE');
-  const [crew, setCrew] = useState('ACC-CREW');
-  const [supervisor, setSupervisor] = useState('ACC-SUPERVISE');
+  const [crew, setCrew] = useState(() => firstOf('REPAIR_CREW'));
+  const [supervisor, setSupervisor] = useState(() => firstOf('SUPERVISOR'));
   const [delay, setDelay] = useState('AWAITING_BUDGET');
   const [until, setUntil] = useState(() => new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10));
   const [showDelay, setShowDelay] = useState(false);
@@ -343,7 +343,7 @@ function CoordinatorPanel({ c, onChange }: PanelProps) {
             </label>
           )}
           <label className="v5-field"><span>Petugas inspeksi</span>
-            <select value={inspector} onChange={(e) => setInspector(e.target.value)} data-testid="v5-inspector">{accounts.filter((a) => a.role === 'FIELD_INSPECTOR').map((a) => <option key={a.accountId} value={a.accountId}>{V5_ROLE_NAMES[a.role].id}</option>)}</select>
+            <select value={inspector} onChange={(e) => setInspector(e.target.value)} data-testid="v5-inspector">{staff.filter((a) => a.role === 'FIELD_INSPECTOR').map((a) => <option key={a.accountId} value={a.accountId}>{a.displayName}</option>)}</select>
           </label>
           <label className="v5-field"><span>Tenggat</span><input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></label>
           <Reason value={reason} onChange={setReason} />
@@ -380,8 +380,8 @@ function CoordinatorPanel({ c, onChange }: PanelProps) {
       {state === 'PLAN_APPROVED' && (
         <>
           <p>Ini catatan internal, bukan SPK.</p>
-          <label className="v5-field"><span>Regu perbaikan</span><select value={crew} onChange={(e) => setCrew(e.target.value)} data-testid="v5-crew">{accounts.filter((a) => a.role === 'REPAIR_CREW' || a.role === 'SUPERVISOR').map((a) => <option key={a.accountId} value={a.accountId}>{V5_ROLE_NAMES[a.role].id}</option>)}</select></label>
-          <label className="v5-field"><span>Pengawas</span><select value={supervisor} onChange={(e) => setSupervisor(e.target.value)} data-testid="v5-supervisor">{accounts.filter((a) => a.role === 'SUPERVISOR').map((a) => <option key={a.accountId} value={a.accountId}>{V5_ROLE_NAMES[a.role].id}</option>)}</select></label>
+          <label className="v5-field"><span>Regu perbaikan</span><select value={crew} onChange={(e) => setCrew(e.target.value)} data-testid="v5-crew">{staff.filter((a) => a.role === 'REPAIR_CREW').map((a) => <option key={a.accountId} value={a.accountId}>{a.displayName}</option>)}</select></label>
+          <label className="v5-field"><span>Pengawas</span><select value={supervisor} onChange={(e) => setSupervisor(e.target.value)} data-testid="v5-supervisor">{staff.filter((a) => a.role === 'SUPERVISOR').map((a) => <option key={a.accountId} value={a.accountId}>{a.displayName}</option>)}</select></label>
           <button type="button" className="v5-btn v5-btn-primary" disabled={t.busy} onClick={() => t.send('ISSUE_WORK_ORDER', { type: 'SWAKELOLA', crewAccountId: crew, supervisorAccountId: supervisor, targetDate: new Date(Date.now() + 7 * 86_400_000).toISOString() })} data-testid="v5-issue-work-order">Terbitkan perintah kerja</button>
         </>
       )}
@@ -407,7 +407,7 @@ function CoordinatorPanel({ c, onChange }: PanelProps) {
         </>
       )}
       {note && <p className="v5-good">{note}</p>}
-      {account && <ErrorNote error={t.error} />}
+      <ErrorNote error={t.error} />
     </Card>
   );
 }
@@ -422,7 +422,6 @@ function InspectPanel({ c, onChange }: PanelProps) {
   const [lengthCm, setLengthCm] = useState('');
   const [widthCm, setWidthCm] = useState('');
   const [depthMm, setDepthMm] = useState('');
-  const place = { lat: c.location.latE6 / 1e6, lon: c.location.lonE6 / 1e6 };
   const step = !overview ? 1 : !marker ? 2 : !ruler ? 3 : 4;
   const submit = () => t.send('SUBMIT_INSPECTION', {
     verdict,
@@ -434,9 +433,9 @@ function InspectPanel({ c, onChange }: PanelProps) {
   });
   return (
     <Card title={`Ukur di lokasi, langkah ${step} dari 4`} testId="v5-panel-inspect">
-      {step === 1 && <Capture kind="OVERVIEW" caseId={c.id} purpose="INSPECTION" title="1. Foto keseluruhan" hint="Tunjukkan seluruh kerusakan dan jalan di sekitarnya." sampleId="pothole" demoPlace={place} onDone={setOverview} />}
-      {step === 2 && <Capture kind="MARKER_NADIR" caseId={c.id} purpose="INSPECTION" title="2. Kartu penanda" hint="Letakkan kartu 20 cm di samping kerusakan. Pegang HP tegak lurus di atasnya." sampleId="marker-card" demoPlace={place} onDone={setMarker} />}
-      {step === 3 && <Capture kind="DEPTH_RULER" caseId={c.id} purpose="INSPECTION" title="3. Penggaris di titik terdalam" hint="Letakkan mistar perata melintang. Berdirikan penggaris di titik terdalam. Pastikan angkanya terbaca." sampleId="ruler" demoPlace={place} onDone={setRuler} />}
+      {step === 1 && <Capture kind="OVERVIEW" caseId={c.id} purpose="INSPECTION" title="1. Foto keseluruhan" hint="Tunjukkan seluruh kerusakan dan jalan di sekitarnya." onDone={setOverview} />}
+      {step === 2 && <Capture kind="MARKER_NADIR" caseId={c.id} purpose="INSPECTION" title="2. Kartu penanda" hint="Letakkan kartu 20 cm di samping kerusakan. Pegang HP tegak lurus di atasnya." onDone={setMarker} />}
+      {step === 3 && <Capture kind="DEPTH_RULER" caseId={c.id} purpose="INSPECTION" title="3. Penggaris di titik terdalam" hint="Letakkan mistar perata melintang. Berdirikan penggaris di titik terdalam. Pastikan angkanya terbaca." onDone={setRuler} />}
       {step === 4 && (
         <>
           {overview && <DetectionView evidence={overview} />}
@@ -493,7 +492,6 @@ function PlanPanel({ c, onChange }: PanelProps) {
 
 function ApprovePanel({ c, onChange }: PanelProps) {
   const t = useTransition(c, onChange);
-  const { account, switchRole } = useV5();
   const [reason, setReason] = useState('');
   const [budget, setBudget] = useState('APBD');
   return (
@@ -505,9 +503,6 @@ function ApprovePanel({ c, onChange }: PanelProps) {
         <button type="button" className="v5-btn" disabled={t.busy} onClick={() => t.send('RETURN_PLAN', { reason })} data-testid="v5-return-plan">Kembalikan rencana</button>
       </div>
       <ErrorNote error={t.error} />
-      {t.error?.rule === 'SOD-2' && account?.accountId === 'ACC-INSPECT-AS-APPROVER' && (
-        <button type="button" className="v5-link" onClick={() => switchRole('ACC-APPROVE')} data-testid="v5-switch-approver">Ganti ke pejabat penyetuju yang independen</button>
-      )}
     </Card>
   );
 }
@@ -548,7 +543,6 @@ function CrewPanel({ c, onChange }: PanelProps) {
   const [spend, setSpend] = useState('');
   const done = new Set(c.evidence.filter((e) => e.kind === 'WORK_STAGE').map((e) => e.stage));
   const stage = STAGES.find((s) => s.code === active);
-  const place = { lat: c.location.latE6 / 1e6, lon: c.location.lonE6 / 1e6 };
   const started = c.state === 'IN_PROGRESS';
   const canStart = done.has('BEFORE') && done.has('CUT_EDGES');
   const missing = STAGES.filter((s) => !done.has(s.code) && s.code !== 'LOOSE_THICKNESS' && !(c.workOrder?.category === 'TEMPORARY' && ['CUT_EDGES', 'TACK_COAT', 'DELIVERY_TICKET', 'MIX_TEMP_TRUCK', 'MIX_TEMP_MAT'].includes(s.code)));
@@ -577,7 +571,7 @@ function CrewPanel({ c, onChange }: PanelProps) {
               <input value={values[`${stage.code}.${f.key}`] ?? ''} onChange={(e) => setValues({ ...values, [`${stage.code}.${f.key}`]: e.target.value })} data-testid={`v5-value-${f.key}`} />
             </label>
           ))}
-          <Capture key={stage.code} kind="WORK_STAGE" stage={stage.code} caseId={c.id} purpose="WORK_STAGE" title={stage.label} hint={stage.hint} sampleId={`stage-${stage.code.toLowerCase().replace(/_/g, '-')}`} demoPlace={place} onDone={saveStage} />
+          <Capture key={stage.code} kind="WORK_STAGE" stage={stage.code} caseId={c.id} purpose="WORK_STAGE" title={stage.label} hint={stage.hint} onDone={saveStage} />
         </div>
       )}
       {!started && <button type="button" className="v5-btn v5-btn-primary" disabled={t.busy || !canStart} onClick={() => t.send('START_WORK', { evidenceIds: [] , evidence: undefined, useSavedStages: true })} data-testid="v5-start-work">Mulai perbaikan</button>}
@@ -599,7 +593,6 @@ function SupervisorPanel({ c, onChange }: PanelProps) {
   const [fails, setFails] = useState<string[]>([]);
   const [reason, setReason] = useState('');
   const [own, setOwn] = useState<EvidenceView | null>(null);
-  const place = { lat: c.location.latE6 / 1e6, lon: c.location.lonE6 / 1e6 };
   const items = c.evidence.filter((e) => e.kind === 'WORK_STAGE');
   const toggle = (s: string) => setFails((f) => (f.includes(s) ? f.filter((x) => x !== s) : [...f, s]));
   return (
@@ -617,7 +610,7 @@ function SupervisorPanel({ c, onChange }: PanelProps) {
         ))}
       </ul>
       {!own ? (
-        <Capture kind="WORK_STAGE" stage="SUPERVISOR_AFTER" caseId={c.id} purpose="WORK_STAGE" title="Foto Anda sendiri" hint="Ambil sendiri di lokasi, dengan mistar perata di atas tambalan." sampleId="stage-supervisor-after" demoPlace={place} onDone={setOwn} />
+        <Capture kind="WORK_STAGE" stage="SUPERVISOR_AFTER" caseId={c.id} purpose="WORK_STAGE" title="Foto Anda sendiri" hint="Ambil sendiri di lokasi, dengan mistar perata di atas tambalan." onDone={setOwn} />
       ) : (
         <p className="v5-good" data-testid="v5-own-photo">Foto Anda sudah tersimpan.</p>
       )}
@@ -637,13 +630,12 @@ function FollowUpPanel({ c, onChange }: PanelProps) {
   const [milestone, setMilestone] = useState(open[0]?.milestone ?? '');
   const [result, setResult] = useState('OK');
   const [photo, setPhoto] = useState<EvidenceView | null>(null);
-  const place = { lat: c.location.latE6 / 1e6, lon: c.location.lonE6 / 1e6 };
   if (open.length === 0) return <Card title="Pemeriksaan lanjutan"><p className="v5-muted">Belum ada pemeriksaan untuk petugas saat ini.</p></Card>;
   return (
     <Card title="Pemeriksaan lanjutan" testId="v5-panel-followup">
       <label className="v5-field"><span>Pemeriksaan</span><select value={milestone} onChange={(e) => setMilestone(e.target.value)} data-testid="v5-fu-milestone">{open.map((f) => <option key={f.milestone}>{f.milestone}</option>)}</select></label>
       <label className="v5-field"><span>Hasil</span><select value={result} onChange={(e) => setResult(e.target.value)} data-testid="v5-fu-result"><option value="OK">Masih bagus</option><option value="DEFECT">Ada kerusakan</option></select></label>
-      {!photo ? <Capture kind="FOLLOW_UP" caseId={c.id} purpose="FOLLOW_UP" title="Foto dengan mistar perata" hint="Sudutnya sama dengan foto perbaikan." sampleId="pothole-2" demoPlace={place} onDone={setPhoto} /> : <button type="button" className="v5-btn v5-btn-primary" disabled={t.busy} onClick={() => t.send('RECORD_FOLLOW_UP', { milestone, result, evidenceIds: [photo.id] })} data-testid="v5-fu-send">Catat hasil</button>}
+      {!photo ? <Capture kind="FOLLOW_UP" caseId={c.id} purpose="FOLLOW_UP" title="Foto dengan mistar perata" hint="Sudutnya sama dengan foto perbaikan." onDone={setPhoto} /> : <button type="button" className="v5-btn v5-btn-primary" disabled={t.busy} onClick={() => t.send('RECORD_FOLLOW_UP', { milestone, result, evidenceIds: [photo.id] })} data-testid="v5-fu-send">Catat hasil</button>}
       <ErrorNote error={t.error} />
     </Card>
   );
@@ -656,12 +648,10 @@ function AuditPanel({ c, onChange }: PanelProps) {
   const { go } = useV5();
   const { data, reload } = useLoad(() => v5<{ events: EventRow[]; verify: Verify }>(`/cases/${c.id}/events`), [c.id]);
   const action = useAction();
-  const [doc, setDoc] = useState<{ id: string; sha256: string; pdfUrl: string; verifyUrl: string; version: number; isDemo: boolean } | null>(null);
-  const [sim, setSim] = useState<{ changedSeq: number; changedField: string; report: Verify } | null>(null);
+  const [doc, setDoc] = useState<{ id: string; sha256: string; pdfUrl: string; verifyUrl: string; version: number } | null>(null);
   const [wording, setWording] = useState('W-01');
   const [note, setNote] = useState('');
   const issue = () => action.run(async () => { setDoc(await v5('/documents/audit-report', { caseId: c.id })); reload(); });
-  const simulate = () => action.run(async () => setSim(await v5('/demo/tamper-simulate', {})));
   const flag = () => action.run(async () => { const out = await v5<{ case: V5Case }>(`/cases/${c.id}/flags`, { wordingId: wording, note, code: 'AUDITOR_NOTE', value: '' }); setNote(''); onChange(out.case as Partial<StaffCase>); reload(); });
   return (
     <>
@@ -699,8 +689,6 @@ function AuditPanel({ c, onChange }: PanelProps) {
                 <li key={e.seq}><span><Link2 size={12} aria-hidden="true" /> #{e.seq} {eventWord(e.type)}</span><span className="v5-caption">{when(e.server_received_at)} · {roleWord(e.actor.role)}{e.actor.overlap_basis ? ` · rangkap jabatan: ${e.actor.overlap_basis}` : ''}</span></li>
               ))}
             </ol>
-            <button type="button" className="v5-btn" disabled={action.busy} onClick={simulate} data-testid="v5-tamper">Lihat kalau catatan diubah</button>
-            {sim && <p className="v5-bad" data-testid="v5-tamper-result">Pada salinan, catatan #{sim.changedSeq} kami ubah sedikit. Hasilnya: {sim.report.ok ? 'tidak terdeteksi' : `pemeriksaan gagal tepat di catatan ${sim.report.firstFailure?.seq}`}. Catatan asli tidak tersentuh.</p>}
           </>
         )}
       </Card>

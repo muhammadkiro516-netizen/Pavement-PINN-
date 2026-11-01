@@ -36,7 +36,6 @@ import { ReportDetailModal } from '../../features/community-reports/ReportDetail
 import { resolveLiveReport } from '../../features/community-reports/reportState';
 import { MapAnalyticsPanel } from './MapAnalyticsPanel';
 import { Language, TRANSLATIONS } from '../../i18n/translations';
-import { DEMO_DATA_LABEL, DEMO_DATA_NOTE } from '../../data/provenance';
 import { selectRegularUserDensity } from '../../features/community-reports/reportDensity';
 import { createSessionReport, ReportCreationError } from '../../features/community-reports/reportFactory';
 import { settleMutation } from '../../features/community-reports/reportMutations';
@@ -1065,7 +1064,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
           bubblingMouseEvents: false
         }).addTo(layerGroup);
         const geomStatus = canonical?.geometryStatus ?? segment.geometryStatus;
-        const geomLabel = geomStatus === 'DIGITISED' ? 'OSM Centerline' : DEMO_DATA_LABEL[language];
+        const geomLabel = geomStatus === 'DIGITISED' ? 'OSM Centerline' : 'Garis perkiraan';
         line.bindTooltip(`${segment.name} · PCI ${segment.currentPci} (${geomLabel})`, { sticky: true });
         line.on('click', () => onSelectSegment(segment));
         // Invisible wider line so the segment can be tapped on a touch screen
@@ -2463,14 +2462,6 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
         <div ref={mapContainerRef} className="w-full h-full" />
       </div>
 
-      {/* Provenance: demo indicator is already displayed in header user pill; hidden here to clear bottom UI */}
-      <div
-        data-testid="demo-data-badge"
-        title={DEMO_DATA_NOTE[language]}
-        className="hidden"
-      >
-        {DEMO_DATA_LABEL[language]}
-      </div>
 
       {/* Basemap status: shown only when the selected tile provider could not be used */}
       {tileStage !== 'primary' && (

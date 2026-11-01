@@ -31,7 +31,6 @@ const STATUS_ID: Record<string, { label: string; cls: string }> = {
 const statusChip = (s: string) => `<span class="status status-${STATUS_ID[s]?.cls ?? 'input'}">${esc(STATUS_ID[s]?.label ?? s)}</span>`;
 
 const EVENT_STEP_ID: Record<string, string> = {
-  'demo.seeded': 'Data contoh dimuat (DEMO)',
   'case.submitted': 'Laporan warga diterima',
   'case.screening_started': 'Penyaringan otomatis dimulai',
   'case.screened': 'Penyaringan dan penentuan kewenangan selesai',
@@ -62,8 +61,7 @@ const EVENT_STEP_ID: Record<string, string> = {
   'response.added': 'Tanggapan pihak terkait',
   'case.reopened': 'Kasus dibuka kembali',
   'case.closed': 'Kasus ditutup',
-  'document.issued': 'Dokumen diterbitkan',
-  'demo.time_advanced': 'Waktu demo dimajukan (DEMO)'
+  'document.issued': 'Dokumen diterbitkan'
 };
 
 const ROLE_ID: Record<string, string> = {
@@ -179,11 +177,11 @@ export function buildPlaceholders(input: RenderInput, qrDataUrl: string): Record
     snapshot_root: esc(snapshot.root),
     snapshot_range: esc(`#${snapshot.firstSeq}–#${snapshot.lastSeq} (rantai ${snapshot.chainId})`),
     checkpoint_period: esc(snapshot.period),
-    ots_status: esc(c.isDemo ? 'Rantai DEMO: tidak dijangkarkan ke Bitcoin' : 'Belum dijangkarkan; OpenTimestamps belum diaktifkan'),
+    ots_status: esc('Belum dijangkarkan; OpenTimestamps belum diaktifkan'),
     verify_qr: `<img src="${qrDataUrl}" alt="Kode QR verifikasi integritas" width="120" height="120">`,
     verify_url: esc(verifyUrl),
     ai_assist_line: esc('Deteksi kerusakan dan rentang umur dihitung model AI dan diberi label. Tidak ada keputusan yang diambil oleh AI. Laporan ini belum ditandatangani secara elektronik; keaslian dapat diperiksa melalui kode QR.'),
-    demo_watermark: c.isDemo ? '<div class="demo-watermark">DEMO — BUKAN DATA NYATA</div>' : '',
+    demo_watermark: '',
     operator_entity: esc('Tim PAVEMENT-PINN (badan hukum: belum ditetapkan)'),
     operator_address: esc('Alamat operator: belum ditetapkan'),
     operator_website: esc(new URL(verifyUrl).host)

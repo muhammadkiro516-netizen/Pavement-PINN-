@@ -1,8 +1,7 @@
 /**
  * Route /beranda/ — first page for visitors. Plain-language story with visuals that explain
- * the product: a phone running the real AI scan (detector output recorded on the hero photo,
- * src/data/landingDetections.json), a moving strip of real Indonesian road photos (Wikimedia
- * Commons, credited), the report-to-repair flow, and an interactive road cross-section that
+ * the product: a phone drawing of the AI scan, a moving strip of photos from real reports
+ * (hidden until there are some), the report-to-repair flow, and an interactive road cross-section that
  * shows why overloaded trucks break roads (AASHTO fourth-power law, cited on screen).
  */
 import React, { useEffect, useState } from 'react';
@@ -13,13 +12,9 @@ import { usePageHost } from '../../app/pageContext';
 import { accountFromProfile } from '../../app/providers/SessionProvider';
 import { signInCitizenDevice } from '../../features/authentication/deviceAccount';
 import { requestDeviceLocation } from '../../features/location/deviceLocation';
-import credits from '../../data/photoCredits.json';
-import detections from '../../data/landingDetections.json';
+import { apiUrl } from '../../services/api/client';
+import { useLiveCases } from '../../features/roles/liveCases';
 
-const BASE = import.meta.env.BASE_URL;
-const photo = (slug: string) => `${BASE}photos/${slug}.jpg`;
-const hero = detections.photos['jalan-berlubang'].detections[0];
-const STRIP = ['surabaya', 'jalan-berlubang', 'ubud-bali', 'rambu-kebumen', 'perbaikan-kebumen'];
 /** AASHTO fourth-power law: damage per pass grows with (axle / standard axle)^4. */
 const ODOL_FACTOR = Math.round((13 / 8.16) ** 4);
 
@@ -32,20 +27,21 @@ const ScanScreen: React.FC = () => {
   }, []);
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#0E1B2C]">
-      <img src={photo('jalan-berlubang')} alt="Jalan berlubang di Indonesia" className="h-full w-full object-cover" />
+      <svg viewBox="0 0 240 500" preserveAspectRatio="xMidYMid slice" className="h-full w-full" aria-label="Gambar penjelas: jalan berlubang" role="img">
+        <rect width="240" height="500" fill="#16263A" />
+        <path d="M95 0 L145 0 L240 500 L0 500 Z" fill="#3A3F47" />
+        <path d="M120 0 L120 500" stroke="#FFD60A" strokeWidth="5" strokeDasharray="34 30" />
+        <path d="M58 300 C76 276 118 278 134 296 C150 314 130 344 94 342 C62 340 42 322 58 300 Z" fill="#14171B" />
+        <path d="M66 306 C82 290 112 292 124 304" fill="none" stroke="#5A606A" strokeWidth="3" />
+      </svg>
       {!found && <div className="pp-scanline" />}
-      {found && hero && (
-        <div
-          className="pp-box absolute rounded-2xl border-[3px] border-[#FF6B2C] bg-[#FF6B2C]/15"
-          style={{ left: `${hero.box[0] * 100}%`, top: `${hero.box[1] * 100}%`, width: `${(hero.box[2] - hero.box[0]) * 100}%`, height: `${(hero.box[3] - hero.box[1]) * 100}%` }}
-        />
-      )}
+      {found && <div className="pp-box absolute rounded-2xl border-[3px] border-[#FF6B2C] bg-[#FF6B2C]/15" style={{ left: '16%', top: '53%', width: '46%', height: '17%' }} />}
       <div className="absolute inset-x-3 top-10 flex items-center justify-between rounded-2xl bg-[#15181D]/90 px-3 py-2 text-[11px] font-extrabold text-[#FFFFFF] backdrop-blur">
         <span className="flex items-center gap-1.5">
           <span className={`h-2 w-2 rounded-full ${found ? 'bg-[#12A150]' : 'pp-dot bg-[#FFD60A]'}`} />
-          {found ? 'Lubang terdeteksi' : 'AI memeriksa…'}
+          {found ? 'Lubang ditemukan' : 'AI memeriksa…'}
         </span>
-        <span className="text-[#8E8E93]">{found && hero ? `${Math.round(hero.confidence * 100)}% yakin` : 'OpenVINO'}</span>
+        <span className="text-[#8E8E93]">Gambar penjelas</span>
       </div>
       <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-[#FF6B2C] py-3 text-center text-sm font-extrabold text-[#FFFFFF]">Kirim laporan</div>
     </div>
@@ -71,22 +67,29 @@ const HeroVisual: React.FC = () => (
         <ScanScreen />
       </div>
     </div>
-    <FloatCard className="-left-2 top-20 md:-left-10" tone="#FF6B2C" title="AI: Lubang" text={`Terdeteksi dengan keyakinan ${Math.round((hero?.confidence ?? 0) * 100)}%. Petugas akan memastikan.`} />
+    <FloatCard className="-left-2 top-20 md:-left-10" tone="#FF6B2C" title="AI: Lubang" text="AI menduga jenisnya. Petugas yang memastikan." />
     <FloatCard className="-right-2 top-[230px] md:-right-12" delay="1.2s" tone="#1463FF" title="PINN: cek struktur" text="Kerusakan sampai lapisan bawah? Tambal saja tidak cukup." />
     <FloatCard className="bottom-8 left-0 md:-left-6" delay="2.1s" tone="#12A150" title="Petugas menuju lokasi" text="Status langsung muncul di Laporanku." />
   </div>
 );
 
 // ---------------------------------------------------------------------------------------
-const PhotoStrip: React.FC = () => (
-  <div className="relative overflow-hidden py-2 [mask-image:linear-gradient(90deg,transparent,black_8%,black_92%,transparent)]">
-    <div className="pp-marquee flex w-max gap-4">
-      {[...STRIP, ...STRIP].map((slug, i) => (
-        <img key={i} src={photo(slug)} alt="" className="h-44 w-72 shrink-0 rounded-3xl object-cover shadow-[0_14px_30px_-18px_rgba(14,27,44,0.6)]" loading="lazy" />
-      ))}
-    </div>
-  </div>
-);
+const PhotoStrip: React.FC = () => {
+  const photos = useLiveCases().flatMap((c) => (c.photoId ? [apiUrl(`/api/v5/evidence/${c.photoId}/image`)] : []));
+  if (photos.length === 0) return null;
+  return (
+    <section className="pb-14">
+      <p className="mb-4 text-center text-sm font-bold text-[#8E8E93]">Foto dari laporan warga</p>
+      <div className="relative overflow-hidden py-2 [mask-image:linear-gradient(90deg,transparent,black_8%,black_92%,transparent)]">
+        <div className="pp-marquee flex w-max gap-4">
+          {[...photos, ...photos].map((src, i) => (
+            <img key={i} src={src} alt="" className="h-44 w-72 shrink-0 rounded-3xl object-cover shadow-[0_14px_30px_-18px_rgba(14,27,44,0.6)]" loading="lazy" />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
 
 // ---------------------------------------------------------------------------------------
 const FLOW = [
@@ -308,8 +311,8 @@ export const LandingPage: React.FC = () => {
             {error && <p className="mt-3 text-sm font-semibold text-[#FF6B6B]">{error}</p>}
             <div className="mt-8 grid max-w-md grid-cols-3 gap-3">
               {[
-                ['< 1 dtk', 'AI memeriksa foto'],
-                ['3 peran', 'warga, petugas, koordinator'],
+                ['Petugas', 'yang memutuskan, bukan AI'],
+                ['9 peran', 'dari warga sampai auditor'],
                 ['Lokal', 'AI di server sendiri, bukan cloud']
               ].map(([v, l]) => (
                 <div key={l} className="rounded-2xl border border-[#2A2F37] bg-[#15181D]/80 p-3 backdrop-blur">
@@ -325,10 +328,7 @@ export const LandingPage: React.FC = () => {
         </section>
       </div>
 
-      <section className="pb-14">
-        <p className="mb-4 text-center text-sm font-bold text-[#8E8E93]">Foto asli jalan rusak di Indonesia</p>
-        <PhotoStrip />
-      </section>
+      <PhotoStrip />
 
       <section id="cara-kerja" className="mx-auto max-w-6xl px-5 pb-16">
         <div className="text-center">
@@ -365,13 +365,6 @@ export const LandingPage: React.FC = () => {
       <footer className="border-t border-[#2A2F37] bg-[#15181D] px-5 py-6 text-xs text-[#8E8E93]">
         <div className="mx-auto max-w-6xl space-y-1">
           <div className="mb-3 flex items-center gap-2"><LogoMark size={24} /><Wordmark /></div>
-          <p>Foto: Wikimedia Commons.</p>
-          {credits.map((c) => (
-            <p key={c.file}>
-              {c.title} oleh {c.author || 'tidak diketahui'} ({c.license}) ·{' '}
-              <a href={c.source} target="_blank" rel="noopener noreferrer" className="underline">sumber</a>
-            </p>
-          ))}
           <p>Data jalan rusak berat: BPS, Statistik Transportasi Darat 2021. Faktor truk ODOL: hukum pangkat empat AASHTO.</p>
         </div>
       </footer>

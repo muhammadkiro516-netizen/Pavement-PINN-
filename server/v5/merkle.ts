@@ -1,7 +1,7 @@
 /**
  * Checkpoints over the event log (07 §4): RFC 6962 Merkle tree with an audit path per event, and a
- * signed line-based checkpoint. Bitcoin anchoring with OpenTimestamps is not built, and a DEMO
- * chain is never anchored, so the checkpoint says so rather than implying a timestamp it lacks.
+ * signed line-based checkpoint. Bitcoin anchoring with OpenTimestamps is not built, so the checkpoint
+ * says so rather than implying a timestamp it lacks.
  */
 import { createHash } from 'node:crypto';
 

@@ -6,10 +6,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Glyph } from '../../components/ui/brand';
 import { Empty, Pill, SnapButton, SnapCard, SnapPage } from '../../components/ui/snap';
-import { useAppState } from '../../app/providers/AppStateProvider';
+import { caseToHazard, useLiveCases } from '../../features/roles/liveCases';
 import { lastDeviceFix } from '../../features/location/deviceLocation';
 import { areaAlerts, hazardWeight, rankRoutes, type HazardCase, type RankedRoute, type WatchArea } from '../../domain/routing/safeRoute';
-import { OFFLINE_EVENT, queuedReports, removeQueued, type QueuedReport } from '../../features/community-reports/offlineQueue';
 
 const AREAS_KEY = 'pp-watch-areas';
 const SEEN_KEY = 'pp-watch-seen';
@@ -225,44 +224,14 @@ const WatchAreas: React.FC<{ cases: HazardCase[] }> = ({ cases }) => {
   );
 };
 
-const OfflineReports: React.FC = () => {
-  const [items, setItems] = useState<QueuedReport[]>([]);
-  useEffect(() => {
-    const refresh = () => void queuedReports().then(setItems);
-    refresh();
-    window.addEventListener(OFFLINE_EVENT, refresh);
-    window.addEventListener('online', refresh);
-    return () => {
-      window.removeEventListener(OFFLINE_EVENT, refresh);
-      window.removeEventListener('online', refresh);
-    };
-  }, []);
-  if (items.length === 0) return null;
-  return (
-    <SnapCard>
-      <p className="font-extrabold">Menunggu sinyal · {items.length} laporan</p>
-      <p className="text-sm text-[#A1A1AA]">Tersimpan di HP ini dengan foto, GPS, dan waktu di lokasi. Terkirim otomatis saat sinyal kembali.</p>
-      <ul className="mt-2 space-y-1">
-        {items.map((q) => (
-          <li key={q.key} className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-xs">
-            <span>{q.report.damageTypeLabel} · {new Date(q.queuedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</span>
-            <button type="button" onClick={() => void removeQueued(q.key)} className="cursor-pointer text-[#A1A1AA]">Batalkan</button>
-          </li>
-        ))}
-      </ul>
-    </SnapCard>
-  );
-};
-
 export const SafetyPage: React.FC = () => {
-  const { workflow } = useAppState();
-  const cases = useMemo(() => Object.values(workflow.views).map((v) => v.case as unknown as HazardCase), [workflow.views]);
+  const live = useLiveCases();
+  const cases = useMemo(() => live.map(caseToHazard), [live]);
   return (
-    <SnapPage title="Aman" subtitle="Rute aman, area yang Anda pantau, dan laporan yang menunggu sinyal.">
-      <OfflineReports />
+    <SnapPage title="Aman" subtitle="Rute aman dan area yang Anda pantau.">
       <SafeRoute cases={cases} />
       <WatchAreas cases={cases} />
-      {cases.length === 0 && <Empty icon={<Glyph name="map" size={26} />} title="Data laporan belum dimuat" text="Buka Peta sekali saat ada sinyal agar data bahaya terverifikasi tersedia." />}
+      {cases.length === 0 && <Empty icon={<Glyph name="map" size={26} />} title="Belum ada laporan" text="Bahaya muncul di sini setelah petugas memastikan laporan warga." />}
     </SnapPage>
   );
 };

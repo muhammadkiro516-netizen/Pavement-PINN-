@@ -1,6 +1,6 @@
 /**
- * v5 golden path (phone viewport, fake camera, mocked GPS).
- * Local:  npx playwright test -c playwright.v5.config.ts   (needs the demo server on port 3100)
+ * Golden path with real accounts and the live camera path (phone viewport, mocked GPS).
+ * Local:  npx playwright test -c playwright.v5.config.ts   (needs the server on port 3100)
  * HTTPS:  V5_BASE_URL=https://....trycloudflare.com npx playwright test -c playwright.v5.config.ts
  */
 import { defineConfig } from '@playwright/test';

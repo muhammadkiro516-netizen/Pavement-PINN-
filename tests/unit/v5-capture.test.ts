@@ -6,8 +6,10 @@ import os from 'node:os';
 import path from 'node:path';
 import test, { after, before } from 'node:test';
 import express from 'express';
+import type { V5Store } from '../../server/v5/store';
 import { CaptureService, NONCE_TTL_MS, analyseTrace, isCaptureFailure } from '../../server/v5/capture';
 import { registerV5Routes } from '../../server/v5/routes';
+import { PILOT_ROSTER, StaffAccounts } from '../../server/v5/staffAccounts';
 import { inclusionProof, merkleRoot, verifyInclusion } from '../../server/v5/merkle';
 import { bannedWordsIn } from '../../src/domain/v5/wording';
 import { normalizePdf, renderTemplate, reportProblems } from '../../server/v5/documents';
@@ -19,10 +21,19 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'v5-cap-'));
 const JPEG = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64')}`;
 const GPS = { lat: -6.2, lon: 106.85, accuracyM: 8, speedMps: 0 };
 
-// The screens these two checked were removed with the /v5 shell. The original capture screens still
-// have a file input (ReportRoadIssueCard, ReportExtraAngles, GuidedInspection), so these stay open
-// until UI_RESTORE_PLAN.md Prompt 3 makes capture live-only, and then assert it there.
-test('production has no gallery: no file input in the capture screens', { todo: 'UI_RESTORE_PLAN Prompt 3: live camera only on the original screens' });
+test('live capture only: no file input on the capture and citizen screens', () => {
+  for (const file of ['src/features/roles/Capture.tsx', 'src/features/roles/StaffPages.tsx', 'src/features/roles/CitizenReports.tsx', 'src/features/community-reports/ReportRoadIssueCard.tsx', 'src/features/community-reports/ReportExtraAngles.tsx', 'src/features/community-reports/LongDamageWalk.tsx']) {
+    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /type=["']file["']/, file);
+  }
+});
+
+test('nothing of the old sample mode is left in the app', () => {
+  for (const dir of ['public/demo', 'public/photos', 'public/test-fixtures', 'public/dataset-reference/rdd2022']) assert.equal(fs.existsSync(dir), false, dir);
+  for (const file of ['src/features/roles/Capture.tsx', 'src/features/roles/PublicPages.tsx', 'src/features/roles/TrackPages.tsx', 'src/features/roles/StaffPages.tsx', 'src/features/roles/api.ts', 'src/pages/roles/RolePages.tsx', 'server/v5/routes.ts', 'server/v5/capture.ts']) {
+    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /demo|sampleId|fast-forward/i, file);
+  }
+});
+
 test('a citizen is never asked for depth (C-2.6)', () => {
   // The report screen fixes depth at "not measured"; no field or label asks for it.
   const text = fs.readFileSync('src/features/community-reports/ReportRoadIssueCard.tsx', 'utf8');
@@ -31,8 +42,8 @@ test('a citizen is never asked for depth (C-2.6)', () => {
   assert.doesNotMatch(text, />\s*Kedalaman/);
 });
 
-test('nonce: reuse and expiry are refused in production', async () => {
-  const service = new CaptureService(tmp(), false);
+test('nonce: reuse and expiry are refused', async () => {
+  const service = new CaptureService(tmp());
   const { nonce } = service.issueNonce('dev-1', 'REPORT');
   assert.equal(service.checkNonce(nonce, 'dev-2'), 'NONCE_INVALID', 'bound to its owner');
   assert.equal(service.checkNonce(nonce, 'dev-1'), null);
@@ -42,15 +53,14 @@ test('nonce: reuse and expiry are refused in production', async () => {
   assert.equal(service.checkNonce('made-up', 'dev-1'), 'NONCE_INVALID');
 });
 
-test('production refuses samples, bad nonces, poor GPS, vehicle speed and a photo it cannot blur', async () => {
-  const s = new CaptureService(tmp(), false);
+test('capture refuses bad nonces, poor GPS, vehicle speed and a photo it cannot blur', async () => {
+  const s = new CaptureService(tmp());
   const base = { ownerId: 'd', image: JPEG, kind: 'OVERVIEW', gps: GPS, motionSamples: 3 };
   const code = async (extra: Record<string, unknown>) => {
     const r = await s.capture({ ...base, nonce: s.issueNonce('d', 'REPORT').nonce, ...extra });
     assert.ok(isCaptureFailure(r));
     return isCaptureFailure(r) ? r.code : '';
   };
-  assert.equal(await code({ sampleId: 'pothole' }), 'FORBIDDEN');
   assert.equal(await code({ nonce: 'nope' }), 'NONCE_INVALID');
   assert.equal(await code({ gps: { ...GPS, accuracyM: 120 } }), 'GPS_ACCURACY');
   assert.equal(await code({ gps: null }), 'NO_GPS');
@@ -60,14 +70,12 @@ test('production refuses samples, bad nonces, poor GPS, vehicle speed and a phot
   assert.equal(await code({}), 'PRIVACY_UNAVAILABLE');
 });
 
-test('DEMO shows what production would reject, without blocking, and stamps samples', async () => {
+test('without the AI service nothing is made up: no detection, no blur claim', async () => {
   const s = new CaptureService(tmp(), true);
-  const r = await s.capture({ ownerId: 'd', sampleId: 'pothole', kind: 'OVERVIEW', nonce: 'bad', gps: { ...GPS, accuracyM: 120 }, motionSamples: 0 });
+  const r = await s.capture({ ownerId: 'd', image: JPEG, kind: 'OVERVIEW', nonce: s.issueNonce('d', 'R').nonce, gps: GPS, motionSamples: 1 });
   assert.ok(!isCaptureFailure(r));
   if (isCaptureFailure(r)) return;
-  assert.equal(r.captureTrust, 'DEMO');
-  assert.equal(r.demoSource, 'SAMPLE:pothole');
-  assert.ok(r.warnings.some((w) => w.startsWith('Would be rejected in production') && w.includes('120 m')));
+  assert.equal(r.captureTrust, 'LIVE_NONCE');
   assert.equal(r.ai.status, 'MODEL_UNAVAILABLE', 'a stopped AI service is reported, not hidden');
   assert.equal(r.ai.detections.length, 0, 'no made-up detection');
   assert.equal(r.privacy.status, 'NOT_AVAILABLE');
@@ -76,7 +84,7 @@ test('DEMO shows what production would reject, without blocking, and stamps samp
 
 test('evidence is single use across cases and bound to who took it', async () => {
   const s = new CaptureService(tmp(), true);
-  const r = await s.capture({ ownerId: 'd', sampleId: 'pothole', kind: 'OVERVIEW', nonce: s.issueNonce('d', 'R').nonce, gps: GPS, motionSamples: 1 });
+  const r = await s.capture({ ownerId: 'd', image: JPEG, kind: 'OVERVIEW', nonce: s.issueNonce('d', 'R').nonce, gps: GPS, motionSamples: 1 });
   assert.ok(!isCaptureFailure(r));
   if (isCaptureFailure(r)) return;
   const other = s.claim([r.id], 'someone-else', 'C1');
@@ -156,18 +164,20 @@ test('PDF clock normalisation repeats bytes for the same snapshot (IN-3)', () =>
 // Whole API, AI service down: the workflow still completes and says what was not computed.
 let server: Server;
 let base = '';
+let apiStore: V5Store;
 
 const call = async (url: string, opts: { token?: string; body?: unknown } = {}) => {
   const res = await fetch(`${base}${url}`, { method: opts.body === undefined ? 'GET' : 'POST', headers: { 'content-type': 'application/json', ...(opts.token ? { 'x-v5-session': opts.token } : {}) }, ...(opts.body === undefined ? {} : { body: JSON.stringify(opts.body) }) });
   const type = res.headers.get('content-type') ?? '';
   return { status: res.status, body: (type.includes('json') ? await res.json() : await res.text()) as any };
 };
-const login = async (accountId: string) => (await call('/api/v5/session', { body: { accountId } })).body.data.token as string;
+const PASSWORD = 'test-password-1';
+const login = async (accountId: string) => (await call('/api/v5/session/login', { body: { email: PILOT_ROSTER.find((a) => a.accountId === accountId)!.email, password: PASSWORD } })).body.data.token as string;
 const AT = { lat: -6.2006, lon: 106.8574, accuracyM: 8, speedMps: 0 };
 
-async function shot(token: string, sampleId: string, kind: string, stage?: string) {
+async function shot(token: string, _name: string, kind: string, stage?: string) {
   const { nonce } = (await call('/api/v5/capture/nonce', { token, body: { purpose: 'X' } })).body.data;
-  const r = await call('/api/v5/evidence', { token, body: { nonce, sampleId, kind, stage, gps: AT, motionSamples: 1 } });
+  const r = await call('/api/v5/evidence', { token, body: { nonce, image: JPEG, kind, stage, gps: AT, motionSamples: 1 } });
   assert.equal(r.status, 200, JSON.stringify(r.body));
   return r.body.data.id as string;
 }
@@ -176,7 +186,10 @@ before(async () => {
   const app = express();
   app.use(express.json({ limit: '7mb' }));
   const router = express.Router();
-  registerV5Routes(router, { dataDir: tmp(), demoMode: true, seed: false });
+  const dataDir = tmp();
+  const staff = new StaffAccounts(path.join(dataDir, 'v5'));
+  for (const account of PILOT_ROSTER) staff.upsert(account, PASSWORD);
+  apiStore = registerV5Routes(router, { dataDir, lenientCapture: true }).store;
   app.use(router);
   await new Promise<void>((resolve) => { server = app.listen(0, '127.0.0.1', () => resolve()); });
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -275,21 +288,19 @@ test('API walkthrough: report to accepted repair, every number from a real path'
   assert.equal(accused.status, 400);
   const neutral = await call(`/api/v5/cases/${caseId}/flags`, { token: auditor, body: { wordingId: 'W-01', note: 'Please compare with the ticket.' } });
   assert.equal(neutral.status, 200);
-  assert.equal((await call('/api/v5/public/chain/demo/verify')).body.data.ok, true);
-  const sim = (await call('/api/v5/demo/tamper-simulate', { body: { seq: 3 } })).body.data;
-  assert.equal(sim.report.firstFailure.seq, 3);
-  assert.equal(sim.storedLog.ok, true, 'the simulation does not touch the stored log');
+  assert.equal((await call('/api/v5/public/chain/prod/verify')).body.data.ok, true);
 });
 
-test('API: fast-forward moves only the labelled clock and is logged', async () => {
+test('API: the complaint draft opens after 30 real days, and the ladder follows the clock', async () => {
   const device = (await call('/api/v5/session/device', { body: {} })).body.data.token;
-  const id = await shot(device, 'pothole', 'OVERVIEW');
-  const { publicCode } = (await call('/api/v5/cases', { token: device, body: { mode: 'SINGLE', evidenceIds: [id], lat: -6.9, lon: 110.4, accuracyM: 8 } })).body.data;
+  const id = await shot(device, 'x', 'OVERVIEW');
+  const { publicCode, caseId } = (await call('/api/v5/cases', { token: device, body: { mode: 'SINGLE', evidenceIds: [id], lat: -6.9, lon: 110.4, accuracyM: 8 } })).body.data;
   assert.match(publicCode, /^IDN-/, 'outside the pilot regions');
   assert.equal((await call(`/api/v5/public/track/${publicCode}/complaint-draft`)).status, 409);
-  const after = (await call('/api/v5/demo/fast-forward', { token: device, body: { code: publicCode, days: 31 } })).body.data;
-  assert.equal(after.ladder.level, 'COMPLAINT');
-  assert.ok(after.timeline.some((t: { type: string }) => t.type === 'demo.time_advanced'));
+  // The report is dated 31 days back, as if it had really waited that long.
+  const c = apiStore.get(caseId)!;
+  apiStore.record(c, { ladderStartAt: new Date(Date.now() - 31 * 86_400_000).toISOString() }, 'migration.note', {}, { kind: 'SYSTEM', accountId: 'system:test', personId: null, role: 'SYSTEM', scope: '*' }, new Date().toISOString());
+  assert.equal((await call(`/api/v5/public/track/${publicCode}`)).body.data.ladder.level, 'COMPLAINT');
   const draft = await call(`/api/v5/public/track/${publicCode}/complaint-draft`);
   assert.match(draft.body, /tidak dikirim otomatis/);
   assert.equal(bannedWordsIn(draft.body).length, 0);

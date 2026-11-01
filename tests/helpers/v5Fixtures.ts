@@ -22,7 +22,7 @@ export const ACTORS = {
   admin: person('ADMIN', 'ADM')
 };
 
-export const ev = (kind: EvidenceRef['kind'], stage: string | null = null): EvidenceRef => ({ id: `EV-${kind}-${stage ?? ''}`, sha256: `${kind}${stage ?? ''}`.padEnd(64, '0'), kind, stage, captureTrust: 'DEMO', demoSource: 'SAMPLE:test' });
+export const ev = (kind: EvidenceRef['kind'], stage: string | null = null): EvidenceRef => ({ id: `EV-${kind}-${stage ?? ''}`, sha256: `${kind}${stage ?? ''}`.padEnd(64, '0'), kind, stage, captureTrust: 'LIVE_NONCE' });
 
 const ROUTING = { segmentId: 'SEG-1', segmentName: 'Jl. Contoh', roadStatus: 'PROVINSI', authorityId: AUTH, authorityName: 'Dinas Bina Marga DKI', authorityLevel: 'PROVINSI', officeId: null, officeName: null, confidence: 'HIGH' as const, basis: 'test' };
 
@@ -33,7 +33,7 @@ const FOLLOW_UP = { id: 'FU-1', milestone: 'M1' as const, dueAt: NOW, windowDays
 
 /** A case as it stands in `state`, with the records earlier steps would have created. */
 export function caseAt(state: V5State | null, overrides: Partial<V5Case> = {}): V5Case {
-  const base = blankCase({ id: 'CASE-1', publicCode: 'JKT-TEST', isDemo: true, createdAt: NOW, createdBy: { kind: 'DEVICE', ref: 'dev:x', personId: null }, mode: 'SINGLE', location: { latE6: -6200000, lonE6: 106800000, accuracyM: 8 }, captureTrust: 'DEMO' });
+  const base = blankCase({ id: 'CASE-1', publicCode: 'JKT-TEST', createdAt: NOW, createdBy: { kind: 'DEVICE', ref: 'dev:x', personId: null }, mode: 'SINGLE', location: { latE6: -6200000, lonE6: 106800000, accuracyM: 8 }, captureTrust: 'LIVE_NONCE' });
   const order: V5State[] = ['TRIAGE', 'ACCEPTED', 'INSPECTION_ASSIGNED', 'INSPECTED', 'INSPECTION_VERIFIED', 'PLAN_PROPOSED', 'PLAN_APPROVED', 'WORK_ORDERED', 'IN_PROGRESS', 'WORK_SUBMITTED', 'WORK_VERIFIED', 'MONITORING'];
   const at = order.indexOf(state as V5State);
   const c: V5Case = { ...base, state, version: 3, damageClass: 'POTHOLE' };

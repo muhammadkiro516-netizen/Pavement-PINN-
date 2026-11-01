@@ -10,6 +10,7 @@ import type { PublicReportView } from '../../domain/workflow/projections';
 import { lastDeviceFix, requestDeviceLocation } from '../../features/location/deviceLocation';
 import { PavementMap } from '../../components/maps/PavementMap';
 import { MapSheet } from '../../components/maps/MapSheet';
+import { caseToHazard, caseToPin, useLiveCases } from '../../features/roles/liveCases';
 import { ROAD_OWNER_COLORS, onRoadOwnerTap, onRoadOwnerZoom, setRoadOwnersVisible, type RoadOwnerTap } from '../../components/maps/roadOwnerLayer';
 import { CONFIDENCE_WORD, ROAD_STATUS_WORD } from '../../features/road-owner/RoadOwnerCard';
 import type { MapSheetState } from '../../components/maps/sheetState';
@@ -30,6 +31,7 @@ import type { DamageReport, RoadSegment } from '../../types';
 type MapFilter = 'ALL' | 'POTHOLE' | 'CRACK' | 'WATER' | 'SIGN' | 'FIXED';
 const FILTERS: ReadonlyArray<[MapFilter, string]> = [['ALL', 'Semua'], ['POTHOLE', 'Lubang'], ['CRACK', 'Retak'], ['WATER', 'Genangan'], ['SIGN', 'Ada rambu'], ['FIXED', 'Sudah diperbaiki']];
 
+const NO_SEGMENTS: RoadSegment[] = [];
 const OWNER_LEGEND: ReadonlyArray<[string, string]> = [['NASIONAL', 'Nasional'], ['PROVINSI', 'Provinsi'], ['KABUPATEN', 'Kabupaten / kota'], ['TOL', 'Tol']];
 
 function matchesFilter(r: DamageReport, f: MapFilter, c?: { hazard?: unknown | null }): boolean {
@@ -52,9 +54,12 @@ function ringFor(r: DamageReport): string {
 }
 
 export const MapPage: React.FC = () => {
-  const app = useAppState();
+  const baseApp = useAppState();
   const { currentAccount, activeRole } = useSession();
-  const { navigateTo } = useRouter();
+  const { navigateTo, navigate } = useRouter();
+  // Pins are the real cases; tapping one opens its public page.
+  const liveCases = useLiveCases();
+  const app = { ...baseApp, communityReports: useMemo(() => liveCases.map(caseToPin), [liveCases]) };
   const [selected, setSelected] = useState<DamageReport | null>(null);
   const [cluster, setCluster] = useState<DamageReport[] | null>(null);
   const [sheetState, setSheetState] = useState<MapSheetState>('HALF');
@@ -82,7 +87,7 @@ export const MapPage: React.FC = () => {
   };
   const caseOf = (id: string) => app.workflow.views[id]?.case as (ReportCase & PublicReportView) | undefined;
   const shown = useMemo(() => app.communityReports.filter((r) => matchesFilter(r, filter, caseOf(r.id))), [app.communityReports, filter, app.workflow.views]);
-  const signedReportIds = useMemo(() => new Set(Object.values(app.workflow.views).filter((v) => (v.case as { hazard?: unknown }).hazard).map((v) => v.case.id)), [app.workflow.views]);
+  const signedReportIds = useMemo(() => new Set(liveCases.filter((c) => c.hazard).map((c) => c.publicCode)), [liveCases]);
   const openCount = app.communityReports.filter((r) => r.status !== 'REPAIRED' && r.status !== 'CLOSED').length;
   const nearby = useMemo(() => {
     const here = userLocation?.coordinates;
@@ -102,16 +107,13 @@ export const MapPage: React.FC = () => {
   useEffect(locate, []);
   const live = useMemo(() => (selected ? app.communityReports.find((r) => r.id === selected.id) ?? selected : null), [selected, app.communityReports]);
 
-  const openReport = (report: DamageReport) => {
-    setCluster(null);
-    setSelected(report);
-  };
+  const openReport = (report: DamageReport) => navigate(`/pantau/${report.id}/`);
 
   return (
     <div className="absolute inset-0">
       <PavementMap
         engine="globe"
-        roadSegments={app.roadSegments}
+        roadSegments={NO_SEGMENTS}
         selectedSegment={app.selectedSegment}
         onSelectSegment={(segment: RoadSegment) => {
           app.selectSegment(segment);
@@ -208,7 +210,7 @@ export const MapPage: React.FC = () => {
       )}
       {currentAccount.role === 'PUBLIC_REPORTER' && <MapCoach />}
       <div className="absolute bottom-[214px] left-4 z-30">
-        <HazardRadar cases={Object.values(app.workflow.views).map((v) => v.case as never)} />
+        <HazardRadar cases={liveCases.map(caseToHazard) as never} />
       </div>
       <button
         type="button"

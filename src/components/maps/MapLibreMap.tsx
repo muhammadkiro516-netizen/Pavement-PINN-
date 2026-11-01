@@ -23,7 +23,6 @@ import { INITIAL_TILE_HEALTH, TileHealth, recordTileError, recordTileLoad } from
 import { BasemapCandidate, basemapCandidates } from './vectorBasemap';
 import { CLUSTER_MAX_ZOOM, SEGMENT_LINE_MIN_ZOOM, clusterByPixelDistance } from './mapDetail';
 import { SEVERITY_COLOR, lngLatBounds, reportsToGeoJson, segmentsToGeoJson, toLngLat } from './mapGeoJson';
-import { DEMO_DATA_LABEL, DEMO_DATA_NOTE } from '../../data/provenance';
 import { selectRegularUserDensity } from '../../features/community-reports/reportDensity';
 import { getCanonicalRoadGeometry, toLeafletPolyline } from '../../domain/geo/canonicalRoadGeometry';
 import { assetUrl, NO_COVERAGE_PATH, reportPhotoCaption } from '../../domain/reports/datasetImages';
@@ -1309,14 +1308,6 @@ const MapLibreMap: React.FC<LeafletMapProps> = (props) => {
       {/* MapLibre sets position: relative on its container, so the size comes from width/height */}
       <div ref={containerRef} data-testid="vector-map" className="w-full h-full" />
 
-      {/* Provenance: demo indicator is already displayed in header user pill; hidden here to clear bottom UI */}
-      <div
-        data-testid="demo-data-badge"
-        title={DEMO_DATA_NOTE[language]}
-        className="hidden"
-      >
-        {DEMO_DATA_LABEL[language]}
-      </div>
 
       {/* Basemap status: shown only when the selected style could not be used */}
       {basemapStage > 0 && (

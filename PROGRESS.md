@@ -1,9 +1,9 @@
 # UI restore (current work; plan: docs/v5/UI_RESTORE_PLAN.md, temporary wiring: UI_FIXTURES.md)
 
-- Branch `ui-restore`, baseline tag `ui-baseline` (18918cd). Prompt 1 done. Prompt 2 mostly done. Prompt 3 not started.
+- Branch `ui-restore`, baseline tag `ui-baseline` (18918cd). Prompts 1, 2 and 3 done. Zero screens use fixtures (`UI_FIXTURES.md`).
 - Citizen features sit on the original screens. New roles are in `src/pages/roles` + `src/features/roles`, on the v5 API, in the original look.
-- Next: Prompt 3 joins citizen reports to the v5 store and removes demo paths.
-- Host: `scripts/v5-live.ps1` once, then `scripts/v5-reload.ps1` keeps the same URL. Test accounts: `server/v5/demoPeople.ts`, `scripts/v5-seed-accounts.ts`.
+- Next: test on a real phone. Old v4 pages stay in the repo for their tests, but no route opens them.
+- Host: `scripts/v5-live.ps1` once, then `scripts/v5-reload.ps1` keeps the same URL; never pipe or `-Wait` them, the app inherits the handles and the caller hangs. Accounts: `scripts/v5-create-accounts.ts` (passwords in `.data/v5-live/staff-logins.json`, gitignored).
 
 # v5 progress (handoff; spec: docs/v5/, read 00_README then 01_CLAUDE_CODE_PROMPT)
 

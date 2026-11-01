@@ -117,5 +117,5 @@ test('base path: strip and re-apply are inverse for the GitHub Pages base and fo
 
 // The added pages hold no case data of their own: staff data is refused by the v5 API without a session.
 test('only the landing, login, public tracking, evidence and public v5 pages are reachable without an account', () => {
-  assert.deepEqual(ROUTES.filter((r) => r.access === 'PUBLIC').map((r) => r.id).sort(), ['evidence', 'landing', 'login', 'publicCase', 'roles', 'tour', 'track', 'verify', 'verifyDoc', 'why', 'workCase']);
+  assert.deepEqual(ROUTES.filter((r) => r.access === 'PUBLIC').map((r) => r.id).sort(), ['evidence', 'landing', 'login', 'publicCase', 'staffHome', 'tour', 'track', 'uiCheck', 'verify', 'verifyDoc', 'why', 'workCase']);
 });

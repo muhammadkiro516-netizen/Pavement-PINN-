@@ -16,23 +16,21 @@ import { bannedWordsIn } from '../../src/domain/v5/wording';
 import wordingLibrary from '../../config/wording/neutral_v1.json';
 import { callInference } from '../services/inferenceClient';
 import { rateLimit } from '../middleware/rateLimit';
-import { DEMO_ACCOUNTS, DEMO_EMAILS, DEMO_PASSWORD, actorFor, deviceActor, findDemoAccount } from './demoPeople';
-import { canonicalize, sha256Hex, verifyChainText, type ChainEvent, type ChainId } from './chain';
+import { StaffAccounts, actorFor, deviceActor } from './staffAccounts';
+import { sweepEscalations } from './escalationJob';
+import { canonicalize, sha256Hex, type ChainEvent, type ChainId } from './chain';
 import { V5Store, type IssuedDocument } from './store';
 import { RoadRegistry, parseCsv, type RoutingDecision } from './routing';
 import { CaptureService, analyseTrace, isCaptureFailure } from './capture';
 import { buildPlaceholders, htmlToPdf, qrFor, renderTemplate, reportProblems } from './documents';
 import { inclusionProof, merkleRoot } from './merkle';
-import { seedDemoCases } from './seed';
 
 const SESSION_HOURS = 8;
-const DAY_MS = 86_400_000;
 
 export interface V5Options {
   dataDir: string;
-  demoMode: boolean;
-  /** Load the demo cases at start. Default: on in DEMO MODE. Tests build their own. */
-  seed?: boolean;
+  /** Tests only, when the AI service is not running: a failed capture check is noted, not refused. */
+  lenientCapture?: boolean;
 }
 
 /** Roles allowed to read the whole case and its event chain (03 matrix: case.read_full). */
@@ -84,12 +82,10 @@ class Sessions {
   }
 }
 
-/** Time this case lives in: real time, plus the labelled DEMO fast-forward. */
-export const caseNow = (c: V5Case, nowMs = Date.now()) => new Date(nowMs + c.demoClockDays * DAY_MS).toISOString();
+export const caseNow = (_c: V5Case) => new Date().toISOString();
 
 const EVENT_LABEL: Record<string, string> = {
-  'demo.seeded': 'Sample case loaded',
-  'case.submitted': 'Citizen report received',
+    'case.submitted': 'Citizen report received',
   'case.screening_started': 'Automatic screening started',
   'case.screened': 'Screened and routed to an office',
   'case.duplicate_suggested': 'Possible duplicate noted',
@@ -121,13 +117,12 @@ const EVENT_LABEL: Record<string, string> = {
   'response.added': 'Agency responded',
   'case.reopened': 'Broke again. Case reopened',
   'case.closed': 'Case closed',
-  'document.issued': 'Audit report issued',
-  'demo.time_advanced': 'DEMO: time fast-forwarded'
+  'document.issued': 'Audit report issued'
 };
 
 /** What anyone can see: no reporter, staff or provider data (02 §8.1 P-11). */
 export function publicCaseView(c: V5Case, now: string, events: ChainEvent[] = []) {
-  const { isDemo, publicCode, state, closureReason, createdAt, mode, damageClass, sizeBand, routing, pending, hazard, underTechnicalReview, followUps, captureTrust, witnesses, trace, warrantyFlag, demoClockDays } = c;
+  const { publicCode, state, closureReason, createdAt, mode, damageClass, sizeBand, routing, pending, hazard, underTechnicalReview, followUps, captureTrust, witnesses, trace, warrantyFlag } = c;
   const ladder = ladderStatus(c, now);
   return {
     publicCode,
@@ -145,11 +140,9 @@ export function publicCaseView(c: V5Case, now: string, events: ChainEvent[] = []
     underTechnicalReview: underTechnicalReview || c.flags.some((f) => f.state === 'OPEN'),
     captureTrust,
     witnesses,
-    isDemo,
-    demoClockDays,
     trace: trace ? { lengthM: trace.lengthM, quality: trace.quality } : null,
     warrantyFlag,
-    photos: c.evidence.filter((e) => ['OVERVIEW', 'CLOSEUP', 'TRACE_POINT'].includes(e.kind) || (e.kind === 'WORK_STAGE' && (e.stage === 'BEFORE' || e.stage === 'AFTER'))).map((e) => ({ id: e.id, kind: e.kind, stage: e.stage, demo: e.captureTrust === 'DEMO' })),
+    photos: c.evidence.filter((e) => ['OVERVIEW', 'CLOSEUP', 'TRACE_POINT'].includes(e.kind) || (e.kind === 'WORK_STAGE' && (e.stage === 'BEFORE' || e.stage === 'AFTER'))).map((e) => ({ id: e.id, kind: e.kind, stage: e.stage })),
     followUps: followUps.map(({ milestone, dueAt, trigger, result, recordedAt, windowDays }) => ({ milestone, dueAt, trigger, result, recordedAt, windowDays, due: followUpIsDue({ dueAt, result } as never, now), overdue: followUpIsOverdue({ dueAt, result, windowDays } as never, now) })),
     confirmations: { stillFixed: c.citizenConfirmations.filter((x) => x.result === 'OK').length, brokeAgain: c.citizenConfirmations.filter((x) => x.result === 'DAMAGED').length },
     ladder,
@@ -199,7 +192,8 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
   const dir = path.join(options.dataDir, 'v5');
   const store = new V5Store(dir);
   const sessions = new Sessions(dir);
-  const capture = new CaptureService(dir, options.demoMode);
+  const capture = new CaptureService(dir, options.lenientCapture === true);
+  const staff = new StaffAccounts(dir);
   // Parsed on first use: every createApp() in the v4 tests passes through here.
   let loadedRegistry: RoadRegistry | null = null;
   const roads = () => (loadedRegistry ??= new RoadRegistry());
@@ -208,6 +202,9 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
 
   capture.purgeOriginals();
   setInterval(() => capture.purgeOriginals(), 3_600_000).unref();
+  const sweep = () => sweepEscalations(store, new Date().toISOString());
+  sweep();
+  setInterval(sweep, 900_000).unref();
 
   const sendFail = (res: Response, status: number, code: string, message: string, rule?: string) =>
     res.status(status).json({ success: false, error: { code, message, ...(rule ? { rule } : {}) } });
@@ -217,8 +214,8 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     const claims = sessions.read(req.get('x-v5-session') ?? undefined);
     if (!claims) return null;
     if (claims.kind === 'DEVICE') return deviceActor(claims.id);
-    const account = findDemoAccount(claims.id);
-    return account && options.demoMode ? actorFor(account) : null;
+    const account = staff.get(claims.id);
+    return account ? actorFor(account) : null;
   };
 
   const staffCase = (req: Request, res: Response, roles: readonly string[]): { actor: V5Actor; c: V5Case } | null => {
@@ -237,29 +234,21 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
   };
 
   router.get('/api/v5/config', (_req, res) => {
-    res.json({ success: true, data: { demoMode: options.demoMode, actions: V5_ACTIONS, ladder: LADDER, samples: options.demoMode ? capture.samples() : [] } });
+    res.json({ success: true, data: { actions: V5_ACTIONS, ladder: LADDER } });
   });
 
-  // Role switcher (02 §9 D-7). Exists only in DEMO MODE: production needs real staff accounts.
-  router.get('/api/v5/demo/accounts', (_req, res) => {
-    if (!options.demoMode) return sendFail(res, 404, 'NOT_FOUND', 'Demo accounts are off.');
-    res.json({ success: true, data: DEMO_ACCOUNTS });
-  });
-
-  router.post('/api/v5/session', (req, res) => {
-    if (!options.demoMode) return sendFail(res, 404, 'NOT_FOUND', 'Demo accounts are off.');
-    const account = findDemoAccount(String(req.body?.accountId ?? ''));
-    if (!account) return sendFail(res, 400, 'VALIDATION', 'Unknown demo account.');
-    res.json({ success: true, data: { token: sessions.issue('STAFF', account.accountId), account } });
-  });
-
-  // The sign-in form's test accounts for the role workspaces. Same DEMO MODE gate as the picker.
   router.post('/api/v5/session/login', rateLimit('v5-login', 30, 60_000), (req, res) => {
-    if (!options.demoMode) return sendFail(res, 404, 'NOT_FOUND', 'Demo accounts are off.');
-    const accountId = DEMO_EMAILS[String(req.body?.email ?? '').trim().toLowerCase()];
-    const account = accountId ? findDemoAccount(accountId) : null;
-    if (!account || req.body?.password !== DEMO_PASSWORD) return sendFail(res, 401, 'UNAUTHENTICATED', 'Email atau kata sandi salah.');
-    res.json({ success: true, data: { token: sessions.issue('STAFF', account.accountId), account } });
+    const account = staff.verify(String(req.body?.email ?? ''), String(req.body?.password ?? ''));
+    if (!account) return sendFail(res, 401, 'UNAUTHENTICATED', 'Email atau kata sandi salah.');
+    const { passwordHash: _hash, ...profile } = account;
+    res.json({ success: true, data: { token: sessions.issue('STAFF', account.accountId), account: profile } });
+  });
+
+  // Who can be assigned: staff only, no contact details.
+  router.get('/api/v5/staff', (req, res) => {
+    const actor = actorOf(req);
+    if (!actor || actor.kind !== 'PERSON') return sendFail(res, 403, 'FORBIDDEN', 'Staff only.');
+    res.json({ success: true, data: staff.list() });
   });
 
   // Citizens have no login: a pseudonymous device identity only (02 C-1).
@@ -271,7 +260,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
   router.get('/api/v5/me', (req, res) => {
     const actor = actorOf(req);
     if (!actor) return sendFail(res, 401, 'UNAUTHENTICATED', 'Choose a role first.');
-    res.json({ success: true, data: { role: actor.role, kind: actor.kind, accountId: actor.accountId, displayName: findDemoAccount(actor.accountId)?.displayName ?? null } });
+    res.json({ success: true, data: { role: actor.role, kind: actor.kind, accountId: actor.accountId, displayName: staff.get(actor.accountId)?.displayName ?? null } });
   });
 
   // ---- Capture ------------------------------------------------------------------------------
@@ -288,7 +277,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     const body = req.body ?? {};
     const c = body.caseId ? store.get(String(body.caseId)) : null;
     const maxM = actor.role === 'SUPERVISOR' ? 200 : 50;
-    const result = await capture.capture({ ownerId: actor.accountId, image: body.image, sampleId: body.sampleId, nonce: body.nonce, kind: body.kind, stage: body.stage, gps: body.gps, motionSamples: body.motionSamples, clientTime: body.clientTime, values: body.values ?? null, near: c ? { latE6: c.location.latE6, lonE6: c.location.lonE6, maxM } : null });
+    const result = await capture.capture({ ownerId: actor.accountId, image: body.image, nonce: body.nonce, kind: body.kind, stage: body.stage, gps: body.gps, motionSamples: body.motionSamples, clientTime: body.clientTime, values: body.values ?? null, near: c ? { latE6: c.location.latE6, lonE6: c.location.lonE6, maxM } : null });
     if (isCaptureFailure(result)) return sendFail(res, httpStatus(result.code) === 400 && result.code !== 'VALIDATION' ? 422 : httpStatus(result.code), result.code, result.message);
     const { ownerId: _owner, sha256OriginalEnc: _enc, ...view } = result;
     res.json({ success: true, data: { ...view, imageUrl: `/api/v5/evidence/${result.id}/image` } });
@@ -326,7 +315,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
 
   router.get('/api/v5/public/cases', (_req, res) => {
     const now = new Date().toISOString();
-    res.json({ success: true, data: store.list().filter((c) => c.state && c.state !== 'MERGED').map((c) => ({ publicCode: c.publicCode, lat: c.location.latE6 / 1e6, lon: c.location.lonE6 / 1e6, state: c.state, stateLabel: V5_STATE_LABELS[c.state!].en, isDemo: c.isDemo, damageClass: c.damageClass, ladderLevel: ladderStatus(c, now).level })) });
+    res.json({ success: true, data: store.list().filter((c) => c.state && c.state !== 'MERGED').map((c) => ({ publicCode: c.publicCode, lat: c.location.latE6 / 1e6, lon: c.location.lonE6 / 1e6, state: c.state, repaired: c.state === 'MONITORING' || (c.state === 'CLOSED' && c.closureReason === 'MONITORING_COMPLETE'), stateLabel: V5_STATE_LABELS[c.state!].en, photoId: c.evidence.find((e) => e.kind === 'OVERVIEW' || e.kind === 'TRACE_POINT')?.id ?? null, damageClass: c.damageClass, hazard: c.hazard, ladderLevel: ladderStatus(c, now).level })) });
   });
 
   // ---- Report (citizen and staff) -----------------------------------------------------------
@@ -344,7 +333,6 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     const decision = registry.decide(lat, lon, accuracyM, body.toll === 'yes' || body.toll === 'no' ? body.toll : null);
     const now = new Date().toISOString();
     const c0 = store.newCase({
-      isDemo: options.demoMode,
       createdAt: now,
       createdBy: { kind: actor.kind === 'DEVICE' ? 'DEVICE' : 'STAFF', ref: store.chain.actorRef(actor.kind, actor.personId ?? actor.accountId), personId: actor.personId },
       mode,
@@ -355,21 +343,19 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     const claimed = capture.claim(body.evidenceIds, actor.accountId, c0.id);
     if (isCaptureFailure(claimed)) return sendFail(res, httpStatus(claimed.code), claimed.code, claimed.message);
     if (claimed.refs.length === 0) return sendFail(res, 400, 'VALIDATION', 'A report needs at least one photo.');
-    const anySample = claimed.refs.some((r) => r.captureTrust === 'DEMO');
 
     let trace: V5Case['trace'] = null;
     if (mode === 'TRACE') {
       const points = Array.isArray(body.tracePoints) ? body.tracePoints : [];
       const analysis = analyseTrace(points, claimed.refs.length);
-      const sampleTrace = options.demoMode && body.demoTrace === true;
-      if (!analysis.longEnough && !sampleTrace) return sendFail(res, 400, 'VALIDATION', `Walk at least 10 m. So far ${analysis.lengthM} m.`);
+      if (!analysis.longEnough) return sendFail(res, 400, 'VALIDATION', `Walk at least 10 m. So far ${analysis.lengthM} m.`);
       trace = { lengthM: analysis.lengthM, quality: analysis.quality, points: analysis.points };
     }
 
     const note = typeof body.note === 'string' ? body.note.slice(0, 500) : null;
     if (note && bannedWordsIn(note).length > 0) return sendFail(res, 400, 'VALIDATION', 'Please describe the damage in neutral words.');
 
-    const submit = store.apply({ ...c0, captureTrust: anySample ? 'DEMO' : 'LIVE_NONCE', note }, { action: 'SUBMIT', evidence: claimed.refs, classGuess: body.classGuess ?? null, sizeBand: body.sizeBand ?? null, trace }, actor, now, 0);
+    const submit = store.apply({ ...c0, note }, { action: 'SUBMIT', evidence: claimed.refs, classGuess: body.classGuess ?? null, sizeBand: body.sizeBand ?? null, trace }, actor, now, 0);
     if ('ok' in submit) return sendFail(res, httpStatus(submit.code), submit.code, submit.message, submit.rule);
 
     // SYSTEM screening: detection result and routing. It ends in TRIAGE, never in ACCEPTED (SYS-3).
@@ -503,7 +489,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     }
 
     // Accounts picked in the UI become people on the server, so SoD compares persons.
-    const person = (accountId: unknown) => findDemoAccount(String(accountId ?? ''));
+    const person = (accountId: unknown) => staff.get(String(accountId ?? ''));
     if (action === 'ASSIGN_INSPECTION') {
       const a = person(cmd.inspectorAccountId);
       if (!a || a.role !== 'FIELD_INSPECTOR') return sendFail(res, 400, 'VALIDATION', 'Choose a Field Inspector.');
@@ -661,7 +647,6 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     if (ladder.level !== 'COMPLAINT') return sendFail(res, 409, 'INVALID_TRANSITION', 'A complaint draft opens after 30 days without handling.');
     const text = [
       'DRAF PENGADUAN (dibuat dari catatan peristiwa; periksa sebelum dikirim; tidak dikirim otomatis)',
-      c.isDemo ? 'DEMO — BUKAN DATA NYATA' : '',
       `Kode laporan: ${c.publicCode}`,
       `Lokasi: ${(c.location.latE6 / 1e6).toFixed(5)}, ${(c.location.lonE6 / 1e6).toFixed(5)}${c.routing?.segmentName ? ` (${c.routing.segmentName})` : ''}`,
       `Instansi penerima: ${c.routing?.officeName ?? '-'}`,
@@ -677,33 +662,8 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
 
   router.get('/api/v5/public/chain/:chainId/verify', (req, res) => {
     const chainId = req.params.chainId as ChainId;
-    if (chainId !== 'prod' && chainId !== 'demo') return sendFail(res, 404, 'NOT_FOUND', 'Unknown chain.');
+    if (chainId !== 'prod') return sendFail(res, 404, 'NOT_FOUND', 'Unknown chain.');
     res.json({ success: true, data: store.verify(chainId) });
-  });
-
-  // DEMO: shows what tampering does, on a copy. The stored log is not touched.
-  router.post('/api/v5/demo/tamper-simulate', writeLimit, (req, res) => {
-    if (!options.demoMode) return sendFail(res, 404, 'NOT_FOUND', 'Demo tools are off.');
-    const text = store.chain.readText('demo');
-    const lines = text.split('\n').filter((l) => l.trim() !== '');
-    if (lines.length === 0) return sendFail(res, 409, 'INVALID_TRANSITION', 'The log is empty.');
-    const seq = Math.min(lines.length, Math.max(1, Number(req.body?.seq) || Math.ceil(lines.length / 2)));
-    const event = JSON.parse(lines[seq - 1]) as ChainEvent;
-    event.server_received_at = new Date(new Date(event.server_received_at).getTime() - DAY_MS).toISOString();
-    lines[seq - 1] = JSON.stringify(event);
-    res.json({ success: true, data: { simulated: true, changedSeq: seq, changedField: 'server_received_at (one day earlier)', report: verifyChainText('demo', `${lines.join('\n')}\n`, store.chain.publicKey), storedLog: store.verify('demo') } });
-  });
-
-  router.post('/api/v5/demo/fast-forward', writeLimit, (req, res) => {
-    if (!options.demoMode) return sendFail(res, 404, 'NOT_FOUND', 'Demo tools are off.');
-    const actor = actorOf(req);
-    if (!actor) return sendFail(res, 401, 'UNAUTHENTICATED', 'Choose a role first.');
-    const c = store.byPublicCode(String(req.body?.code ?? ''));
-    if (!c) return sendFail(res, 404, 'NOT_FOUND', 'No report has this code.');
-    const days = Number(req.body?.days);
-    if (!Number.isInteger(days) || days < 1 || days > 400) return sendFail(res, 400, 'VALIDATION', 'Days must be 1 to 400.');
-    const next = store.record(c, { demoClockDays: c.demoClockDays + days }, 'demo.time_advanced', { days, total_days: c.demoClockDays + days }, SYSTEM_ACTOR, new Date().toISOString());
-    res.json({ success: true, data: publicCaseView(next, caseNow(next), store.eventsFor(next.id, next.chainId)) });
   });
 
   // ---- Documents ----------------------------------------------------------------------------
@@ -758,7 +718,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     fs.mkdirSync(docsDir, { recursive: true });
     const filePath = path.join(docsDir, `${docId}.pdf`);
     fs.writeFileSync(filePath, pdf);
-    const doc: IssuedDocument = { id: docId, kind: 'AUDIT_REPORT', caseId: c.id, publicCode: c.publicCode, version, supersedes: latest?.id ?? null, supersededBy: null, sha256, issuedAt: snapshot.time, isDemo: c.isDemo, filePath, snapshot: { ...snapshot, lastCaseSeq } };
+    const doc: IssuedDocument = { id: docId, kind: 'AUDIT_REPORT', caseId: c.id, publicCode: c.publicCode, version, supersedes: latest?.id ?? null, supersededBy: null, sha256, issuedAt: snapshot.time, filePath, snapshot: { ...snapshot, lastCaseSeq } };
     store.addDocument(doc);
     store.record(c, {}, 'document.issued', { doc_id: docId, kind: 'AUDIT_REPORT', version, sha256_unsigned: sha256, snapshot_root: snapshot.root, snapshot_last_seq: snapshot.lastSeq, supersedes: latest?.id ?? null }, actor, new Date().toISOString());
     return doc;
@@ -807,12 +767,11 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
         issuedAt: d.issuedAt,
         sha256: d.sha256,
         supersededBy: store.documentsFor(d.caseId).find((o) => o.supersedes === d.id)?.id ?? null,
-        isDemo: d.isDemo,
         publicCode: d.publicCode,
         snapshot: { chainId: d.snapshot.chainId, lastSeq: d.snapshot.lastSeq, root: d.snapshot.root, period: d.snapshot.period },
         checks: { eventLogIntact: chain.ok, firstFailure: chain.firstFailure, truncated: chain.truncated, checkpointRootMatches: rootMatches, issuedEventFound: !!issued, storedFileMatchesLog: fileMatchesLog, caseEventsCovered: caseEvents.length },
         inclusionProof: last ? { eventHash: last.event_hash, seq: last.seq, path: inclusionProof(hashes, last.seq - 1) } : null,
-        ots: { status: d.isDemo ? 'NOT_ANCHORED_DEMO' : 'NOT_ANCHORED', note: d.isDemo ? 'A demo chain is never anchored to Bitcoin.' : 'OpenTimestamps anchoring is not switched on yet.' },
+        ots: { status: 'NOT_ANCHORED', note: 'OpenTimestamps anchoring is not switched on yet.' },
         pdfUrl: `/api/v5/documents/${d.id}/pdf`,
         proves: 'The document has not changed since it was issued, and the records it uses were in our log at that time.',
         doesNotProve: 'That the observations are correct. Agencies verify on site.'
@@ -847,7 +806,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
       underWatch: rows.filter((r) => r.c.state === 'MONITORING').length,
       levels: { COORDINATOR: byLevel('COORDINATOR'), AGENCY_HEAD: byLevel('AGENCY_HEAD'), PUBLIC: byLevel('PUBLIC'), COMPLAINT: byLevel('COMPLAINT') },
       escalated: rows.filter((r) => r.ladder.level === 'AGENCY_HEAD' || r.ladder.level === 'PUBLIC' || r.ladder.level === 'COMPLAINT').map((r) => ({ id: r.c.id, publicCode: r.c.publicCode, stateLabel: r.c.state ? V5_STATE_LABELS[r.c.state].en : '', daysWaiting: r.ladder.daysWaiting, level: r.ladder.level, office: r.c.routing?.officeName ?? null, delay: r.c.pending?.code ?? null, version: r.c.version })),
-      overlaps: store.chain.events('demo').filter((e) => e.actor.overlap_basis).length + store.chain.events('prod').filter((e) => e.actor.overlap_basis).length
+      overlaps: store.chain.events('prod').filter((e) => e.actor.overlap_basis).length
     } });
   });
 
@@ -868,34 +827,6 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
       note: 'Editing is not built yet. These tables come straight from docs/v5/data, each row with its source and status.'
     } });
   });
-
-  // Everything the 60-second tour shows comes from the seeded case's real records.
-  router.get('/api/v5/demo/tour', async (req, res) => {
-    if (!options.demoMode) return sendFail(res, 404, 'NOT_FOUND', 'The tour runs in demo mode only.');
-    const c = store.list().find((x) => x.isDemo && x.state === 'MONITORING' && x.publicCode.startsWith('JKT')) ?? null;
-    if (!c) return sendFail(res, 409, 'INVALID_TRANSITION', 'The sample case is still loading. Try again in a minute.');
-    const first = c.evidence.find((e) => e.kind === 'OVERVIEW');
-    const rec = first ? capture.get(first.id) : null;
-    let doc: IssuedDocument | null = store.documentsFor(c.id).slice(-1)[0] ?? null;
-    if (!doc) {
-      try {
-        doc = await issueReport(c, actorFor(findDemoAccount('ACC-AUDIT')!), originOf(req));
-      } catch {
-        doc = null;
-      }
-    }
-    res.json({ success: true, data: {
-      case: publicCaseView(store.get(c.id)!, caseNow(c), store.eventsFor(c.id, c.chainId)),
-      photo: rec ? { id: rec.id, detections: rec.ai.detections, width: rec.ai.width, height: rec.ai.height } : null,
-      inspection: c.inspection,
-      pinn: c.pinnRun,
-      cost: c.costRun,
-      stages: c.evidence.filter((e) => e.kind === 'WORK_STAGE' && e.stage !== 'SUPERVISOR_AFTER').map((e) => e.stage),
-      doc: doc ? publicDoc(doc) : null
-    } });
-  });
-
-  if (options.demoMode && options.seed !== false) seedDemoCases({ store, capture, registry }).catch((e) => console.error('[v5] demo seed failed:', e));
 
   return { store, capture, registry };
 }

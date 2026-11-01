@@ -35,7 +35,6 @@ export interface IssuedDocument {
   supersededBy: string | null;
   sha256: string;
   issuedAt: string;
-  isDemo: boolean;
   filePath: string;
   snapshot: { chainId: string; firstSeq: number; lastSeq: number; root: string; period: string; time: string; lastCaseSeq: number };
 }

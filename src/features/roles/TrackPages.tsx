@@ -16,15 +16,13 @@ export interface PublicCase {
   damageClass: string | null;
   sizeBand: string | null;
   captureTrust: string;
-  isDemo: boolean;
-  demoClockDays: number;
   routing: { segmentName: string | null; roadStatus: string; authorityName: string; officeName: string; confidence: 'HIGH' | 'MEDIUM' | 'LOW'; basis: string; note: string | null } | null;
   pending: { code: string; until: string; note: string } | null;
   hazard: boolean;
   underTechnicalReview: boolean;
   trace: { lengthM: number; quality: string } | null;
   warrantyFlag: boolean;
-  photos: { id: string; kind: string; stage: string | null; demo: boolean }[];
+  photos: { id: string; kind: string; stage: string | null }[];
   followUps: { milestone: string; dueAt: string | null; trigger: string; result: string | null; recordedAt: string | null; due: boolean; overdue: boolean }[];
   confirmations: { stillFixed: number; brokeAgain: number };
   ladder: LadderView;
@@ -55,8 +53,8 @@ export function FollowUps({ items }: { items: PublicCase['followUps'] }) {
 }
 
 export function TrackPage({ code }: { code: string }) {
-  const { demoServer, demoEnabled, role } = useV5();
-  const { data, error, setData, reload } = useLoad(() => v5<PublicCase>(`/public/track/${encodeURIComponent(code)}`), [code]);
+  const { role } = useV5();
+  const { data, error, setData } = useLoad(() => v5<PublicCase>(`/public/track/${encodeURIComponent(code)}`), [code]);
   const action = useAction();
   const [askPhoto, setAskPhoto] = useState(false);
 
@@ -69,16 +67,13 @@ export function TrackPage({ code }: { code: string }) {
     setAskPhoto(false);
   });
 
-  const forward = (days: number) => action.run(async () => setData(await v5<PublicCase>('/demo/fast-forward', { code, days })));
-
   return (
     <>
       <Card testId="v5-track-head">
         <p className="v5-eyebrow">Kode lacak</p>
         <p className="v5-code" data-testid="v5-track-code">{data.publicCode}</p>
         <p className="v5-state" data-testid="v5-state-label">{V5_STATE_LABELS[data.state as V5State]?.id ?? data.stateLabel}</p>
-                {data.captureTrust === 'DEMO' && <p className="v5-caption">Kasus contoh dengan foto contoh.</p>}
-        {data.routing && <p>Ditangani <strong>{data.routing.officeName}</strong> · {ROAD_STATUS_WORD[data.routing.roadStatus] ?? data.routing.roadStatus} <Confidence level={data.routing.confidence} /></p>}
+                {data.routing && <p>Ditangani <strong>{data.routing.officeName}</strong> · {ROAD_STATUS_WORD[data.routing.roadStatus] ?? data.routing.roadStatus} <Confidence level={data.routing.confidence} /></p>}
         {data.routing?.confidence === 'LOW' && <p className="v5-warn">Koordinator akan memastikan instansinya.</p>}
         {data.trace && <p>Panjang kerusakan {Math.round(data.trace.lengthM)} m <Chip kind="MEASURED" /></p>}
         {data.pending && <p className="v5-warn">Alasan menunggu: {DELAY[data.pending.code] ?? data.pending.code}, sampai {dateOnly(data.pending.until)}.</p>}
@@ -92,7 +87,7 @@ export function TrackPage({ code }: { code: string }) {
           <div className="v5-strip">
             {data.photos.map((p) => <img key={p.id} src={apiUrl(`/api/v5/evidence/${p.id}/image`)} alt={p.stage ? `Tahap ${p.stage}` : 'Kerusakan jalan'} loading="lazy" />)}
           </div>
-          {data.photos.some((p) => p.demo) && <p className="v5-caption">Foto contoh. Wajah disamarkan.</p>}
+          <p className="v5-caption">Wajah disamarkan otomatis.</p>
         </Card>
       )}
 
@@ -111,7 +106,7 @@ export function TrackPage({ code }: { code: string }) {
           <div className="v5-confirm" data-testid="v5-confirm">
             <p><strong>Bagaimana kondisinya sekarang?</strong> Masih bagus: {data.confirmations.stillFixed}, rusak lagi: {data.confirmations.brokeAgain}</p>
             {askPhoto ? (
-              <Capture kind="FOLLOW_UP" purpose="FOLLOW_UP" title="Tunjukkan kerusakannya" hint="Foto membantu instansi memeriksa." sampleId="pothole-2" onDone={(e) => answer('DAMAGED', [e.id])} />
+              <Capture kind="FOLLOW_UP" purpose="FOLLOW_UP" title="Tunjukkan kerusakannya" hint="Foto membantu instansi memeriksa." onDone={(e) => answer('DAMAGED', [e.id])} />
             ) : (
               <div className="v5-row">
                 <button type="button" className="v5-btn" disabled={action.busy} onClick={() => answer('OK')} data-testid="v5-still-fixed">Masih bagus</button>
@@ -126,16 +121,6 @@ export function TrackPage({ code }: { code: string }) {
 
       <Card title="Perjalanan laporan"><Timeline items={data.timeline} /></Card>
 
-      {demoServer && demoEnabled && (
-        <Card title="Alat uji: majukan waktu" testId="v5-fast-forward">
-          <p>Khusus uji coba. Menambah hari pada jam kasus ini untuk melihat eskalasi. Catatan asli tetap memakai waktu sebenarnya.</p>
-          {data.demoClockDays > 0 && <p data-testid="v5-clock-days">Kasus ini dimajukan {data.demoClockDays} hari.</p>}
-          <div className="v5-row">
-            {[2, 7, 14, 30].map((d) => <button key={d} type="button" className="v5-btn" disabled={action.busy} onClick={() => forward(d)} data-testid={`v5-ff-${d}`}>+{d} hari</button>)}
-            <button type="button" className="v5-link" onClick={reload}>Muat ulang</button>
-          </div>
-        </Card>
-      )}
       <ErrorNote error={action.error} />
     </>
   );

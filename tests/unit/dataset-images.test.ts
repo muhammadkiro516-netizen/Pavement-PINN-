@@ -13,6 +13,8 @@ import { INITIAL_COMMUNITY_REPORTS } from '../../src/data/mock/communityReports'
 import { createSessionReport } from '../../src/domain/reports/reportFactory';
 
 const PUBLIC = path.resolve('public');
+/** The reference photos stay in the repository for this check, but are not served to users. */
+const ASSETS = path.resolve('tests/fixtures');
 const LABEL_FOR: Record<string, string> = { POTHOLE: 'D40', ALLIGATOR_CRACK: 'D20', LONGITUDINAL_CRACK: 'D00', TRANSVERSE_CRACK: 'D10' };
 
 /** Width/height from a baseline or progressive JPEG's SOF marker. */
@@ -32,7 +34,7 @@ function jpegSize(buf: Buffer): { w: number; h: number } | null {
 test('every registry asset exists, is a JPEG of the recorded size, and matches its checksum', () => {
   assert.ok(DATASET_ASSETS.length >= 9);
   for (const a of registry.assets) {
-    const file = path.join(PUBLIC, a.storagePath);
+    const file = path.join(ASSETS, a.storagePath);
     assert.ok(existsSync(file), `missing ${a.storagePath}`);
     const buf = readFileSync(file);
     assert.equal(buf.length, a.fileSizeBytes, a.assetId);

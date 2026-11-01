@@ -119,7 +119,7 @@ export interface V5Actor {
   overlapBasis?: string | null;
 }
 
-export type CaptureTrust = 'LIVE_NONCE' | 'POOL_NONCE' | 'OFFLINE_UNVERIFIED_TIME' | 'DEMO';
+export type CaptureTrust = 'LIVE_NONCE' | 'POOL_NONCE' | 'OFFLINE_UNVERIFIED_TIME';
 
 export const EVIDENCE_KINDS = ['OVERVIEW', 'CLOSEUP', 'TRACE_POINT', 'MARKER_NADIR', 'DEPTH_RULER', 'CROSS_WIDTH', 'WORK_STAGE', 'FOLLOW_UP', 'HAZARD_SIGN'] as const;
 export type EvidenceKind = (typeof EVIDENCE_KINDS)[number];
@@ -130,8 +130,6 @@ export interface EvidenceRef {
   kind: EvidenceKind;
   stage?: string | null;
   captureTrust: CaptureTrust;
-  /** Present on sample photos: "SAMPLE:<id>". */
-  demoSource?: string | null;
   /** Typed with a work stage: temperature, thickness, ticket, passes. */
   values?: Record<string, unknown> | null;
 }
@@ -259,8 +257,7 @@ export interface V5Case {
   version: number;
   state: V5State | null;
   closureReason: ClosureReason | null;
-  isDemo: boolean;
-  chainId: 'prod' | 'demo';
+  chainId: 'prod';
   createdAt: string;
   /** Oldest report date; merges and transfers never reset it (02 §3.5). */
   ladderStartAt: string;
@@ -297,20 +294,18 @@ export interface V5Case {
   costRun: Record<string, any> | null;
   /** Declared by the crew: never trusted, compared with measurements. */
   declared: { areaCm2: number | null; thicknessMm: number | null; tonnageKg: number | null; reportedSpendIdr: number | null } | null;
-  /** DEMO only: days added by the labelled fast-forward button. The log keeps real time. */
-  demoClockDays: number;
 }
 
 export const OPEN_STATES: readonly V5State[] = V5_STATES.filter((s) => V5_STATE_LABELS[s].open);
 
 /** Fresh case before SUBMIT. */
-export function blankCase(fields: Pick<V5Case, 'id' | 'publicCode' | 'isDemo' | 'createdAt' | 'createdBy' | 'mode' | 'location' | 'captureTrust'>): V5Case {
+export function blankCase(fields: Pick<V5Case, 'id' | 'publicCode' | 'createdAt' | 'createdBy' | 'mode' | 'location' | 'captureTrust'>): V5Case {
   return {
     ...fields,
     version: 0,
     state: null,
     closureReason: null,
-    chainId: fields.isDemo ? 'demo' : 'prod',
+    chainId: 'prod',
     ladderStartAt: fields.createdAt,
     acceptedAt: null,
     damageClass: null,
@@ -336,7 +331,6 @@ export function blankCase(fields: Pick<V5Case, 'id' | 'publicCode' | 'isDemo' | 
     flags: [],
     pinnRun: null,
     costRun: null,
-    declared: null,
-    demoClockDays: 0
+    declared: null
   };
 }

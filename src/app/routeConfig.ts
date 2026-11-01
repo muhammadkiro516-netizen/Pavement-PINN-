@@ -16,7 +16,8 @@ const EVERYONE: readonly UserRole[] = [...ALL_ROLES, 'PUBLIC_VIEWER', 'POLICY_MA
 export type RouteId =
   | 'landing'
   | 'login'
-  | 'roles'
+  | 'uiCheck'
+  | 'staffHome'
   | 'workCase'
   | 'publicCase'
   | 'why'
@@ -64,7 +65,8 @@ const STAFF: readonly UserRole[] = ['FIELD_ENGINEER', 'OPERATIONS_MANAGER'];
 export const ROUTES: readonly RouteDefinition[] = [
   { id: 'landing', path: '/beranda/', title: 'PavementPINN', access: 'PUBLIC', kind: 'page' },
   { id: 'login', path: '/login/', title: 'Masuk', access: 'PUBLIC', kind: 'page' },
-  { id: 'roles', path: '/peran/', title: 'Pilih Peran', access: 'PUBLIC', kind: 'page' },
+  { id: 'uiCheck', path: '/ui-check/', title: 'Semua Layar', access: 'PUBLIC', kind: 'page' },
+  { id: 'staffHome', path: '/kerja/', title: 'Tugas', access: 'PUBLIC', kind: 'page' },
   { id: 'workCase', path: '/kerja/:id/', title: 'Kasus', access: 'PUBLIC', kind: 'page' },
   { id: 'publicCase', path: '/pantau/:code/', title: 'Perjalanan Laporan', access: 'PUBLIC', kind: 'page' },
   { id: 'why', path: '/why/', title: 'Kenapa Ini Penting', access: 'PUBLIC', kind: 'page' },

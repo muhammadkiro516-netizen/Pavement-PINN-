@@ -86,7 +86,7 @@ export function photoSourceLabel(report: Pick<DamageReport, 'photoProvenance' | 
 /** Caption for a report photo: dataset reference, no coverage, citizen photo, or legacy illustration. */
 export function reportPhotoCaption(report: Pick<DamageReport, 'photoProvenance' | 'datasetAssetId' | 'photoUrl'> & Partial<Pick<DamageReport, 'damageType'>>, illustrativeLabel: string): string {
   if (report.photoProvenance) return photoSourceLabel(report);
-  return report.photoUrl?.startsWith('data:') ? 'Foto laporan warga' : illustrativeLabel;
+  return report.photoUrl?.startsWith('data:') || report.photoUrl?.includes('/api/v5/evidence/') ? 'Foto laporan warga' : illustrativeLabel;
 }
 
 /** Stock photo hosts used by the old demo data; never evidence of anything. */

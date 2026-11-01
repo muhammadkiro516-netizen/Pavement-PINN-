@@ -4,7 +4,7 @@
 #   powershell -ExecutionPolicy Bypass -File scripts\v5-reload.ps1
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
-$data = "$root\.data\v5-demo"
+$data = "$root\.data\v5-live"
 $port = 3100
 
 $env:VITE_BASE_PATH = "/"
@@ -18,8 +18,6 @@ Start-Sleep -Seconds 1
 $env:NODE_ENV = "production"
 $env:PORT = "$port"
 $env:DATA_DIR = $data
-$env:DEMO_MODE = "1"
-$env:DEMO_AUTH = "true"
 $env:INFERENCE_URL = "http://127.0.0.1:8100"
 $bytes = New-Object byte[] 32
 [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)

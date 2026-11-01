@@ -1,13 +1,10 @@
 /**
- * Live in-page camera (05 §2). Production has getUserMedia only: no file input exists in this file,
- * and a test checks that. The sample link appears only when the server runs in DEMO MODE and the
- * person has it switched on; every sample comes back stamped DEMO by the server.
+ * Live in-page camera (05 §2): getUserMedia only. No file input exists in this file, and a test checks that.
  */
 import { useEffect, useRef, useState } from 'react';
 import { Camera, MapPin } from 'lucide-react';
 import { v5 } from './api';
 import { Chip, ErrorNote, useAction } from './ui';
-import { useV5 } from './context';
 
 export interface Detection { label: string; taxonomyCode: string; confidence: number; bbox: [number, number, number, number] }
 
@@ -16,7 +13,6 @@ export interface EvidenceView {
   kind: string;
   stage: string | null;
   captureTrust: string;
-  demoSource: string | null;
   sha256Public: string;
   imageUrl: string;
   warnings: string[];
@@ -73,26 +69,16 @@ async function grabJpeg(video: HTMLVideoElement): Promise<string> {
   return canvas.toDataURL('image/jpeg', 0.3);
 }
 
-/** Where a sample photo pretends to be when the device has no GPS. Labelled DEMO on screen. */
-export const DEMO_PLACES = [
-  { id: 'jakarta', name: 'Jl. Matraman Raya, Jakarta', lat: -6.2006, lon: 106.8574 },
-  { id: 'karawang', name: 'Pantura, Klari, Karawang', lat: -6.3537, lon: 107.3669 },
-  { id: 'toll', name: 'Toll road, Jakarta', lat: -6.2439, lon: 106.8783 }
-];
-
-export function Capture({ kind, stage, caseId, purpose, title, hint, sampleId, values, onDone, demoPlace }: {
+export function Capture({ kind, stage, caseId, purpose, title, hint, values, onDone }: {
   kind: string;
   stage?: string;
   caseId?: string;
   purpose: string;
   title: string;
   hint: string;
-  sampleId: string;
   values?: Record<string, unknown>;
   onDone: (e: EvidenceView) => void;
-  demoPlace?: { lat: number; lon: number };
 }) {
-  const { demoEnabled } = useV5();
   const video = useRef<HTMLVideoElement>(null);
   const [camera, setCamera] = useState<'starting' | 'on' | 'denied'>('starting');
   const { fix, denied } = useGps();
@@ -120,7 +106,6 @@ export function Capture({ kind, stage, caseId, purpose, title, hint, sampleId, v
 
   const gpsBody = () => {
     if (fix) return { lat: fix.lat, lon: fix.lon, accuracyM: fix.accuracyM, speedMps: fix.speedMps };
-    if (demoEnabled && demoPlace) return { lat: demoPlace.lat, lon: demoPlace.lon, accuracyM: 8, speedMps: 0 };
     return null;
   };
 
@@ -140,7 +125,7 @@ export function Capture({ kind, stage, caseId, purpose, title, hint, sampleId, v
 
   const tooFast = fix?.speedMps != null && fix.speedMps > SPEED_LOCK_MPS;
   const gpsPoor = !fix || fix.accuracyM > MAX_ACCURACY_M;
-  const blocked = !demoEnabled && (gpsPoor || tooFast);
+  const blocked = gpsPoor || tooFast;
 
   return (
     <div className="v5-capture" data-testid="v5-capture">
@@ -161,11 +146,6 @@ export function Capture({ kind, stage, caseId, purpose, title, hint, sampleId, v
       <button type="button" className="v5-btn v5-btn-primary v5-shutter" disabled={camera !== 'on' || blocked || busy} onClick={shoot} data-testid="v5-shutter">
         <Camera size={20} aria-hidden="true" /> {busy ? 'Mengirim…' : 'Ambil foto'}
       </button>
-      {demoEnabled && (
-        <button type="button" className="v5-link" disabled={busy} onClick={() => send({ sampleId })} data-testid="v5-use-sample">
-          Pakai foto contoh
-        </button>
-      )}
       <ErrorNote error={error} />
     </div>
   );
@@ -186,7 +166,6 @@ export function DetectionView({ evidence }: { evidence: EvidenceView }) {
         ))}
       </div>
       <figcaption>
-        {evidence.captureTrust === 'DEMO' && <><span className="v5-caption">Foto contoh, bukan foto langsung</span></>}
         {ai.status === 'REAL' && best.length > 0 && <>AI melihat: <strong>{best[0].label}</strong>, keyakinan {Math.round(best[0].confidence * 100)}% <Chip kind="AI_ESTIMATE" /></>}
         {ai.status === 'REAL' && best.length === 0 && <>AI tidak melihat kerusakan di foto ini. Koordinator akan memeriksanya.</>}
         {ai.status === 'MODEL_UNAVAILABLE' && <>Pemeriksaan AI sedang tidak tersedia. Koordinator akan melihat fotonya.</>}

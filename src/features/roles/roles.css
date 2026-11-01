@@ -32,7 +32,6 @@ p { margin: 0 0 8px; }
 code { font-size: 0.8rem; word-break: break-all; }
 :focus-visible { outline: 2px solid var(--pp-focus); outline-offset: 2px; }
 
-.v5-demo-doc { padding: 10px 14px; margin-bottom: 12px; border-radius: 16px; background: var(--pp-signal); color: #0b0d10; font-weight: 700; }
 
 .v5-shell .v5-page { max-width: 720px; margin: 0 auto; padding: 12px 16px 96px; }
 .v5-card { background: var(--pp-bg); border: 1px solid var(--pp-line); border-radius: 24px; padding: 16px; margin-bottom: 12px; animation: v5-rise var(--m-base) var(--m-ease) both; }
@@ -78,7 +77,6 @@ code { font-size: 0.8rem; word-break: break-all; }
 .v5-chip-assumed { color: var(--pp-cone-text); }
 .v5-chip-ai_estimate { color: var(--pp-physics-text); }
 .v5-chip-todo_verify { color: var(--pp-hazard-text); border-style: dashed; }
-.v5-chip-demo { background: var(--pp-signal); border-color: var(--pp-signal); color: #0b0d10; }
 .v5-chip-computed { color: var(--pp-text-2); }
 .v5-chip-not_measured { color: var(--pp-text-2); border-style: dashed; }
 .v5-conf { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: .72rem; font-weight: 600; vertical-align: middle; }
@@ -202,8 +200,7 @@ code { font-size: 0.8rem; word-break: break-all; }
 .v5-shell .v5-row > .v5-btn { flex: 1 1 140px; }
 .v5-shell .v5-link { color: #ffd60a; text-decoration: none; }
 .v5-shell .v5-chip { border: 0; padding: 1px 7px; border-radius: 999px; background: rgba(255, 255, 255, .08); font-size: .68rem; letter-spacing: 0; }
-.v5-shell .v5-chip-demo { background: rgba(255, 214, 10, .15); color: #ffd60a; }
-.v5-shell .v5-chip-todo_verify { color: #ff9a5c; }
+.v5-shell .v5-shell .v5-chip-todo_verify { color: #ff9a5c; }
 .v5-shell .v5-ladder li.is-reached { border-color: #ff4d5e; color: #fff; }
 .v5-shell .v5-timeline li::before { background: #ffd60a; }
 .v5-shell .v5-band span { background: #ffd60a; }
@@ -212,3 +209,5 @@ code { font-size: 0.8rem; word-break: break-all; }
 .v5-shell .v5-box em { background: #ffd60a; color: #0b0d10; }
 .v5-shell .v5-checklist .is-done button { border-color: #2bd67b; }
 .v5-shell details.v5-tech[open] summary { margin-bottom: 6px; }
+.v5-top-who { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: .85rem; }
+.v5-top-who .v5-link { margin: 0; min-height: 28px; }

@@ -1,13 +1,13 @@
 /**
- * Hash-chained, signed event log (07_AUDIT_INTEGRITY.md §2-§3). Append-only JSONL per chain:
- * `prod` and `demo` never mix (02 §9 D-4). Personal data never enters the log: actor refs are
+ * Hash-chained, signed event log (07_AUDIT_INTEGRITY.md §2-§3). Append-only JSONL.
+ * Personal data never enters the log: actor refs are
  * HMACs, payloads hold ids, codes, integers and moderated text.
  */
 import { createHash, createHmac, createPrivateKey, createPublicKey, generateKeyPairSync, randomUUID, sign, verify, type KeyObject } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export type ChainId = 'prod' | 'demo';
+export type ChainId = 'prod';
 
 export const GENESIS_HASH = '0'.repeat(64);
 const EVENT_DOMAIN = 'PPINN-EVT-v1\n';

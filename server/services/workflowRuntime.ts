@@ -69,6 +69,6 @@ export function createWorkflowRuntime(options: {
     storeLocation: options.storeLocation ?? null,
     ready,
     cv: new CvAnalysisStore(options.cvDir ?? null),
-    workspaces: new WorkspaceService(new FileWorkspaceRepository(options.workspaceDir ?? null), service, options.analysisEngine, { seedDemo: options.seed !== false })
+    workspaces: new WorkspaceService(new FileWorkspaceRepository(options.workspaceDir ?? null), service, options.analysisEngine, { seedDemo: options.seed !== false && demoAuthEnabled })
   };
 }

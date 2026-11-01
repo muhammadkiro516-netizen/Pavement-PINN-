@@ -4,10 +4,8 @@ import { ShieldCheck, Upload } from 'lucide-react';
 import { v5 } from './api';
 import { useV5 } from './context';
 import { apiUrl } from './Capture';
-import { CostCard, PinnCard, type CostView } from './StaffPages';
-import { FollowUps, type PublicCase } from './TrackPages';
-import { Card, Chip, ErrorNote, RolePavi, useAction, useLoad, when } from './ui';
-import type { V5PinnRun, V5Role } from '../../domain/v5/model';
+import { Card, ErrorNote, RolePavi, useAction, when } from './ui';
+import type { V5Role } from '../../domain/v5/model';
 import type { PaviMood } from '../../components/brand/Pavi';
 
 const OWNER_COLOR: Record<string, string> = { NASIONAL: '#4C8DFF', TOL: '#F5F7FA', PROVINSI: '#FF6B2C', KABUPATEN: '#38BDF8', KOTA: '#38BDF8', DESA: '#2BD67B', KHUSUS: '#8E8E93', UNKNOWN: '#8E8E93' };
@@ -58,7 +56,7 @@ export function MapView({ height = 420, center = [-6.2006, 106.8574] as [number,
       };
       map.on('moveend', load);
       void load();
-      const cases = await v5<{ publicCode: string; lat: number; lon: number; stateLabel: string; isDemo: boolean }[]>('/public/cases').catch(() => []);
+      const cases = await v5<{ publicCode: string; lat: number; lon: number; stateLabel: string }[]>('/public/cases').catch(() => []);
       for (const c of cases) {
         // Hazard red is reserved for damage pins (04 §5).
         L.circleMarker([c.lat, c.lon], { radius: 8, color: '#FFFFFF', weight: 2, fillColor: '#FF4D5E', fillOpacity: 1 })
@@ -150,16 +148,6 @@ export function WhyPage() {
   );
 }
 
-interface TourData {
-  case: PublicCase;
-  photo: { id: string; detections: { label: string; confidence: number; bbox: [number, number, number, number] }[]; width: number | null; height: number | null } | null;
-  inspection: { lengthMm: number; widthMm: number; depthMmTyped: number | null; areaStatus: string } | null;
-  pinn: V5PinnRun | null;
-  cost: CostView | null;
-  stages: string[];
-  doc: { id: string; sha256: string; pdfUrl: string; verifyUrl: string } | null;
-}
-
 const STEPS: { caption: string; role: V5Role; mood: PaviMood }[] = [
   { caption: 'Setiap jalan ada pemiliknya. Warna menunjukkan siapa yang harus memperbaiki.', role: 'CITIZEN', mood: 'idle' },
   { caption: 'Warga memotret langsung. AI mengenali lubang dan laporan menuju kantor yang tepat.', role: 'CITIZEN', mood: 'scan' },
@@ -169,51 +157,30 @@ const STEPS: { caption: string; role: V5Role; mood: PaviMood }[] = [
   { caption: 'Setiap langkah tersegel. Siapa pun bisa mengecek laporannya tidak berubah.', role: 'AUDITOR', mood: 'found' }
 ];
 
+const STEP_DETAIL = [
+  'Warna garis di peta menunjukkan instansi yang bertanggung jawab atas ruas itu.',
+  'Foto diambil langsung dari kamera. Wajah disamarkan otomatis, dan koordinator yang memutuskan.',
+  'Kartu penanda memberi ukuran, penggaris memberi kedalaman. Petugas yang memilih cara perbaikan.',
+  'Perkiraan biaya menunjukkan rinciannya. Catatan netral menempel pada kasus, bukan pada orang.',
+  'Foto bukti dikirim per tahap, lalu pengawas memeriksa sendiri di lokasi.',
+  'Setiap laporan audit punya kode bukti yang bisa dicocokkan di halaman Periksa Laporan.'
+];
+
 export function TourPage() {
-  const { go, demoServer } = useV5();
+  const { go } = useV5();
   const [step, setStep] = useState(0);
-  const { data, error } = useLoad(() => v5<TourData>('/demo/tour'));
-  if (!demoServer) return <Card><p>Tur belum tersedia di server ini.</p></Card>;
-  if (error) return <Card title="Tur belum siap"><p>{error.message}</p></Card>;
-  if (!data) return <Card><p>Menyiapkan kasus contoh…</p></Card>;
   const s = STEPS[step];
   const last = step === STEPS.length - 1;
-  const r = data.case.routing;
   return (
     <div data-testid="v5-tour">
       <div className="v5-dots" role="progressbar" aria-valuemin={1} aria-valuemax={6} aria-valuenow={step + 1}>
         {STEPS.map((_, i) => <span key={i} className={i <= step ? 'is-on' : ''} />)}
       </div>
       <Card>
-        <div className="v5-tour-head"><RolePavi role={s.role} mood={s.mood} size={56} /><p className="v5-tour-caption" data-testid="v5-tour-caption">{s.caption}</p></div>
-        <p className="v5-caption">Kasus contoh {data.case.publicCode}.</p>
+        <div className="v5-tour-head"><RolePavi role={s.role} mood={s.mood} size={72} /><p className="v5-tour-caption" data-testid="v5-tour-caption">{s.caption}</p></div>
+        <p className="v5-muted" style={{ marginTop: 10 }}>{STEP_DETAIL[step]}</p>
       </Card>
       {step === 0 && <Card><MapView height={300} /><Legend /></Card>}
-      {step === 1 && (
-        <Card>
-          {data.photo && (
-            <div className="v5-detect-photo">
-              <img src={apiUrl(`/api/v5/evidence/${data.photo.id}/image`)} alt="Contoh kerusakan jalan" />
-              {data.photo.width && data.photo.height && data.photo.detections.map((d, i) => <span key={i} className="v5-box" style={{ left: `${(d.bbox[0] / data.photo!.width!) * 100}%`, top: `${(d.bbox[1] / data.photo!.height!) * 100}%`, width: `${((d.bbox[2] - d.bbox[0]) / data.photo!.width!) * 100}%`, height: `${((d.bbox[3] - d.bbox[1]) / data.photo!.height!) * 100}%` }}><em>{d.label} {Math.round(d.confidence * 100)}%</em></span>)}
-            </div>
-          )}
-          {data.photo?.detections.length ? <p>Keyakinan AI {Math.round(data.photo.detections[0].confidence * 100)}% <Chip kind="AI_ESTIMATE" /></p> : <p>AI tidak melihat kerusakan pada contoh ini.</p>}
-          {r && <p>Dikirim ke <strong>{r.officeName}</strong></p>}
-        </Card>
-      )}
-      {step === 2 && (
-        <>
-          {data.inspection && <Card><p className="v5-big">Kedalaman <strong>{data.inspection.depthMmTyped} mm</strong> <Chip kind="DEMO" /></p><p>Ukuran {(data.inspection.lengthMm / 1000).toFixed(2)} × {(data.inspection.widthMm / 1000).toFixed(2)} m <Chip kind="DEMO" /></p></Card>}
-          {data.pinn && <PinnCard run={data.pinn} />}
-        </>
-      )}
-      {step === 3 && data.cost && <CostCard cost={data.cost} />}
-      {step === 4 && <Card><p>{data.stages.length} tahap bukti tercatat, dari sebelum sampai sesudah perbaikan.</p><FollowUps items={data.case.followUps} /></Card>}
-      {step === 5 && (
-        <Card>
-          {data.doc ? <><p><strong>{data.doc.id}</strong></p><p className="v5-caption">Kode bukti <code>{data.doc.sha256}</code></p><div className="v5-row"><a className="v5-btn" href={apiUrl(data.doc.pdfUrl)} target="_blank" rel="noreferrer">Buka PDF</a><button type="button" className="v5-btn" onClick={() => go(data.doc!.verifyUrl)}>Periksa keasliannya</button></div></> : <p>Pencetak PDF belum tersedia di server ini.</p>}
-        </Card>
-      )}
       <div className="v5-row v5-tour-nav">
         {step > 0 && <button type="button" className="v5-btn" onClick={() => setStep(step - 1)}>Kembali</button>}
         {!last && <button type="button" className="v5-btn v5-btn-primary" onClick={() => setStep(step + 1)} data-testid="v5-tour-next">Lanjut</button>}
@@ -222,11 +189,9 @@ export function TourPage() {
         <Card testId="v5-tour-end">
           <h2>Coba sendiri</h2>
           <div className="v5-row">
-            <button type="button" className="v5-btn v5-btn-primary" onClick={() => go('/beranda/')}>Lapor sebagai warga</button>
-            <button type="button" className="v5-btn" onClick={() => go('/peran/')}>Buka peran petugas</button>
+            <button type="button" className="v5-btn v5-btn-primary" onClick={() => go('/beranda/')}>Laporkan jalan rusak</button>
             <button type="button" className="v5-btn" onClick={() => go('/bukti/')}>Lihat hasil uji</button>
           </div>
-          <p className="v5-caption">Tur ini memakai kasus contoh. Angka uji sungguhan ada di halaman Bukti.</p>
         </Card>
       )}
     </div>
@@ -239,7 +204,6 @@ interface VerifyData {
   issuedAt: string;
   sha256: string;
   supersededBy: string | null;
-  isDemo: boolean;
   publicCode: string;
   snapshot: { chainId: string; lastSeq: number; root: string; period: string };
   checks: { eventLogIntact: boolean; firstFailure: { seq: number; status: string } | null; truncated: boolean; checkpointRootMatches: boolean; issuedEventFound: boolean; storedFileMatchesLog: boolean; caseEventsCovered: number };
@@ -282,7 +246,6 @@ export function VerifyPage({ docId }: { docId?: string }) {
       </Card>
       {data && (
         <>
-          {data.isDemo && <div className="v5-demo-doc" data-testid="v5-verify-demo">Ini dokumen contoh, bukan data nyata.</div>}
           <Card title={data.docId} testId="v5-verify-result">
             <p data-testid="v5-verify-summary" className={allGood ? 'v5-good' : 'v5-bad'}><ShieldCheck size={18} aria-hidden="true" /> <strong>{allGood ? 'Laporan ini asli dan tidak berubah.' : 'Pemeriksaan gagal.'}</strong></p>
             <ul className="v5-checks">

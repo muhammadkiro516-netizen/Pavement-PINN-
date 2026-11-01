@@ -1,16 +1,16 @@
 param([switch]$Fresh)
-# PAVEMENT-PINN v5 demo: build, run in DEMO MODE on its own data folder, open a public HTTPS link.
+# PAVEMENT-PINN v5: build, run on its own data folder, open a public HTTPS link.
 #
-#   powershell -ExecutionPolicy Bypass -File scripts\v5-live.ps1          keep demo data
-#   powershell -ExecutionPolicy Bypass -File scripts\v5-live.ps1 -Fresh   back to the two seeded cases
+#   powershell -ExecutionPolicy Bypass -File scripts\v5-live.ps1          keep the case data
+#   powershell -ExecutionPolicy Bypass -File scripts\v5-live.ps1 -Fresh   empties the case data
 #
-# DATA_DIR is .data\v5-demo so the tunnel never serves the pilot data in .data\.
-# The link is printed into .data\v5-demo\tunnel.log. Stop with scripts\v5-stop.ps1.
+# DATA_DIR is .data\v5-live so the tunnel never serves the pilot data in .data\.
+# The link is printed into .data\v5-live\tunnel.log. Stop with scripts\v5-stop.ps1.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 $port = 3100
-$data = "$root\.data\v5-demo"
+$data = "$root\.data\v5-live"
 New-Item -ItemType Directory -Force $data | Out-Null
 
 & "$PSScriptRoot\v5-stop.ps1"
@@ -27,9 +27,6 @@ $ai = Start-Process -PassThru -WindowStyle Hidden -WorkingDirectory "$root\infer
 $env:NODE_ENV = "production"
 $env:PORT = "$port"
 $env:DATA_DIR = $data
-$env:DEMO_MODE = "1"
-# Original login screen: bundled test accounts per role, until Prompt 3 brings real accounts.
-$env:DEMO_AUTH = "true"
 $env:INFERENCE_URL = "http://127.0.0.1:8100"
 if (-not $env:SESSION_SECRET) {
   $bytes = New-Object byte[] 32

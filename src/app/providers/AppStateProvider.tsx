@@ -32,7 +32,6 @@ import {
   WorkflowGateway
 } from '../../services/api/workflowClient';
 import { isAnonymousAccount, useSession } from './SessionProvider';
-import { flushQueue } from '../../features/community-reports/offlineQueue';
 
 /** Seed upvote flags belong to the reporter persona the demo data was written for. */
 const SEED_UPVOTE_OWNER = 'USR-004';
@@ -261,15 +260,6 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     },
     [gateway, applyViews, refreshAudit]
   );
-
-  // Lapor Offline: send what was queued without signal, at start and whenever the network returns.
-  useEffect(() => {
-    if (isAnonymousAccount(currentAccount)) return;
-    const flush = () => void flushQueue(addCommunityReport).catch(() => undefined);
-    flush();
-    window.addEventListener('online', flush);
-    return () => window.removeEventListener('online', flush);
-  }, [currentAccount, addCommunityReport]);
 
   const editCommunityReport = useCallback(
     async (updatedReport: DamageReport): Promise<MutationResult> => {

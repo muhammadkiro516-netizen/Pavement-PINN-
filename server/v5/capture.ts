@@ -1,7 +1,6 @@
 /**
  * Live capture and evidence (05 §3). One-time nonce, server time, GPS and motion checks, perceptual
- * hash, EXIF strip, face blur, encrypted original. In DEMO MODE a failed check is shown as "would be
- * rejected in production" and sample photos are stamped; in production the same check refuses.
+ * hash, EXIF strip, face blur, encrypted original. A failed check refuses the photo.
  * The original is deleted after 7 days; the public derivative and all hashes stay.
  */
 import { createCipheriv, createHash, randomBytes, randomUUID } from 'node:crypto';
@@ -17,7 +16,6 @@ export const MAX_GPS_ACCURACY_M = 50;
 export const MAX_SPEED_MPS = 10 / 3.6;
 export const PHASH_DUPLICATE_DISTANCE = 8;
 export const ORIGINAL_RETENTION_MS = 7 * 86_400_000;
-const MAX_SAMPLE_BYTES = 5 * 1024 * 1024;
 
 export interface Detection { label: string; taxonomyCode: string; confidence: number; bbox: [number, number, number, number] }
 
@@ -26,9 +24,7 @@ export interface EvidenceRecord {
   ownerId: string;
   kind: EvidenceKind;
   stage: string | null;
-  isDemo: boolean;
   captureTrust: CaptureTrust;
-  demoSource: string | null;
   sha256Public: string;
   sha256OriginalEnc: string | null;
   phash: string | null;
@@ -55,8 +51,6 @@ const hamming = (a: string, b: string) => {
   return n;
 };
 
-const SAMPLE_ID = /^[a-z0-9-]{1,40}$/;
-
 export class CaptureService {
   private nonces = new Map<string, Nonce>();
   private records = new Map<string, EvidenceRecord>();
@@ -64,7 +58,8 @@ export class CaptureService {
   private readonly imageDir: string;
   private readonly originalDir: string;
 
-  constructor(private readonly dir: string, private readonly demoMode: boolean, private readonly root = process.cwd()) {
+  /** `lenient` is for tests without the AI service: a failed check is noted instead of refused. */
+  constructor(private readonly dir: string, private readonly lenient = false) {
     this.file = path.join(dir, 'evidence.json');
     this.imageDir = path.join(dir, 'evidence');
     this.originalDir = path.join(dir, 'originals');
@@ -104,20 +99,9 @@ export class CaptureService {
     return /^EV-[0-9a-f]{24}$/.test(id) && fs.existsSync(p) ? p : null;
   }
 
-  samples(): { id: string; file: string; title: string; stage?: string }[] {
-    const file = path.join(this.root, 'public', 'demo', 'samples', 'manifest.json');
-    return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
-  }
-
-  private sampleBytes(id: string): Buffer | null {
-    if (!SAMPLE_ID.test(id) || !this.samples().some((s) => s.id === id)) return null;
-    const p = path.join(this.root, 'public', 'demo', 'samples', `${id}.jpg`);
-    return fs.existsSync(p) ? fs.readFileSync(p) : null;
-  }
-
   private duplicateOf(hash: string, selfOwner: string): EvidenceRecord | null {
     for (const r of this.records.values()) {
-      if (r.phash && r.captureTrust !== 'DEMO' && hamming(r.phash, hash) <= PHASH_DUPLICATE_DISTANCE && !(r.ownerId === selfOwner && r.kind === 'CLOSEUP')) return r;
+      if (r.phash && hamming(r.phash, hash) <= PHASH_DUPLICATE_DISTANCE && !(r.ownerId === selfOwner && r.kind === 'CLOSEUP')) return r;
     }
     return null;
   }
@@ -125,7 +109,6 @@ export class CaptureService {
   async capture(input: {
     ownerId: string;
     image?: unknown;
-    sampleId?: unknown;
     nonce?: unknown;
     kind?: unknown;
     stage?: unknown;
@@ -139,30 +122,19 @@ export class CaptureService {
     const kind = input.kind as EvidenceKind;
     if (!EVIDENCE_KINDS.includes(kind)) return { code: 'VALIDATION', message: 'Unknown photo type.' };
 
-    const isSample = typeof input.sampleId === 'string';
-    if (isSample && !this.demoMode) return { code: 'FORBIDDEN', message: 'Sample photos exist only in demo mode.' };
-
-    let bytes: Buffer | null;
-    if (isSample) {
-      bytes = this.sampleBytes(input.sampleId as string);
-      if (!bytes) return { code: 'VALIDATION', message: 'Unknown sample photo.' };
-      if (bytes.length > MAX_SAMPLE_BYTES) return { code: 'VALIDATION', message: 'Sample photo is too large.' };
-    } else {
-      if (typeof input.image !== 'string' || !input.image.startsWith('data:image/jpeg;base64,')) return { code: 'VALIDATION', message: 'Send the photo from the live camera.' };
-      bytes = Buffer.from(input.image.slice('data:image/jpeg;base64,'.length), 'base64');
-    }
+    if (typeof input.image !== 'string' || !input.image.startsWith('data:image/jpeg;base64,')) return { code: 'VALIDATION', message: 'Send the photo from the live camera.' };
+    const bytes = Buffer.from(input.image.slice('data:image/jpeg;base64,'.length), 'base64');
     if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return { code: 'VALIDATION', message: 'This is not a JPEG photo.' };
 
     const checks: Record<string, string> = {};
     const warnings: string[] = [];
-    // Production refuses; DEMO shows what production would do (02 §9 D-9).
     const refuse = (code: string, message: string): CaptureFailure | null => {
-      if (!this.demoMode) return { code, message };
-      warnings.push(`Would be rejected in production: ${message}`);
+      if (!this.lenient) return { code, message };
+      warnings.push(message);
       return null;
     };
 
-    if (!isSample && bytes.length > MAX_PHOTO_BYTES) {
+    if (bytes.length > MAX_PHOTO_BYTES) {
       const failed = refuse('TOO_LARGE', `photo is ${Math.round(bytes.length / 1024)} KB, limit 500 KB.`);
       if (failed) return failed;
     }
@@ -209,7 +181,7 @@ export class CaptureService {
 
     // Hash, blur and stamp. Without the service the photo has no blur, so it is not kept as public.
     const id = `EV-${randomUUID().replace(/-/g, '').slice(0, 24)}`;
-    const processed = await callInferenceBytes(`/v1/image/evidence${isSample ? '?watermark=DEMO' : ''}`, bytes, 'image/jpeg', 30_000);
+    const processed = await callInferenceBytes('/v1/image/evidence', bytes, 'image/jpeg', 30_000);
     let publicBytes: Buffer;
     let phash: string | null = null;
     let facesBlurred: number | null = null;
@@ -233,7 +205,7 @@ export class CaptureService {
     if (phash) {
       const dup = this.duplicateOf(phash, input.ownerId);
       checks.duplicate = dup ? `MATCH_${dup.id}` : 'OK';
-      if (dup && !isSample) {
+      if (dup) {
         const failed = refuse('DUPLICATE_EVIDENCE', 'this photo matches one already used. Take a new photo.');
         if (failed) return failed;
       }
@@ -243,16 +215,13 @@ export class CaptureService {
     const sha256Public = createHash('sha256').update(publicBytes).digest('hex');
 
     // AES-256-GCM per file. Deleting the file and its key removes the original for good.
-    let sha256OriginalEnc: string | null = null;
-    if (!isSample) {
-      const key = randomBytes(32);
-      const iv = randomBytes(12);
-      const cipher = createCipheriv('aes-256-gcm', key, iv);
-      const enc = Buffer.concat([iv, cipher.update(bytes), cipher.final(), cipher.getAuthTag()]);
-      fs.writeFileSync(path.join(this.originalDir, `${id}.enc`), enc);
-      fs.writeFileSync(path.join(this.originalDir, `${id}.key`), key, { mode: 0o400 });
-      sha256OriginalEnc = createHash('sha256').update(enc).digest('hex');
-    }
+    const key = randomBytes(32);
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', key, iv);
+    const enc = Buffer.concat([iv, cipher.update(bytes), cipher.final(), cipher.getAuthTag()]);
+    fs.writeFileSync(path.join(this.originalDir, `${id}.enc`), enc);
+    fs.writeFileSync(path.join(this.originalDir, `${id}.key`), key, { mode: 0o400 });
+    const sha256OriginalEnc = createHash('sha256').update(enc).digest('hex');
 
     const ai = await this.detect(kind, publicBytes);
     const marker = kind === 'MARKER_NADIR' ? await this.findMarker(publicBytes) : null;
@@ -263,9 +232,7 @@ export class CaptureService {
       ownerId: input.ownerId,
       kind,
       stage: typeof input.stage === 'string' ? input.stage : null,
-      isDemo: this.demoMode,
-      captureTrust: isSample ? 'DEMO' : 'LIVE_NONCE',
-      demoSource: isSample ? `SAMPLE:${input.sampleId}` : null,
+      captureTrust: 'LIVE_NONCE',
       sha256Public,
       sha256OriginalEnc,
       phash,
@@ -321,7 +288,7 @@ export class CaptureService {
     }
     for (const r of records) r.usedByCaseId = caseId;
     this.save();
-    return { records, refs: records.map((r) => ({ id: r.id, sha256: r.sha256Public, kind: r.kind, stage: r.stage, captureTrust: r.captureTrust, demoSource: r.demoSource, values: r.values })) };
+    return { records, refs: records.map((r) => ({ id: r.id, sha256: r.sha256Public, kind: r.kind, stage: r.stage, captureTrust: r.captureTrust, values: r.values })) };
   }
 
   /** Deletes originals past their retention. Hashes in the log stay valid (07 §9). */

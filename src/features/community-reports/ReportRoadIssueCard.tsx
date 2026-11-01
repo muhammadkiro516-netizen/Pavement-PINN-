@@ -1,5 +1,6 @@
 import { LongDamageWalk, type LongDamageTrace } from './LongDamageWalk';
 import { RoadOwnerCard } from '../road-owner/RoadOwnerCard';
+import { submitReport } from '../roles/submitReport';
 import { Pavi } from '../../components/brand/Pavi';
 import { readPavi } from '../../components/brand/paviPrefs';
 import { nearestSegment } from '../../domain/geo/nearestSegment';
@@ -42,7 +43,6 @@ import { AiPhotoScan } from './AiPhotoScan';
 import { LiveAiOverlay } from './LiveAiOverlay';
 import { useSpeedLock, SPEED_LIMIT_KMH } from '../location/speedLock';
 import { lastDeviceFix } from '../location/deviceLocation';
-import { enqueueReport } from './offlineQueue';
 import { ReportExtraAngles, extraViewsPayload, type ExtraShots } from './ReportExtraAngles';
 import { CV_STAGE_LABELS, CvClientError, checkImageInput, normalizePhoto, runCvAnalysis } from './cvClient';
 
@@ -875,25 +875,25 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
 
     setIsSubmitting(true);
     setSubmitError(null);
-    const outcome = await settleMutation(onAddReport(newReport), newReport);
-    setIsSubmitting(false);
-    if (outcome.ok === false) {
-      if ((outcome as { code?: string }).code === 'NETWORK' || !navigator.onLine) {
-        try {
-          await enqueueReport(newReport);
-          setSubmitError('Tidak ada sinyal. Laporan disimpan di HP ini dan akan terkirim otomatis saat sinyal kembali (lihat tab Kawal).');
-        } catch {
-          setSubmitError((outcome as { error: string }).error);
-        }
-        return;
-      }
-      setSubmitError((outcome as { error: string }).error);
-      return;
+    try {
+      const sent = await submitReport({
+        photo: selectedImage!,
+        extraEvidenceIds: Object.values(extraShots).flatMap((x) => (x?.evidenceId ? [x.evidenceId] : [])),
+        latitude: lat,
+        longitude: lng,
+        accuracyM: gpsAccuracy,
+        classGuess: damageChoice.taxonomyCode ?? null,
+        sizeBand: effectiveSeverity === 'SEVERE' || effectiveSeverity === 'CRITICAL' ? 'L' : effectiveSeverity === 'MODERATE' ? 'M' : 'S',
+        note: notes.trim(),
+        trace: longTrace ? { points: longTrace.points } : null
+      });
+      setCreatedReportId(sent.publicCode);
+      setCurrentState('SUCCESS');
+    } catch (e) {
+      setSubmitError(/GPS accuracy|no GPS/i.test((e as Error).message) ? 'Lokasi belum akurat. Pindah ke tempat terbuka, tunggu sebentar, lalu kirim lagi.' : /sinyal|fetch/i.test((e as Error).message) ? 'Tidak ada sinyal. Coba kirim lagi saat sinyal kembali.' : (e as Error).message);
+    } finally {
+      setIsSubmitting(false);
     }
-    const saved = (outcome as { report: DamageReport }).report;
-    setCreatedReportId(saved.id);
-    setSavedState(saved.workflowState ?? null);
-    setCurrentState('SUCCESS');
   };
 
   // Copy report ID
@@ -918,16 +918,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
 
   return (
     <>
-      {/* File Input for Gallery Pick */}
-      <input
-        id="citizen-report-file-input"
-        data-testid="report-photo-input"
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileUpload}
-        className="hidden"
-      />
+      
 
       {/* ========================================================================= */}
       {/* FULLSCREEN CAMERA CAPTURE PAGE (EXACT MATCH WITH USER REFERENCE IMAGE 2)   */}
@@ -1007,13 +998,6 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                         Coba lagi
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="h-10 px-4 rounded-full border border-white/15 bg-white/[0.04] hover:bg-white/[0.08] text-white text-sm font-medium cursor-pointer"
-                    >
-                      Pilih dari galeri
-                    </button>
                   </div>
                 </>
               )}
@@ -1061,15 +1045,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
           <div className="relative z-30 pb-safe pb-6 px-4 sm:px-6 flex flex-col items-center gap-4 from-black/85 via-black/40 pt-12">
             {/* 1. Shutter Control Row: Gallery (Left) - Shutter (Center) - Flip (Right) */}
             <div className="w-full max-w-sm flex items-center justify-between px-6 sm:px-10">
-              {/* Left: Gallery / Pick Image Button */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-12 h-12 rounded-full bg-black/50 border border-white/20 text-white flex items-center justify-center hover:bg-black/70 active:scale-95 transition-all cursor-pointer shadow-lg"
-                title="Pilih dari Galeri"
-              >
-                <ImageIcon className="w-5 h-5 text-white" />
-              </button>
+              <span className="w-12 h-12" aria-hidden="true" />
 
               {/* Center: Camera Shutter Button */}
               <button
@@ -1139,7 +1115,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
           {/* Captured Road Photo Fullscreen View */}
           <div className="absolute inset-0 w-full h-full overflow-hidden z-0 bg-slate-950 flex items-center justify-center">
             <img
-              src={selectedImage || CV_DAMAGE_CLASSES.pothole.samplePhotoUrl}
+              src={selectedImage ?? undefined}
               alt="Hasil Tangkapan Kamera"
               className="w-full h-full object-cover"
             />
@@ -1289,9 +1265,6 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                             <button type="button" onClick={handleOpenFullscreenCamera} className={TEXT_BUTTON}>
                               Ulangi
                             </button>
-                            <button type="button" onClick={() => fileInputRef.current?.click()} className={TEXT_BUTTON}>
-                              Galeri
-                            </button>
                             <button type="button" onClick={() => setSelectedImage(null)} className={ICON_BUTTON} title="Hapus foto" aria-label="Hapus foto">
                               <X className="w-4 h-4" />
                             </button>
@@ -1300,20 +1273,13 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        <div className="grid grid-cols-2 gap-3">
-                          <button type="button" onClick={handleOpenFullscreenCamera} className={TILE}>
+                        <div className="grid grid-cols-1 gap-3">
+                          <button type="button" onClick={handleOpenFullscreenCamera} className={TILE} data-testid="report-open-camera">
                             <span className={ICON_TILE}>
                               <Camera className="w-5 h-5" />
                             </span>
                             <span className="text-sm font-medium text-white">Ambil foto</span>
-                            <span className={HINT}>Kamera perangkat</span>
-                          </button>
-                          <button type="button" onClick={() => fileInputRef.current?.click()} className={TILE}>
-                            <span className={ICON_TILE}>
-                              <ImageIcon className="w-5 h-5" />
-                            </span>
-                            <span className="text-sm font-medium text-white">Pilih gambar</span>
-                            <span className={HINT}>Dari galeri</span>
+                            <span className={HINT}>Foto langsung dari kamera</span>
                           </button>
                         </div>
 
@@ -1633,8 +1599,8 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                   <div className={`${CARD} divide-y divide-white/[0.06]`}>
                     <div className="flex items-center justify-between gap-3 px-4 py-3">
                       <div className="min-w-0">
-                        <p className={HINT}>Kode laporan</p>
-                        <p className="text-sm font-mono text-amber-300 truncate">{createdReportId}</p>
+                        <p className={HINT}>Kode lacak</p>
+                        <p className="text-sm font-mono text-amber-300 truncate" data-testid="report-code">{createdReportId}</p>
                       </div>
                       <button type="button" onClick={handleCopyReportId} className={TEXT_BUTTON}>
                         {copiedId ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -1654,18 +1620,13 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
                         <p className="text-sm text-white truncate">{damageChoice?.label ?? '-'}</p>
                       </div>
                       <span className="rounded-full border border-amber-400/40 px-3 py-1 text-xs text-amber-300 shrink-0">
-                        {savedState === 'NEEDS_REVIEW' ? 'Menunggu peninjauan M.O' : savedState === 'VERIFIED' ? 'Diterima, menunggu penugasan M.O' : 'Terkirim'}
+                        Terkirim
                       </span>
                     </div>
                   </div>
 
                   <RoadOwnerCard latitude={coordinates[0]} longitude={coordinates[1]} accuracyMeters={gpsAccuracy} />
-
-                  {savedState === 'NEEDS_REVIEW' && (
-                    <p className={`${HINT} text-center`}>
-                      Klasifikasi foto masih DEMO, jadi petugas memeriksa laporan ini sebelum ditindaklanjuti.
-                    </p>
-                  )}
+                  <a href={`${import.meta.env.BASE_URL}pantau/${createdReportId}/`} className={SECONDARY} data-testid="report-open-timeline">Lihat perjalanan laporan</a>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">

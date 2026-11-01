@@ -1,3 +1,4 @@
+import { sweepEscalations } from '../../server/v5/escalationJob';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import type { Server } from 'node:http';
@@ -8,6 +9,7 @@ import test, { after, before } from 'node:test';
 import express from 'express';
 import { EventChain, GENESIS_HASH, assertIntegerPayload, canonicalize, hashEventBody, sha256Hex } from '../../server/v5/chain';
 import { registerV5Routes } from '../../server/v5/routes';
+import { PILOT_ROSTER, StaffAccounts } from '../../server/v5/staffAccounts';
 import { V5Store } from '../../server/v5/store';
 import { SYSTEM_ACTOR } from '../../src/domain/v5/stateMachine';
 import { ACTORS, ROWS, caseAt, ev } from '../helpers/v5Fixtures';
@@ -50,18 +52,18 @@ test('payload numbers must be integers (07 §2.1)', () => {
   assert.throws(() => assertIntegerPayload({ cost: { low: 1.5 } }));
   assert.doesNotThrow(() => assertIntegerPayload({ cost: { low: 388993 }, list: [1, 2] }));
   const chain = new EventChain(tmp());
-  assert.throws(() => chain.append('demo', { ...draft(1), payload: { score: 0.91 } }));
-  assert.equal(chain.events('demo').length, 0, 'nothing is written');
+  assert.throws(() => chain.append('prod', { ...draft(1), payload: { score: 0.91 } }));
+  assert.equal(chain.events('prod').length, 0, 'nothing is written');
 });
 
 test('IN-1: one changed byte in 1,000 events fails at exactly that seq', () => {
   const chain = new EventChain(tmp());
-  for (let i = 1; i <= 1000; i++) chain.append('demo', draft(i));
-  const clean = chain.verify('demo');
+  for (let i = 1; i <= 1000; i++) chain.append('prod', draft(i));
+  const clean = chain.verify('prod');
   assert.equal(clean.ok, true);
   assert.equal(clean.checked, 1000);
 
-  const file = chain.fileFor('demo');
+  const file = chain.fileFor('prod');
   const original = fs.readFileSync(file, 'utf8');
   const lines = original.trimEnd().split('\n');
   for (const seq of [1, 500, 1000]) {
@@ -69,30 +71,30 @@ test('IN-1: one changed byte in 1,000 events fails at exactly that seq', () => {
     edited[seq - 1] = flipByteInPayload(edited[seq - 1]);
     assert.notEqual(edited[seq - 1], lines[seq - 1]);
     fs.writeFileSync(file, `${edited.join('\n')}\n`);
-    const report = chain.verify('demo');
+    const report = chain.verify('prod');
     assert.equal(report.ok, false);
     assert.deepEqual([report.firstFailure!.seq, report.firstFailure!.status], [seq, 'HASH_MISMATCH']);
   }
   fs.writeFileSync(file, original);
-  assert.equal(chain.verify('demo').ok, true);
+  assert.equal(chain.verify('prod').ok, true);
 });
 
 test('IN-2: a deleted event breaks the link at the next seq', () => {
   const chain = new EventChain(tmp());
-  for (let i = 1; i <= 6; i++) chain.append('demo', draft(i));
-  const file = chain.fileFor('demo');
+  for (let i = 1; i <= 6; i++) chain.append('prod', draft(i));
+  const file = chain.fileFor('prod');
   const lines = fs.readFileSync(file, 'utf8').trimEnd().split('\n');
   lines.splice(2, 1);
   fs.writeFileSync(file, `${lines.join('\n')}\n`);
-  const report = chain.verify('demo');
+  const report = chain.verify('prod');
   assert.equal(report.ok, false);
   assert.deepEqual([report.firstFailure!.seq, report.firstFailure!.status], [4, 'LINK_BROKEN']);
 });
 
 test('rewriting an event and rehashing it still fails: the signature or the next link breaks', () => {
   const chain = new EventChain(tmp());
-  for (let i = 1; i <= 3; i++) chain.append('demo', draft(i));
-  const file = chain.fileFor('demo');
+  for (let i = 1; i <= 3; i++) chain.append('prod', draft(i));
+  const file = chain.fileFor('prod');
   const lines = fs.readFileSync(file, 'utf8').trimEnd().split('\n');
   const e = JSON.parse(lines[2]);
   e.payload.depth_mm = 5;
@@ -100,16 +102,14 @@ test('rewriting an event and rehashing it still fails: the signature or the next
   e.event_hash = hashEventBody(e);
   lines[2] = JSON.stringify(e);
   fs.writeFileSync(file, `${lines.join('\n')}\n`);
-  assert.equal(chain.verify('demo').firstFailure!.status, 'BAD_SIGNATURE');
+  assert.equal(chain.verify('prod').firstFailure!.status, 'BAD_SIGNATURE');
 });
 
-test('first event links to the genesis hash; prod and demo chains never mix', () => {
+test('the first event links to the genesis hash', () => {
   const chain = new EventChain(tmp());
-  assert.equal(chain.append('demo', draft(1)).prev_hash, GENESIS_HASH);
-  const prod = chain.append('prod', draft(2));
-  assert.equal(prod.seq, 1);
-  assert.equal(prod.prev_hash, GENESIS_HASH);
-  assert.equal(chain.events('demo').length, 1);
+  const first = chain.append('prod', draft(2));
+  assert.equal(first.seq, 1);
+  assert.equal(first.prev_hash, GENESIS_HASH);
 });
 
 test('the log never holds a person: actor refs are HMACs, and the head survives a restart', () => {
@@ -118,12 +118,12 @@ test('the log never holds a person: actor refs are HMACs, and the head survives 
   const row = ROWS.find((r) => r.action === 'ACCEPT')!;
   const c = caseAt('TRIAGE');
   store.apply(c, { ...row.cmd, action: 'ACCEPT' }, ACTORS.coordinator, '2026-11-01T03:00:00.000Z', c.version);
-  const text = store.chain.readText('demo');
+  const text = store.chain.readText('prod');
   assert.doesNotMatch(text, /P-COO|ACC-COO/);
   assert.match(text, /"ref":"staff:[0-9a-f]{32}"/);
   const reopened = new V5Store(dir);
   assert.equal(reopened.get(c.id)!.state, 'ACCEPTED');
-  const again = reopened.chain.append('demo', draft(9));
+  const again = reopened.chain.append('prod', draft(9));
   assert.equal(again.seq, 2, 'chain continues after a restart');
 });
 
@@ -136,11 +136,11 @@ test('removing the newest events is caught by the recorded chain head', () => {
   if ('ok' in accepted) return;
   c = accepted.case;
   store.apply(c, { reason: 'Waiting for the budget year.', code: 'AWAITING_BUDGET', until: '2026-12-01T00:00:00.000Z', action: 'SET_PENDING' }, ACTORS.coordinator, '2026-11-01T03:01:00.000Z', c.version);
-  assert.equal(store.verify('demo').ok, true);
-  const file = store.chain.fileFor('demo');
+  assert.equal(store.verify('prod').ok, true);
+  const file = store.chain.fileFor('prod');
   const lines = fs.readFileSync(file, 'utf8').trimEnd().split('\n');
   fs.writeFileSync(file, `${lines[0]}\n`);
-  const report = store.verify('demo');
+  const report = store.verify('prod');
   assert.equal(report.ok, false);
   assert.equal(report.truncated, true);
 });
@@ -158,13 +158,18 @@ const call = async (url: string, opts: { token?: string; body?: unknown } = {}) 
   });
   return { status: res.status, body: (await res.json()) as any };
 };
-const login = async (accountId: string) => (await call('/api/v5/session', { body: { accountId } })).body.data.token as string;
+const PASSWORD = 'test-password-1';
+const emailOf = (accountId: string) => PILOT_ROSTER.find((a) => a.accountId === accountId)!.email;
+const login = async (accountId: string) => (await call('/api/v5/session/login', { body: { email: emailOf(accountId), password: PASSWORD } })).body.data.token as string;
 
 before(async () => {
   const app = express();
   app.use(express.json());
   const router = express.Router();
-  httpStore = registerV5Routes(router, { dataDir: tmp(), demoMode: true, seed: false }).store;
+  const dataDir = tmp();
+  const staff = new StaffAccounts(path.join(dataDir, 'v5'));
+  for (const account of PILOT_ROSTER) staff.upsert(account, PASSWORD);
+  httpStore = registerV5Routes(router, { dataDir }).store;
   app.use(router);
   await new Promise<void>((resolve) => { server = app.listen(0, '127.0.0.1', () => resolve()); });
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -179,27 +184,22 @@ function seededCase() {
   return (seeded as { case: typeof c }).case;
 }
 
-test('API: the role switcher lists nine roles and demo accounts need DEMO MODE', async () => {
-  const { body } = await call('/api/v5/demo/accounts');
-  const staffRoles = new Set(body.data.map((a: { role: string }) => a.role));
-  assert.equal(staffRoles.size, 8, 'eight staff roles; the citizen has no account');
+test('API: staff sign in with a password; no account can be chosen without one', async () => {
+  const token = await login('ACC-AUDIT');
+  assert.equal((await call('/api/v5/me', { token })).body.data.role, 'AUDITOR');
+  assert.equal((await call('/api/v5/session/login', { body: { email: emailOf('ACC-AUDIT'), password: 'wrong' } })).status, 401);
+  assert.equal((await call('/api/v5/session/login', { body: { email: 'nobody@example.org', password: PASSWORD } })).status, 401);
+  // Routes that no longer exist: these two used to give a session or a staff list without a password.
+  assert.equal((await fetch(`${base}/api/v5/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"accountId":"ACC-AUDIT"}' })).status, 404);
+  assert.equal((await fetch(`${base}/api/v5/demo/accounts`)).status, 404);
+  assert.equal(new Set(PILOT_ROSTER.map((a) => a.role)).size, 8, 'eight staff roles; the citizen has no account');
   const device = await call('/api/v5/session/device', { body: {} });
   assert.match(device.body.data.pseudonym, /^Warga-/);
-  const me = await call('/api/v5/me', { token: device.body.data.token });
-  assert.equal(me.body.data.role, 'CITIZEN');
+  assert.equal((await call('/api/v5/me', { token: device.body.data.token })).body.data.role, 'CITIZEN');
   assert.equal((await call('/api/v5/me')).status, 401);
   assert.equal((await call('/api/v5/me', { token: 'forged.token' })).status, 401);
-
-  const offApp = express();
-  offApp.use(express.json());
-  const offRouter = express.Router();
-  registerV5Routes(offRouter, { dataDir: tmp(), demoMode: false });
-  offApp.use(offRouter);
-  const off = await new Promise<Server>((resolve) => { const s = offApp.listen(0, '127.0.0.1', () => resolve(s)); });
-  const offBase = `http://127.0.0.1:${(off.address() as AddressInfo).port}`;
-  assert.equal((await fetch(`${offBase}/api/v5/demo/accounts`)).status, 404);
-  assert.equal((await fetch(`${offBase}/api/v5/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"accountId":"ACC-COORD"}' })).status, 404);
-  off.close();
+  assert.equal((await call('/api/v5/staff', { token: device.body.data.token })).status, 403, 'a citizen cannot list staff');
+  assert.doesNotMatch(JSON.stringify((await call('/api/v5/staff', { token })).body.data), /passwordHash|@/);
 });
 
 test('API: the server blocks approval by the person who recommended the plan (SOD-2)', async () => {
@@ -240,16 +240,31 @@ test('API: the public track view has no staff or reporter data', async () => {
 
 test('API: public verify is green, then fails after a stored byte changes', async () => {
   seededCase();
-  const ok = await call('/api/v5/public/chain/demo/verify');
+  const ok = await call('/api/v5/public/chain/prod/verify');
   assert.equal(ok.body.data.ok, true);
-  const file = httpStore.chain.fileFor('demo');
+  const file = httpStore.chain.fileFor('prod');
   const original = fs.readFileSync(file, 'utf8');
   fs.writeFileSync(file, original.replace('Seed note', 'Seed nOte'));
-  const bad = await call('/api/v5/public/chain/demo/verify');
+  const bad = await call('/api/v5/public/chain/prod/verify');
   assert.equal(bad.body.data.ok, false);
   assert.equal(bad.body.data.firstFailure.status, 'HASH_MISMATCH');
   fs.writeFileSync(file, original);
   assert.equal((await call('/api/v5/public/chain/nope/verify')).status, 404);
   assert.equal(SYSTEM_ACTOR.role, 'SYSTEM');
   assert.ok(ev('OVERVIEW').sha256.length === 64);
+});
+
+test('the escalation job logs each reached step once and never changes the case state', () => {
+  const store = new V5Store(tmp());
+  const row = ROWS.find((r) => r.action === 'ACCEPT')!;
+  const c = caseAt('TRIAGE');
+  store.apply(c, { ...row.cmd, action: 'ACCEPT' }, ACTORS.coordinator, '2026-11-01T03:00:00.000Z', c.version);
+  const levels = () => store.eventsFor(c.id, 'prod').filter((e) => e.type === 'escalation.reached').map((e) => e.payload.level);
+  const day = (n: number) => new Date(Date.parse(store.get(c.id)!.ladderStartAt) + n * 86_400_000).toISOString();
+  assert.equal(sweepEscalations(store, day(1)), 0);
+  assert.equal(sweepEscalations(store, day(2)), 1);
+  assert.equal(sweepEscalations(store, day(3)), 0, 'not written twice');
+  assert.equal(sweepEscalations(store, day(14)), 2);
+  assert.deepEqual(levels(), ['COORDINATOR', 'AGENCY_HEAD', 'PUBLIC']);
+  assert.equal(store.get(c.id)!.state, 'ACCEPTED');
 });

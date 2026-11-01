@@ -1,23 +1,17 @@
 import React, { useState } from 'react';
-import { usePageHost } from '../../app/pageContext';
 import { useRouter } from '../../app/router';
-import { sanitizeNextPath } from '../../app/guards/routeAccess';
-import { useAppState } from '../../app/providers/AppStateProvider';
-import { accountFromProfile, useSession } from '../../app/providers/SessionProvider';
-import { WorkflowApiError } from '../../services/api/workflowClient';
+import { useSession } from '../../app/providers/SessionProvider';
 import { SnapInput } from '../../components/ui/snap';
 import { LogoMark, Wordmark } from '../../components/ui/brand';
-import { signInToRoleWorkspace } from '../../features/roles/api';
+import { signInStaff } from '../../features/roles/api';
 
 /**
  * Route /login/ — staff sign-in (Petugas Lapangan, Koordinator). Citizens never need it:
  * their account lives on their phone (features/authentication/deviceAccount.ts).
  */
 export const LoginPage: React.FC = () => {
-  const { completeLogin } = usePageHost();
   const { endedNotice } = useSession();
-  const { query, navigateTo } = useRouter();
-  const { workflow } = useAppState();
+  const { navigateTo } = useRouter();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -26,27 +20,13 @@ export const LoginPage: React.FC = () => {
     event.preventDefault();
     setBusy(true);
     setError(null);
-    // Accounts of the role workspaces first; anything else goes to the original sign-in below.
-    if (await signInToRoleWorkspace(form.email, form.password)) {
-      navigateTo('roles');
+    if (await signInStaff(form.email, form.password)) {
+      navigateTo('staffHome');
       return;
     }
-    try {
-      const signed = await workflow.gateway.login({ username: form.email.trim(), password: form.password });
-      if (!signed.account) throw new WorkflowApiError('UNKNOWN_ACCOUNT', 'Akun tidak dikenal.', 0);
-      completeLogin(accountFromProfile(signed.account), sanitizeNextPath(query.get('next')));
-    } catch (e) {
-      const err = e instanceof WorkflowApiError ? e : null;
-      setError(
-        err?.status === 401
-          ? 'Email atau kata sandi salah.'
-          : err?.status === 429
-            ? 'Terlalu banyak percobaan. Coba lagi beberapa menit lagi.'
-            : 'Server tidak dapat dihubungi. Periksa koneksi lalu coba lagi.'
-      );
-      setForm((f) => ({ ...f, password: '' }));
-      setBusy(false);
-    }
+    setError('Email atau kata sandi salah, atau server tidak dapat dihubungi.');
+    setForm((f) => ({ ...f, password: '' }));
+    setBusy(false);
   };
 
   return (
@@ -58,7 +38,7 @@ export const LoginPage: React.FC = () => {
         </button>
         <div className="rounded-[32px] border border-[#2A2F37] bg-[#15181D] p-6 shadow-[0_24px_60px_-28px_rgba(14,27,44,0.35)]">
           <h1 className="text-2xl font-extrabold tracking-tight">Masuk petugas</h1>
-          <p className="mt-1 text-sm text-[#A1A1AA]">Untuk petugas lapangan dan koordinator instansi.</p>
+          <p className="mt-1 text-sm text-[#A1A1AA]">Untuk petugas, koordinator, dan pejabat instansi.</p>
           {endedNotice && <p className="mt-3 rounded-2xl bg-[#1E2229] p-3 text-sm text-[#FFD60A]">{endedNotice}</p>}
           <form onSubmit={submit} className="mt-5 space-y-3">
             <SnapInput id="l-email" label="Email" type="email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
@@ -73,9 +53,6 @@ export const LoginPage: React.FC = () => {
         </div>
         <button type="button" onClick={() => navigateTo('landing')} className="mt-5 w-full cursor-pointer text-center text-sm font-bold text-[#FF6B2C]">
           Warga? Lapor tanpa daftar
-        </button>
-        <button type="button" onClick={() => navigateTo('roles')} className="mt-3 w-full cursor-pointer text-center text-sm font-bold text-[#FFD60A]" data-testid="open-roles">
-          Coba peran lain
         </button>
       </div>
     </div>

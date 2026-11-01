@@ -306,9 +306,7 @@ export const ReportDetailBottomSheet: React.FC<ReportDetailBottomSheetProps> = (
               afterAlt="Foto sesudah perbaikan (bukti F.E)"
               afterBadge={
                 report.repairDetails?.afterPhotoUrl
-                  ? report.repairDetails.illustrative
-                    ? 'Data contoh (ilustrasi)'
-                    : report.repairDetails.verified === true
+                  ? report.repairDetails.verified === true
                     ? '✓ Terverifikasi M.O'
                     : 'Menunggu verifikasi M.O'
                   : null

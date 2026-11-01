@@ -1,6 +1,6 @@
 /** Thin client for /api/v5. Errors keep the server's plain-English message and SoD rule. */
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
-const TOKEN_KEY = 'v5.session';
+const TOKEN_KEY = 'pp-v5-session';
 
 export class V5ApiError extends Error {
   constructor(message: string, readonly code: string, readonly rule?: string) {
@@ -37,16 +37,50 @@ export async function v5<T>(path: string, body?: unknown): Promise<T> {
   return json.data as T;
 }
 
-/** Sign-in form to role workspace. False when these are not workspace credentials. */
-export async function signInToRoleWorkspace(email: string, password: string): Promise<boolean> {
+const DEVICE_KEY = 'pp-v5-device';
+const STAFF_KEY = 'pp-v5-staff';
+
+const flag = (key: string, value?: string | null) => {
+  try {
+    if (value === undefined) return sessionStorage.getItem(key);
+    if (value === null) sessionStorage.removeItem(key);
+    else sessionStorage.setItem(key, value);
+  } catch { /* Storage may be blocked: the session lasts for this page. */ }
+  return null;
+};
+
+export const staffSessionActive = () => flag(STAFF_KEY) === '1' && !!sessionToken();
+
+export function signOutStaff(): void {
+  flag(STAFF_KEY, null);
+  setSessionToken(null);
+}
+
+/** Staff sign-in. False when these are not valid credentials. */
+export async function signInStaff(email: string, password: string): Promise<boolean> {
   try {
     const res = await fetch(`${BASE}/api/v5/session/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password }) });
     const json = await res.json();
     if (!json.success) return false;
     setSessionToken(json.data.token);
-    sessionStorage.setItem('pp-v5-account', json.data.account.accountId);
+    flag(STAFF_KEY, '1');
     return true;
   } catch {
     return false;
   }
+}
+
+/** A citizen has no login: a pseudonymous device key, kept so "Kawal" still works next week. */
+export async function ensureDeviceSession(): Promise<void> {
+  if (staffSessionActive()) return;
+  let saved: string | null = null;
+  try { saved = localStorage.getItem(DEVICE_KEY); } catch { /* blocked storage: a new key below */ }
+  if (saved) {
+    setSessionToken(saved);
+    try { await v5('/me'); return; } catch { /* expired: a new key below */ }
+  }
+  setSessionToken(null);
+  const session = await v5<{ token: string }>('/session/device', {});
+  try { localStorage.setItem(DEVICE_KEY, session.token); } catch { /* blocked storage */ }
+  setSessionToken(session.token);
 }
