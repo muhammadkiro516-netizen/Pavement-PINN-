@@ -11,6 +11,8 @@ import { registerAuditRoutes } from "./audit.routes";
 import { registerShareRoutes } from "./share.routes";
 import { registerEvidenceRoutes } from "./evidence.routes";
 import { registerCitizenRoutes } from "./citizen.routes";
+import { registerV5Routes } from "../v5/routes";
+import { loadServerConfig } from "../config/env";
 import type { WorkflowRuntime } from "../services/workflowRuntime";
 
 /**
@@ -37,6 +39,9 @@ export function createApiRouter(workflow: WorkflowRuntime): Router {
   registerShareRoutes(router, workflow);
   registerEvidenceRoutes(router, workflow);
   registerCitizenRoutes(router, workflow);
+  // v5 workflow, beside the v4 paths while the pages move over (docs/v5/02_SPEC_v5.md §10).
+  const { dataDir } = loadServerConfig();
+  registerV5Routes(router, { dataDir, demoMode: process.env.DEMO_MODE === "1" });
 
   // Anything else under /api is an API mistake, not a page: answer JSON 404 instead of
   // letting the request fall through to the SPA host (which replied with HTML, status 200).
