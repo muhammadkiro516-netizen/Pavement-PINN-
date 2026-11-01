@@ -1,0 +1,173 @@
+[
+ {
+  "id": "pothole",
+  "file": "pothole.jpg",
+  "title": "Pothole on a road",
+  "composite": false,
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ },
+ {
+  "id": "pothole-2",
+  "file": "pothole-2.jpg",
+  "title": "Second pothole",
+  "composite": false,
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000293.jpg"
+ },
+ {
+  "id": "alligator",
+  "file": "alligator.jpg",
+  "title": "Alligator cracking",
+  "composite": false,
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D20/Czech_000803.jpg"
+ },
+ {
+  "id": "marker-card",
+  "file": "marker-card.jpg",
+  "title": "Marker card photo",
+  "composite": true,
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ },
+ {
+  "id": "ruler",
+  "file": "ruler.jpg",
+  "title": "Ruler at the deepest point",
+  "composite": true,
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ },
+ {
+  "id": "stage-before",
+  "file": "stage-before.jpg",
+  "title": "Repair stage BEFORE",
+  "composite": true,
+  "stage": "BEFORE",
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ },
+ {
+  "id": "stage-cut-edges",
+  "file": "stage-cut-edges.jpg",
+  "title": "Repair stage CUT_EDGES",
+  "composite": true,
+  "stage": "CUT_EDGES",
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ },
+ {
+  "id": "stage-clean-dry",
+  "file": "stage-clean-dry.jpg",
+  "title": "Repair stage CLEAN_DRY",
+  "composite": true,
+  "stage": "CLEAN_DRY",
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ },
+ {
+  "id": "stage-tack-coat",
+  "file": "stage-tack-coat.jpg",
+  "title": "Repair stage TACK_COAT",
+  "composite": true,
+  "stage": "TACK_COAT",
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ },
+ {
+  "id": "stage-delivery-ticket",
+  "file": "stage-delivery-ticket.jpg",
+  "title": "Repair stage DELIVERY_TICKET",
+  "composite": true,
+  "stage": "DELIVERY_TICKET",
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ },
+ {
+  "id": "stage-mix-temp-truck",
+  "file": "stage-mix-temp-truck.jpg",
+  "title": "Repair stage MIX_TEMP_TRUCK",
+  "composite": true,
+  "stage": "MIX_TEMP_TRUCK",
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ },
+ {
+  "id": "stage-mix-temp-mat",
+  "file": "stage-mix-temp-mat.jpg",
+  "title": "Repair stage MIX_TEMP_MAT",
+  "composite": true,
+  "stage": "MIX_TEMP_MAT",
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ },
+ {
+  "id": "stage-loose-thickness",
+  "file": "stage-loose-thickness.jpg",
+  "title": "Repair stage LOOSE_THICKNESS",
+  "composite": true,
+  "stage": "LOOSE_THICKNESS",
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ },
+ {
+  "id": "stage-compaction",
+  "file": "stage-compaction.jpg",
+  "title": "Repair stage COMPACTION",
+  "composite": true,
+  "stage": "COMPACTION",
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ },
+ {
+  "id": "stage-after",
+  "file": "stage-after.jpg",
+  "title": "Repair stage AFTER",
+  "composite": true,
+  "stage": "AFTER",
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ },
+ {
+  "id": "stage-supervisor-after",
+  "file": "stage-supervisor-after.jpg",
+  "title": "Repair stage SUPERVISOR_AFTER",
+  "composite": true,
+  "stage": "SUPERVISOR_AFTER",
+  "source": "RDD2022",
+  "license": "CC BY 4.0 (RDD2022 dataset)",
+  "note": "Road Damage Dataset 2022, see docs/CITATIONS.md",
+  "basePhoto": "dataset-reference/rdd2022/D40/Czech_000108.jpg"
+ }
+]

@@ -530,3 +530,25 @@ async def image_normalize(request: Request) -> dict:
     except imageconv.ConvertError as exc:
         raise HTTPException(status_code=422, detail={"code": "UNREADABLE_IMAGE", "message": str(exc)}) from exc
     return {"jpeg_b64": base64.b64encode(jpeg).decode("ascii"), "bytes": len(jpeg)}
+
+
+# ------------------------------------------------------------------ v5 evidence image checks
+from . import evidence_image  # noqa: E402
+
+
+@app.post("/v1/image/evidence")
+async def image_evidence(request: Request, watermark: str | None = None) -> dict:
+    """Perceptual hash, EXIF strip, face and plate blur, optional DEMO stamp."""
+    try:
+        return await run_in_threadpool(evidence_image.process, await request.body(), watermark)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/v1/image/marker")
+async def image_marker(request: Request) -> dict:
+    """Finds the printed marker card, which gives a nadir photo its metric scale."""
+    try:
+        return await run_in_threadpool(evidence_image.find_marker, await request.body())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
