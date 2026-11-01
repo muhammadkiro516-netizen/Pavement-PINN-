@@ -1,0 +1,22 @@
+// The citizen path of the restored UI through the real landing button. Usage: node <file> <baseUrl> <outDir>
+import { chromium } from 'playwright-core';
+const [base, out] = process.argv.slice(2);
+const browser = await chromium.launch();
+const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, geolocation: { latitude: -6.2006, longitude: 106.8574 }, permissions: ['geolocation', 'camera'] });
+const page = await context.newPage();
+const errors = [];
+page.on('pageerror', (e) => errors.push(e.message));
+await page.goto(`${base}/beranda/`);
+await page.waitForTimeout(1500);
+const buttons = await page.locator('button').allInnerTexts();
+console.log('buttons:', buttons.map((b) => b.replace(/\s+/g, ' ').slice(0, 34)).join(' | '));
+await page.locator('button', { hasText: /Lapor|Mulai|Coba/ }).first().click();
+await page.waitForTimeout(5000);
+await page.screenshot({ path: `${out}/warga-peta.png` });
+console.log(new URL(page.url()).pathname, '|', (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 130));
+await page.goto(`${base}/laporanku/`);
+await page.waitForTimeout(3000);
+await page.screenshot({ path: `${out}/warga-kawal.png` });
+console.log(new URL(page.url()).pathname, '|', (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 130));
+console.log('page errors:', errors.length, errors.slice(0, 3));
+await browser.close();

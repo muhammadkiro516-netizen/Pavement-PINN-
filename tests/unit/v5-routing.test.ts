@@ -9,7 +9,8 @@ const real = new RoadRegistry();
 const snapshot = JSON.parse(fs.readFileSync('config/v5/roads_snapshot.json', 'utf8')) as { roads: { id: string; name: string | null; highway: string; toll: boolean; pts: [number, number][] }[] };
 const mid = (r: { pts: [number, number][] }) => r.pts[Math.floor(r.pts.length / 2)];
 const inJakarta = ([lat, lon]: [number, number]) => lat > -6.3 && lat < -6.12 && lon > 106.74 && lon < 106.95;
-const pick = (match: (r: (typeof snapshot.roads)[number]) => boolean, n: number) => snapshot.roads.filter((r) => match(r) && inJakarta(mid(r))).slice(0, n);
+// The box is rough, so the admin polygon decides: Tangerang Selatan roads inside it are not DKI.
+const pick = (match: (r: (typeof snapshot.roads)[number]) => boolean, n: number) => snapshot.roads.filter((r) => match(r) && inJakarta(mid(r)) && real.decide(mid(r)[0], mid(r)[1], 8).area.region === 'jakarta').slice(0, n);
 const KOTA: [string, number, number, string][] = [
   ['Jakarta Pusat, Monas', -6.1754, 106.8272, 'jakpus'],
   ['Jakarta Utara, Tanjung Priok', -6.1215, 106.8775, 'jakut'],
