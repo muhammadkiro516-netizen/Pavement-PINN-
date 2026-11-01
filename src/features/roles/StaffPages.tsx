@@ -6,8 +6,10 @@ import { useState, type ReactNode } from 'react';
 import { ClipboardCheck, FileText, Link2, ShieldCheck } from 'lucide-react';
 import { V5_ROLE_NAMES, V5_STATE_LABELS, type V5Case, type V5Role, type V5State } from '../../domain/v5/model';
 import { ROAD_STATUS_WORD } from '../road-owner/RoadOwnerCard';
-import { v5 } from './api';
+import { v5, v6 } from './api';
 import { useV5 } from './context';
+import { AccessBadge, type Badge } from './TeamPanel';
+import { panelDuty } from '../../domain/v6/roles';
 import { Capture, DetectionView, apiUrl, type EvidenceView } from './Capture';
 import { FollowUps } from './TrackPages';
 import { Card, Chip, Confidence, ErrorNote, Ladder, RolePavi, TechDetails, dateOnly, roleWord, rupiah, useAction, useLoad, when, type ChipKind, type LadderView } from './ui';
@@ -71,7 +73,7 @@ export function StaffHome() {
             <button type="button" onClick={() => go(`/kerja/${c.id}`)} data-testid={`v5-open-${c.publicCode}`}>
               <span className="v5-row-between"><strong>{c.publicCode}</strong></span>
               <span>{stateWord(c)} · berikutnya: {NEXT_STEP[c.state as V5State] ?? 'tidak ada'}</span>
-              <span className="v5-caption">{c.routing?.officeName ?? 'Instansi belum ditentukan'}{c.routing && <> <Confidence level={c.routing.confidence} /></>}</span>
+              <span className="v5-caption">{c.routing?.officeName ?? 'Instansi belum ditentukan'}{c.routing && <> <Confidence level={c.routing.confidence} /></>}{c.routing?.confidence === 'LOW' && !c.ownershipConfirmed && <span className="v5-warn" data-testid="v6-confirm-owner-label"> · Konfirmasi kepemilikan</span>}</span>
               {role === 'COORDINATOR' && <span className="v5-reasons" data-testid="v5-priority-reasons">Kenapa didahulukan: {c.priority.reasons.map((r) => reasonWord(r.text)).join(' · ') || 'belum ada tanda mendesak'}</span>}
             </button>
           </li>
@@ -256,8 +258,10 @@ function useTransition(c: StaffCase, onChange: PanelProps['onChange']) {
 }
 
 function ActionPanel({ c, onChange }: PanelProps) {
-  const { role, accountId } = useV5();
+  const { role: viewed, v6Role, accountId } = useV5();
   const state = c.state as V5State;
+  // An OM or FE holds several duties; the case's own step decides which panel it needs.
+  const role = v6Role ? panelDuty(v6Role, state) : viewed;
   if (role === 'COORDINATOR') return <CoordinatorPanel c={c} onChange={onChange} />;
   if (role === 'FIELD_INSPECTOR') {
     if (c.inspection?.inspectorAccountId !== accountId && (state === 'INSPECTION_ASSIGNED' || state === 'INSPECTION_VERIFIED')) return <Card><p>Inspeksi ini ditugaskan ke orang lain.</p></Card>;
@@ -283,28 +287,28 @@ function Reason({ value, onChange, label = 'Alasan' }: { value: string; onChange
   );
 }
 
-const TRANSFER_TARGETS = [
-  { authorityId: 'kementerian-pu', authorityName: 'BBPJN DKI Jakarta - Jawa Barat', level: 'NASIONAL' },
-  { authorityId: 'pemprov-dki', authorityName: 'Dinas Bina Marga Provinsi DKI Jakarta', level: 'PROVINSI' },
-  { authorityId: 'pemprov-jabar', authorityName: 'Dinas Bina Marga Provinsi Jawa Barat', level: 'PROVINSI' },
-  { authorityId: 'pemkab-karawang', authorityName: 'Dinas PUPR Kabupaten Karawang', level: 'KABUPATEN' }
-];
-
 function CoordinatorPanel({ c, onChange }: PanelProps) {
   const { staff } = useV5();
   const firstOf = (role: string) => staff.find((a) => a.role === role)?.accountId ?? '';
   const t = useTransition(c, onChange);
   const state = c.state as V5State;
   const [reason, setReason] = useState('');
-  const [inspector, setInspector] = useState(() => firstOf('FIELD_INSPECTOR'));
+  const [inspector, setInspector] = useState(() => firstOf('FE'));
   const [due, setDue] = useState(() => new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10));
   const [showTransfer, setShowTransfer] = useState(false);
   const [target, setTarget] = useState(0);
   const [decreeNo, setDecreeNo] = useState('');
   const [decreeDate, setDecreeDate] = useState('');
   const [damage, setDamage] = useState(c.damageClass ?? c.screening?.label ?? 'POTHOLE');
-  const [crew, setCrew] = useState(() => firstOf('REPAIR_CREW'));
-  const [supervisor, setSupervisor] = useState(() => firstOf('SUPERVISOR'));
+  const [executorType, setExecutorType] = useState<'SWAKELOLA' | 'CONTRACT'>('SWAKELOLA');
+  const [executor, setExecutor] = useState('');
+  const [packageId, setPackageId] = useState('');
+  const [ownNo, setOwnNo] = useState('');
+  const [ownDate, setOwnDate] = useState('');
+  const [guestBadge, setGuestBadge] = useState<Badge | null>(null);
+  const agencies = useLoad(() => v6<{ id: string; name: string }[]>('/agencies'), []);
+  // The one who proposed the plan does not check it, when there is someone else who can.
+  const [supervisor, setSupervisor] = useState(() => staff.find((a) => a.role === 'FE' && a.accountId !== c.inspection?.inspectorAccountId)?.accountId ?? firstOf('FE'));
   const [delay, setDelay] = useState('AWAITING_BUDGET');
   const [until, setUntil] = useState(() => new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10));
   const [showDelay, setShowDelay] = useState(false);
@@ -324,6 +328,7 @@ function CoordinatorPanel({ c, onChange }: PanelProps) {
 
   return (
     <Card title={NEXT_STEP[state] ?? 'Tindakan'} testId="v5-panel-coordinator">
+      {guestBadge && <AccessBadge badge={guestBadge} title="Kode tamu untuk pelaksana" />}
       {c.transferPending && (
         <div className="v5-note" data-testid="v5-transfer-pending">
           <p>Pengalihan ke <strong>{c.transferPending.toAuthorityName}</strong> menunggu konfirmasi orang kedua di instansi itu. SK: {c.transferPending.decreeRef}</p>
@@ -333,7 +338,15 @@ function CoordinatorPanel({ c, onChange }: PanelProps) {
       )}
       {!c.transferPending && (state === 'TRIAGE' || state === 'ACCEPTED' || state === 'REOPENED') && (
         <>
-          {c.routing?.confidence === 'LOW' && <p className="v5-warn" data-testid="v5-coordinator-confirm">Koordinator perlu memastikan pemilik jalan ini.</p>}
+          {c.routing?.confidence === 'LOW' && !c.ownershipConfirmed && (
+            <div className="v5-note" data-testid="v5-coordinator-confirm">
+              <p className="v5-warn">Konfirmasi kepemilikan: sistem belum yakin jalan ini milik instansi Anda.</p>
+              <label className="v5-field"><span>Nomor SK penetapan jalan</span><input value={ownNo} onChange={(e) => setOwnNo(e.target.value)} data-testid="v6-own-decree-number" /></label>
+              <label className="v5-field"><span>Tanggal SK</span><input type="date" value={ownDate} onChange={(e) => setOwnDate(e.target.value)} data-testid="v6-own-decree-date" /></label>
+              <button type="button" className="v5-btn" disabled={t.busy || !ownNo.trim() || !ownDate} onClick={() => t.run(async () => { const out = await v5<{ case: V5Case }>(`/cases/${c.id}/confirm-ownership`, { decreeRef: { number: ownNo, date: ownDate } }); onChange(out.case as Partial<StaffCase>); })} data-testid="v6-confirm-ownership">Ya, ini jalan kami</button>
+            </div>
+          )}
+          {c.ownershipConfirmed && <p className="v5-muted" data-testid="v6-ownership-confirmed">Kepemilikan dipastikan: {c.ownershipConfirmed.decreeRef}</p>}
           {c.screening?.label && <p>Saran AI: {DAMAGE_WORD[c.screening.label] ?? c.screening.label}, keyakinan {c.screening.score === null ? '–' : `${Math.round(c.screening.score * 100)}%`} <Chip kind="AI_ESTIMATE" /></p>}
           {state === 'TRIAGE' && (
             <label className="v5-field"><span>Jenis kerusakan, Anda yang memutuskan</span>
@@ -343,7 +356,7 @@ function CoordinatorPanel({ c, onChange }: PanelProps) {
             </label>
           )}
           <label className="v5-field"><span>Petugas inspeksi</span>
-            <select value={inspector} onChange={(e) => setInspector(e.target.value)} data-testid="v5-inspector">{staff.filter((a) => a.role === 'FIELD_INSPECTOR').map((a) => <option key={a.accountId} value={a.accountId}>{a.displayName}</option>)}</select>
+            <select value={inspector} onChange={(e) => setInspector(e.target.value)} data-testid="v5-inspector">{staff.filter((a) => a.role === 'FE').map((a) => <option key={a.accountId} value={a.accountId}>{a.displayName}</option>)}</select>
           </label>
           <label className="v5-field"><span>Tenggat</span><input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></label>
           <Reason value={reason} onChange={setReason} />
@@ -352,10 +365,10 @@ function CoordinatorPanel({ c, onChange }: PanelProps) {
           {state !== 'REOPENED' && <button type="button" className="v5-link" disabled={t.busy} onClick={() => t.send('CLOSE_INVALID', { reason, closureReason: 'INVALID' })} data-testid="v5-close-invalid">Tutup: bukan kerusakan jalan</button>}
           {showTransfer && (
             <div className="v5-note">
-              <label className="v5-field"><span>Instansi</span><select value={target} onChange={(e) => setTarget(Number(e.target.value))} data-testid="v5-transfer-target">{TRANSFER_TARGETS.map((x, i) => <option key={x.authorityId} value={i}>{x.authorityName}</option>)}</select></label>
+              <label className="v5-field"><span>Instansi</span><select value={target} onChange={(e) => setTarget(Number(e.target.value))} data-testid="v5-transfer-target">{(agencies.data ?? []).map((x, i) => <option key={x.id} value={i}>{x.name}</option>)}</select></label>
               <label className="v5-field"><span>Nomor SK penetapan jalan</span><input value={decreeNo} onChange={(e) => setDecreeNo(e.target.value)} placeholder="Kepmen PUPR 1688/KPTS/M/2022" data-testid="v5-decree-number" /></label>
               <label className="v5-field"><span>Tanggal SK</span><input type="date" value={decreeDate} onChange={(e) => setDecreeDate(e.target.value)} data-testid="v5-decree-date" /></label>
-              <button type="button" className="v5-btn" disabled={t.busy} onClick={() => t.send('TRANSFER_AUTHORITY', { reason, target: TRANSFER_TARGETS[target], decreeRef: { number: decreeNo, date: decreeDate } })} data-testid="v5-transfer">Kirim pengalihan</button>
+              <button type="button" className="v5-btn" disabled={t.busy} onClick={() => t.send('TRANSFER_AUTHORITY', { reason, target: { agencyId: agencies.data?.[target]?.id }, decreeRef: { number: decreeNo, date: decreeDate } })} data-testid="v5-transfer">Kirim pengalihan</button>
             </div>
           )}
         </>
@@ -380,9 +393,11 @@ function CoordinatorPanel({ c, onChange }: PanelProps) {
       {state === 'PLAN_APPROVED' && (
         <>
           <p>Ini catatan internal, bukan SPK.</p>
-          <label className="v5-field"><span>Regu perbaikan</span><select value={crew} onChange={(e) => setCrew(e.target.value)} data-testid="v5-crew">{staff.filter((a) => a.role === 'REPAIR_CREW').map((a) => <option key={a.accountId} value={a.accountId}>{a.displayName}</option>)}</select></label>
-          <label className="v5-field"><span>Pengawas</span><select value={supervisor} onChange={(e) => setSupervisor(e.target.value)} data-testid="v5-supervisor">{staff.filter((a) => a.role === 'SUPERVISOR').map((a) => <option key={a.accountId} value={a.accountId}>{a.displayName}</option>)}</select></label>
-          <button type="button" className="v5-btn v5-btn-primary" disabled={t.busy} onClick={() => t.send('ISSUE_WORK_ORDER', { type: 'SWAKELOLA', crewAccountId: crew, supervisorAccountId: supervisor, targetDate: new Date(Date.now() + 7 * 86_400_000).toISOString() })} data-testid="v5-issue-work-order">Terbitkan perintah kerja</button>
+          <label className="v5-field"><span>Dikerjakan oleh</span><select value={executorType} onChange={(e) => setExecutorType(e.target.value as 'SWAKELOLA' | 'CONTRACT')} data-testid="v6-executor-type"><option value="SWAKELOLA">Regu sendiri (swakelola)</option><option value="CONTRACT">Kontraktor</option></select></label>
+          <label className="v5-field"><span>Nama regu atau kontraktor</span><input value={executor} onChange={(e) => setExecutor(e.target.value)} data-testid="v6-executor-name" /></label>
+          {executorType === 'CONTRACT' && <label className="v5-field"><span>Nomor paket pekerjaan</span><input value={packageId} onChange={(e) => setPackageId(e.target.value)} data-testid="v6-package-id" /></label>}
+          <label className="v5-field"><span>Yang memeriksa hasil</span><select value={supervisor} onChange={(e) => setSupervisor(e.target.value)} data-testid="v5-supervisor">{staff.filter((a) => a.role === 'FE').map((a) => <option key={a.accountId} value={a.accountId}>{a.displayName}</option>)}</select></label>
+          <button type="button" className="v5-btn v5-btn-primary" disabled={t.busy || executor.trim().length < 2 || (executorType === 'CONTRACT' && !packageId.trim())} onClick={async () => { const out = await t.send('ISSUE_WORK_ORDER', { type: executorType, ...(executorType === 'CONTRACT' ? { packageId } : {}), executorName: executor, supervisorAccountId: supervisor, targetDate: new Date(Date.now() + 14 * 86_400_000).toISOString() }); const badge = (out as { guestBadge?: Badge } | undefined)?.guestBadge; if (badge) setGuestBadge(badge); }} data-testid="v5-issue-work-order">Terbitkan perintah kerja</button>
         </>
       )}
       {state === 'MONITORING' && (
@@ -511,12 +526,15 @@ function AcceptPanel({ c, onChange }: PanelProps) {
   const t = useTransition(c, onChange);
   const [reason, setReason] = useState('');
   const [months, setMonths] = useState('');
+  const [pho, setPho] = useState('');
+  const contract = c.workOrder?.type === 'CONTRACT';
   return (
     <Card title="Terima perbaikan" testId="v5-panel-accept">
       <p>Pengawas sudah memeriksa buktinya. Setelah diterima, jadwal pemeriksaan lanjutan dimulai.</p>
       <Reason value={reason} onChange={setReason} />
       <label className="v5-field"><span>Masa pemeliharaan (bulan), kalau ada di kontrak <Chip kind="INPUT" /></span><input inputMode="numeric" value={months} onChange={(e) => setMonths(e.target.value)} data-testid="v5-months" /></label>
-      <button type="button" className="v5-btn v5-btn-primary" disabled={t.busy} onClick={() => t.send('ACCEPT_WORK', { reason, ...(months ? { maintenanceMonths: Number(months) } : {}) })} data-testid="v5-accept-work">Terima perbaikan</button>
+      {contract && <label className="v5-field"><span>Tanggal serah terima pekerjaan</span><input type="date" value={pho} onChange={(e) => setPho(e.target.value)} data-testid="v6-pho-date" /></label>}
+      <button type="button" className="v5-btn v5-btn-primary" disabled={t.busy || (contract && !pho)} onClick={() => t.send('ACCEPT_WORK', { reason, ...(months ? { maintenanceMonths: Number(months) } : {}), ...(pho ? { phoDate: new Date(pho).toISOString() } : {}) })} data-testid="v5-accept-work">Terima perbaikan</button>
       <ErrorNote error={t.error} />
     </Card>
   );

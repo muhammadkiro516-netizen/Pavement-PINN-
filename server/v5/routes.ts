@@ -6,17 +6,20 @@ import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Request, Response, Router } from 'express';
-import { V5_ACTIONS, SYSTEM_ACTOR, type V5Action, type V5Command } from '../../src/domain/v5/stateMachine';
+import { V5_ACTIONS, SYSTEM_ACTOR, caseVisibleTo, type V5Action, type V5Command } from '../../src/domain/v5/stateMachine';
 import { V5_STATE_LABELS, type EvidenceRef, type V5Actor, type V5Case, type V5Flag, type V5PinnRun } from '../../src/domain/v5/model';
 import { ladderStatus, LADDER } from '../../src/domain/v5/escalation';
 import { fairCost, type CostRequest, type Mix } from '../../src/domain/v5/costEngine';
-import { citizenDisputeTriggersInspection } from '../../src/domain/v5/sod';
+import { citizenDisputeTriggersInspection, hasDecree } from '../../src/domain/v5/sod';
 import { followUpIsDue, followUpIsOverdue } from '../../src/domain/v5/followUps';
 import { bannedWordsIn } from '../../src/domain/v5/wording';
 import wordingLibrary from '../../config/wording/neutral_v1.json';
 import { callInference } from '../services/inferenceClient';
 import { rateLimit } from '../middleware/rateLimit';
-import { StaffAccounts, actorFor, deviceActor } from './staffAccounts';
+import { deviceActor } from './staffAccounts';
+import { Workspaces } from '../v6/workspaces';
+import { checkReauth, registerV6Routes } from '../v6/routes';
+import { PIN_ACTIONS } from '../../src/domain/v6/roles';
 import { sweepEscalations } from './escalationJob';
 import { canonicalize, sha256Hex, type ChainEvent, type ChainId } from './chain';
 import { V5Store, type IssuedDocument } from './store';
@@ -48,9 +51,13 @@ const REPAIR_OPTIONS: Record<string, string[]> = {
 };
 
 interface SessionClaims {
-  kind: 'STAFF' | 'DEVICE';
+  kind: 'STAFF' | 'DEVICE' | 'REMEMBER';
   id: string;
   exp: number;
+  /** Staff: raised when the person's code is renewed or revoked. */
+  epoch?: number;
+  /** Staff: lets the Lock button end this one session. */
+  sid?: string;
 }
 
 class Sessions {
@@ -63,10 +70,11 @@ class Sessions {
     this.key = Buffer.from(fs.readFileSync(file, 'utf8'), 'hex');
   }
 
-  issue(kind: SessionClaims['kind'], id: string): string {
-    // A citizen's device key lasts, so "My reports" still works next week; staff sessions do not.
-    const hours = kind === 'DEVICE' ? 24 * 365 : SESSION_HOURS;
-    const body = Buffer.from(JSON.stringify({ kind, id, exp: Date.now() + hours * 3_600_000 })).toString('base64url');
+  issue(kind: SessionClaims['kind'], id: string, extra: { hours?: number; epoch?: number; sid?: string } = {}): string {
+    // A citizen's device key lasts, so "My reports" still works next week; staff hours come from their agency.
+    const hours = extra.hours ?? (kind === 'DEVICE' ? 24 * 365 : SESSION_HOURS);
+    const claims: SessionClaims = { kind, id, exp: Date.now() + hours * 3_600_000, ...(kind === 'DEVICE' ? {} : { epoch: extra.epoch ?? 0, sid: extra.sid ?? randomBytes(9).toString('hex') }) };
+    const body = Buffer.from(JSON.stringify(claims)).toString('base64url');
     return `${body}.${createHmac('sha256', this.key).update(body).digest('base64url')}`;
   }
 
@@ -146,7 +154,8 @@ export function publicCaseView(c: V5Case, now: string, events: ChainEvent[] = []
     followUps: followUps.map(({ milestone, dueAt, trigger, result, recordedAt, windowDays }) => ({ milestone, dueAt, trigger, result, recordedAt, windowDays, due: followUpIsDue({ dueAt, result } as never, now), overdue: followUpIsOverdue({ dueAt, result, windowDays } as never, now) })),
     confirmations: { stillFixed: c.citizenConfirmations.filter((x) => x.result === 'OK').length, brokeAgain: c.citizenConfirmations.filter((x) => x.result === 'DAMAGED').length },
     ladder,
-    complaintDraftAvailable: ladder.level === 'COMPLAINT',
+    complaintDraftAvailable: ladder.level === 'COMPLAINT' || !c.agencyId,
+    handledBy: c.handledBy,
     now,
     timeline: events.filter((e) => e.type !== 'case.screening_started').map((e) => ({ type: e.type, label: EVENT_LABEL[e.type] ?? e.type, at: e.server_received_at, role: e.actor.role, hash: e.event_hash.slice(0, 12), state: e.refs.next_state ? V5_STATE_LABELS[e.refs.next_state as keyof typeof V5_STATE_LABELS]?.en ?? null : null }))
   };
@@ -193,11 +202,11 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
   const store = new V5Store(dir);
   const sessions = new Sessions(dir);
   const capture = new CaptureService(dir, options.lenientCapture === true);
-  const staff = new StaffAccounts(dir);
+  const workspaces = new Workspaces(path.join(options.dataDir, 'v6'));
   // Parsed on first use: every createApp() in the v4 tests passes through here.
   let loadedRegistry: RoadRegistry | null = null;
   const roads = () => (loadedRegistry ??= new RoadRegistry());
-  const registry = { decide: (...args: Parameters<RoadRegistry['decide']>) => roads().decide(...args), segmentsInBox: (...args: Parameters<RoadRegistry['segmentsInBox']>) => roads().segmentsInBox(...args), get version() { return roads().version; }, get available() { return roads().available; } } as RoadRegistry;
+  const registry = { officeContact: (id: string) => roads().officeContact(id), decide: (...args: Parameters<RoadRegistry['decide']>) => roads().decide(...args), segmentsInBox: (...args: Parameters<RoadRegistry['segmentsInBox']>) => roads().segmentsInBox(...args), get version() { return roads().version; }, get available() { return roads().available; } } as RoadRegistry;
   const writeLimit = rateLimit('v5-write', 240, 60_000);
 
   capture.purgeOriginals();
@@ -214,16 +223,23 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     const claims = sessions.read(req.get('x-v5-session') ?? undefined);
     if (!claims) return null;
     if (claims.kind === 'DEVICE') return deviceActor(claims.id);
-    const account = staff.get(claims.id);
-    return account ? actorFor(account) : null;
+    if (claims.kind !== 'STAFF') return null;
+    const now = new Date().toISOString();
+    const member = workspaces.member(claims.id);
+    return member && workspaces.sessionValid(member, claims.sid, claims.epoch, now) ? workspaces.actorFor(member, now) : null;
   };
+
+  /** Whether any duty this person holds is one of these roles. */
+  const can = (actor: V5Actor, roles: readonly string[]) => (actor.duties ?? [actor.role]).some((r) => roles.includes(r));
+  const visible = (actor: V5Actor) => store.list().filter((c) => caseVisibleTo(c, actor));
 
   const staffCase = (req: Request, res: Response, roles: readonly string[]): { actor: V5Actor; c: V5Case } | null => {
     const actor = actorOf(req);
     if (!actor) { sendFail(res, 401, 'UNAUTHENTICATED', 'Choose a role first.'); return null; }
-    if (!roles.includes(actor.role)) { sendFail(res, 403, 'FORBIDDEN', 'Your role cannot see this.'); return null; }
+    if (!can(actor, roles)) { sendFail(res, 403, 'FORBIDDEN', 'Your role cannot see this.'); return null; }
     const c = store.get(req.params.id);
-    if (!c) { sendFail(res, 404, 'NOT_FOUND', 'Case not found.'); return null; }
+    // Another agency's case looks the same as no case at all.
+    if (!c || !caseVisibleTo(c, actor)) { sendFail(res, 404, 'NOT_FOUND', 'Case not found.'); return null; }
     return { actor, c };
   };
 
@@ -237,18 +253,13 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     res.json({ success: true, data: { actions: V5_ACTIONS, ladder: LADDER } });
   });
 
-  router.post('/api/v5/session/login', rateLimit('v5-login', 30, 60_000), (req, res) => {
-    const account = staff.verify(String(req.body?.email ?? ''), String(req.body?.password ?? ''));
-    if (!account) return sendFail(res, 401, 'UNAUTHENTICATED', 'Email atau kata sandi salah.');
-    const { passwordHash: _hash, ...profile } = account;
-    res.json({ success: true, data: { token: sessions.issue('STAFF', account.accountId), account: profile } });
-  });
+  registerV6Routes(router, { workspaces, store, sessions, actorOf, sendFail, qrFor });
 
   // Who can be assigned: staff only, no contact details.
   router.get('/api/v5/staff', (req, res) => {
     const actor = actorOf(req);
-    if (!actor || actor.kind !== 'PERSON') return sendFail(res, 403, 'FORBIDDEN', 'Staff only.');
-    res.json({ success: true, data: staff.list() });
+    if (!actor || actor.kind !== 'PERSON' || !actor.agencyId || actor.onlyCaseId) return sendFail(res, 403, 'FORBIDDEN', 'Staff only.');
+    res.json({ success: true, data: workspaces.members(actor.agencyId).filter((m) => m.status === 'ACTIVE' && m.role !== 'CONTRACTOR').map((m) => ({ accountId: m.id, role: m.role, displayName: m.name })) });
   });
 
   // Citizens have no login: a pseudonymous device identity only (02 C-1).
@@ -260,7 +271,8 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
   router.get('/api/v5/me', (req, res) => {
     const actor = actorOf(req);
     if (!actor) return sendFail(res, 401, 'UNAUTHENTICATED', 'Choose a role first.');
-    res.json({ success: true, data: { role: actor.role, kind: actor.kind, accountId: actor.accountId, displayName: staff.get(actor.accountId)?.displayName ?? null } });
+    const member = workspaces.member(actor.accountId);
+    res.json({ success: true, data: { role: actor.role, kind: actor.kind, accountId: actor.accountId, displayName: member?.name ?? null, v6Role: actor.v6Role ?? null, agencyName: actor.agencyId ? workspaces.agency(actor.agencyId)?.name ?? null : null, onlyCaseId: actor.onlyCaseId ?? null } });
   });
 
   // ---- Capture ------------------------------------------------------------------------------
@@ -276,7 +288,9 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     if (actor.role === 'AUDITOR' || actor.role === 'ADMIN' || actor.role === 'AGENCY_HEAD' || actor.role === 'APPROVER') return sendFail(res, 403, 'FORBIDDEN', 'Your role does not capture evidence.');
     const body = req.body ?? {};
     const c = body.caseId ? store.get(String(body.caseId)) : null;
-    const maxM = actor.role === 'SUPERVISOR' ? 200 : 50;
+    // A photo is sent first and attached to a case later, where the same limit applies again.
+    if (actor.onlyCaseId && c && c.id !== actor.onlyCaseId) return sendFail(res, 403, 'FORBIDDEN', 'This code opens one work order only.');
+    const maxM = can(actor, ['SUPERVISOR']) && c?.state === 'WORK_SUBMITTED' ? 200 : 50;
     const result = await capture.capture({ ownerId: actor.accountId, image: body.image, nonce: body.nonce, kind: body.kind, stage: body.stage, gps: body.gps, motionSamples: body.motionSamples, clientTime: body.clientTime, values: body.values ?? null, near: c ? { latE6: c.location.latE6, lonE6: c.location.lonE6, maxM } : null });
     if (isCaptureFailure(result)) return sendFail(res, httpStatus(result.code) === 400 && result.code !== 'VALIDATION' ? 422 : httpStatus(result.code), result.code, result.message);
     const { ownerId: _owner, sha256OriginalEnc: _enc, ...view } = result;
@@ -299,12 +313,30 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
   });
 
   // ---- Routing and map ----------------------------------------------------------------------
+  /** The "Handled by" card (v6 §1): who, where, why, in plain words. */
+  const STATUS_WORD: Record<string, string> = { NASIONAL: 'jalan nasional', TOL: 'jalan tol', PROVINSI: 'jalan provinsi', KABUPATEN: 'jalan kabupaten', KOTA: 'jalan kota', DESA: 'jalan desa', KHUSUS: 'jalan khusus', UNKNOWN: 'jalan yang statusnya belum diketahui' };
+  const handledBy = (d: { status: string; officeChain: string[]; officeName: string; segment: { name: string | null } | null; area: { kota: string | null; region: string | null; kecamatan: string | null }; confidence: string }, agencyId: string | null) => {
+    const agency = agencyId ? workspaces.agency(agencyId) : null;
+    const contactOffice = agency ? agency.id : d.officeChain.find((id) => registry.officeContact(id).address) ?? d.officeChain[0];
+    const contact = contactOffice ? registry.officeContact(contactOffice) : { address: null, phone: null, channel: null };
+    const place = d.area.kota ?? (d.area.region === 'karawang' ? 'Kabupaten Karawang' : null);
+    return {
+      connected: !!agency,
+      name: agency?.name ?? d.officeName,
+      fieldOffice: agency && d.officeName !== agency.name ? d.officeName : null,
+      address: contact.address,
+      phone: contact.phone,
+      reason: `${d.segment?.name ?? 'Jalan ini'} ${d.confidence === 'LOW' ? 'diperkirakan' : ''} berstatus ${STATUS_WORD[d.status] ?? d.status}${place ? `, wilayah ${place}` : ''}.`.replace(/\s+/g, ' ')
+    };
+  };
+
   router.get('/api/v5/routing/resolve', (req, res) => {
     const lat = Number(req.query.lat);
     const lon = Number(req.query.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return sendFail(res, 400, 'VALIDATION', 'Latitude and longitude are required.');
     const toll = req.query.toll === 'yes' || req.query.toll === 'no' ? (req.query.toll as 'yes' | 'no') : null;
-    res.json({ success: true, data: registry.decide(lat, lon, Number(req.query.accuracy) || 25, toll) });
+    const decision = registry.decide(lat, lon, Number(req.query.accuracy) || 25, toll);
+    res.json({ success: true, data: { ...decision, handledBy: handledBy(decision, workspaces.routeAgency(decision)?.id ?? null) } });
   });
 
   router.get('/api/v5/public/segments', (req, res) => {
@@ -368,14 +400,18 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     const duplicates = store.list().filter((o) => o.id !== begin.case.id && o.state && V5_STATE_LABELS[o.state].open && distanceM(o, begin.case) <= 25).map((o) => o.publicCode);
     const done = store.apply(begin.case, { action: duplicates.length ? 'AUTO_MERGE_SUGGEST' : 'SCREENING_DONE', screening, routing: describeRouting(decision), duplicates }, SYSTEM_ACTOR, now, begin.case.version);
     if ('ok' in done) return sendFail(res, 500, done.code, done.message);
-    res.json({ success: true, data: { caseId: done.case.id, publicCode: done.case.publicCode, state: done.case.state, routing: decision, screening, duplicates, eventHash: done.event.event_hash } });
+    // No operator in the middle: the report lands in the responsible workspace, or stays public.
+    const agency = workspaces.routeAgency(decision);
+    const card = handledBy(decision, agency?.id ?? null);
+    store.record(done.case, { agencyId: agency?.id ?? null, handledBy: card }, 'routing.inbox', { agency_id: agency?.id ?? null, connected: !!agency, confidence: decision.confidence }, SYSTEM_ACTOR, now);
+    res.json({ success: true, data: { handledBy: card, caseId: done.case.id, publicCode: done.case.publicCode, state: done.case.state, routing: decision, screening, duplicates, eventHash: done.event.event_hash } });
   });
 
   router.get('/api/v5/cases', (req, res) => {
     const actor = actorOf(req);
     if (!actor) return sendFail(res, 401, 'UNAUTHENTICATED', 'Choose a role first.');
-    if (!FULL_READ_ROLES.includes(actor.role)) return sendFail(res, 403, 'FORBIDDEN', 'Staff only.');
-    const data = store.list().map((c) => {
+    if (!can(actor, FULL_READ_ROLES)) return sendFail(res, 403, 'FORBIDDEN', 'Staff only.');
+    const data = visible(actor).map((c) => {
       const now = caseNow(c);
       return { ...c, stateLabel: c.state ? V5_STATE_LABELS[c.state].en : null, ladder: ladderStatus(c, now), priority: priorityOf(c, now) };
     }).sort((a, b) => b.priority.score - a.priority.score);
@@ -465,20 +501,35 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     res.json({ success: true, data: { cost: stored, case: next } });
   });
 
+  // The OM confirms who owns a road the routing was unsure about, citing the decree (v6 §1).
+  router.post('/api/v5/cases/:id/confirm-ownership', writeLimit, (req, res) => {
+    const found = staffCase(req, res, ['COORDINATOR']);
+    if (!found) return;
+    const { c, actor } = found;
+    const decree = req.body?.decreeRef;
+    if (!hasDecree(decree)) return sendFail(res, 400, 'VALIDATION', 'SK citation required: give the decree number and date.');
+    const decreeRef = `${decree.number} (${decree.date})`;
+    const now = new Date().toISOString();
+    const next = store.record(c, { ownershipConfirmed: { at: now, decreeRef } }, 'routing.ownership_confirmed', { decree_ref: decreeRef }, actor, now);
+    res.json({ success: true, data: { case: next } });
+  });
+
   // ---- Transitions --------------------------------------------------------------------------
-  router.post('/api/v5/cases/:id/transitions', writeLimit, (req, res) => {
+  router.post('/api/v5/cases/:id/transitions', writeLimit, async (req, res) => {
     const actor = actorOf(req);
     if (!actor) return sendFail(res, 401, 'UNAUTHENTICATED', 'Choose a role first.');
     const c = store.get(req.params.id);
     if (!c) return sendFail(res, 404, 'NOT_FOUND', 'Case not found.');
-    const { action, expectedVersion, evidenceIds, ...rest } = (req.body ?? {}) as Record<string, unknown>;
+    const { action, expectedVersion, evidenceIds, executorName, ...rest } = (req.body ?? {}) as Record<string, unknown>;
     if (!V5_ACTIONS.includes(action as V5Action)) return sendFail(res, 400, 'VALIDATION', 'Unknown action.');
+    if (PIN_ACTIONS.includes(action as string) && !checkReauth({ workspaces, sendFail }, req, res, actor)) return;
     const cmd: V5Command = { ...rest, action: action as V5Action };
 
     // Fields only the server may set are dropped from the request, then computed here.
     delete cmd.evidence;
     delete cmd.markerDetected;
     delete cmd.rulerCheck;
+    delete cmd.soleFieldEngineer;
 
     let evidenceRefs: EvidenceRef[] = [];
     if (evidenceIds !== undefined) {
@@ -489,18 +540,33 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     }
 
     // Accounts picked in the UI become people on the server, so SoD compares persons.
-    const person = (accountId: unknown) => staff.get(String(accountId ?? ''));
+    const colleague = (accountId: unknown, role: string) => {
+      const m = workspaces.member(String(accountId ?? ''));
+      return m && m.agencyId === actor.agencyId && m.status === 'ACTIVE' && m.role === role ? m : null;
+    };
+    if (action === 'TRANSFER_AUTHORITY') {
+      const target = workspaces.agency(String((rest.target as { agencyId?: string } | undefined)?.agencyId ?? ''));
+      if (!target || target.id === actor.agencyId) return sendFail(res, 400, 'VALIDATION', 'Choose another connected agency.');
+      cmd.target = { agencyId: target.id, authorityId: target.authorityIds[0], authorityName: target.name, level: target.kind };
+    }
     if (action === 'ASSIGN_INSPECTION') {
-      const a = person(cmd.inspectorAccountId);
-      if (!a || a.role !== 'FIELD_INSPECTOR') return sendFail(res, 400, 'VALIDATION', 'Choose a Field Inspector.');
+      const a = colleague(cmd.inspectorAccountId, 'FE');
+      if (!a) return sendFail(res, 400, 'VALIDATION', 'Choose a Field Engineer.');
       cmd.inspectorPersonId = a.personId;
     }
+    // A guest code is made with the work order, and only kept if the state machine accepts it.
+    let guest: { memberId: string; code: string } | null = null;
     if (action === 'ISSUE_WORK_ORDER') {
-      const crew = person(cmd.crewAccountId);
-      const sup = person(cmd.supervisorAccountId);
-      if (!crew || crew.role !== 'REPAIR_CREW') return sendFail(res, 400, 'VALIDATION', 'Choose a repair crew.');
-      if (!sup || sup.role !== 'SUPERVISOR') return sendFail(res, 400, 'VALIDATION', 'Choose a supervisor.');
-      Object.assign(cmd, { crewPersonId: crew.personId, crewOrgId: crew.orgId, supervisorPersonId: sup.personId, supervisorOrgId: sup.orgId, category: c.plan?.category });
+      const sup = colleague(cmd.supervisorAccountId, 'FE');
+      const name = String(executorName ?? '').trim();
+      if (!sup) return sendFail(res, 400, 'VALIDATION', 'Choose a Field Engineer to check the repair.');
+      if (name.length < 2) return sendFail(res, 400, 'VALIDATION', 'Write who does the repair.');
+      if (!actor.agencyId) return sendFail(res, 403, 'FORBIDDEN', 'Staff only.');
+      const added = workspaces.addMember({ agencyId: actor.agencyId, name, title: cmd.type === 'CONTRACT' ? 'Kontraktor' : 'Regu swakelola', role: 'CONTRACTOR', caseId: c.id }, new Date().toISOString());
+      guest = { memberId: added.member.id, code: added.code };
+      const crew = workspaces.actorFor(added.member, new Date().toISOString());
+      const feCount = new Set(workspaces.members(actor.agencyId).filter((m) => m.role === 'FE' && m.status === 'ACTIVE').map((m) => m.personId)).size;
+      Object.assign(cmd, { crewAccountId: added.member.id, crewPersonId: added.member.personId, crewOrgId: crew.orgId, supervisorPersonId: sup.personId, supervisorOrgId: sup.agencyId, soleFieldEngineer: feCount === 1, category: c.plan?.category });
     }
     if (action === 'SUBMIT_INSPECTION') {
       const markers = evidenceRefs.filter((e) => e.kind === 'MARKER_NADIR').map((e) => capture.get(e.id)?.marker);
@@ -527,10 +593,22 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
 
     const now = new Date().toISOString();
     const outcome = store.apply(c, cmd, actor, now, Number(expectedVersion), { mergeTargetOk: (id) => { const t = store.get(id); return !!t && !!t.state && V5_STATE_LABELS[t.state].open && (t.routing?.segmentId === c.routing?.segmentId || distanceM(t, c) <= 25); } });
-    if ('ok' in outcome) return respondOutcome(res, outcome);
+    if ('ok' in outcome) {
+      if (guest) workspaces.revoke(guest.memberId, now);
+      return respondOutcome(res, outcome);
+    }
 
     let next = outcome.case;
     const flags: V5Flag[] = [];
+    if (guest) store.recordEntity('access.guest_code_issued', { type: 'case', id: c.id }, { member_id: guest.memberId, expires: 'on_verification' }, actor, now);
+    if (action === 'VERIFY_WORK') workspaces.revokeGuests(c.id, now);
+    if (action === 'TRANSFER_AUTHORITY' || action === 'CONFIRM_TRANSFER') {
+      // The card the citizen sees follows the case.
+      const owner = workspaces.agency(next.agencyId ?? '');
+      if (owner && next.handledBy && next.handledBy.name !== owner.name) {
+        next = store.record(next, { handledBy: { ...next.handledBy, connected: true, name: owner.name, fieldOffice: null, address: registry.officeContact(owner.id).address, phone: registry.officeContact(owner.id).phone, reason: `Dialihkan dengan dasar ${next.routing?.basis ?? 'SK penetapan jalan'}.` } }, 'routing.card_updated', { agency_id: owner.id }, SYSTEM_ACTOR, now);
+      }
+    }
     if (action === 'SUBMIT_WORK_EVIDENCE') {
       const declared = readDeclared(rest.declared);
       for (const e of next.evidence) {
@@ -546,7 +624,8 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
       next = store.record(next, { declared, flags: [...next.flags, ...flags] }, 'work.declared', { area_cm2: declared.areaCm2, thickness_mm: declared.thicknessMm, tonnage_kg: declared.tonnageKg, reported_spend_idr: declared.reportedSpendIdr, flags: flags.map((f) => f.code) }, actor, now);
     }
     if (action === 'RECORD_FOLLOW_UP') next = afterFollowUp(next, rest, now);
-    res.json({ success: true, data: { case: next, event: { seq: outcome.event.seq, event_hash: outcome.event.event_hash, type: outcome.event.type } } });
+    const badge = guest ? { code: guest.code, url: `${req.get('x-forwarded-proto') ?? req.protocol}://${req.get('host')}/login/#kode=${guest.code}` } : null;
+    res.json({ success: true, data: { case: next, event: { seq: outcome.event.seq, event_hash: outcome.event.event_hash, type: outcome.event.type }, ...(badge ? { guestBadge: { ...badge, qr: await qrFor(badge.url) } } : {}) } });
   });
 
   /** SOD-10 and failures found on follow-up reopen the case through the same state machine. */
@@ -569,7 +648,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     const found = staffCase(req, res, ['REPAIR_CREW', 'SUPERVISOR']);
     if (!found) return;
     const { c, actor } = found;
-    const assigned = actor.role === 'REPAIR_CREW' ? c.workOrder?.crewAccountId : c.workOrder?.supervisorAccountId;
+    const assigned = can(actor, ['REPAIR_CREW']) ? c.workOrder?.crewAccountId : c.workOrder?.supervisorAccountId;
     if (assigned !== actor.accountId) return sendFail(res, 403, 'FORBIDDEN', 'This work order is assigned to someone else.');
     const claimed = capture.claim([req.body?.evidenceId], actor.accountId, c.id);
     if (isCaptureFailure(claimed)) return sendFail(res, httpStatus(claimed.code), claimed.code, claimed.message);
@@ -644,7 +723,8 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     const c = store.byPublicCode(req.params.code);
     if (!c) return sendFail(res, 404, 'NOT_FOUND', 'No report has this code.');
     const ladder = ladderStatus(c, caseNow(c));
-    if (ladder.level !== 'COMPLAINT') return sendFail(res, 409, 'INVALID_TRANSITION', 'A complaint draft opens after 30 days without handling.');
+    // An agency that is not connected cannot answer here, so the draft is ready from the start (v6 §1).
+    if (ladder.level !== 'COMPLAINT' && c.agencyId) return sendFail(res, 409, 'INVALID_TRANSITION', 'A complaint draft opens after 30 days without handling.');
     const text = [
       'DRAF PENGADUAN (dibuat dari catatan peristiwa; periksa sebelum dikirim; tidak dikirim otomatis)',
       `Kode laporan: ${c.publicCode}`,
@@ -670,9 +750,10 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
   router.post('/api/v5/documents/audit-report', writeLimit, async (req, res) => {
     const actor = actorOf(req);
     if (!actor) return sendFail(res, 401, 'UNAUTHENTICATED', 'Choose a role first.');
-    if (!DOCUMENT_ROLES.includes(actor.role)) return sendFail(res, 403, 'FORBIDDEN', 'Your role cannot issue this report.');
+    if (!can(actor, DOCUMENT_ROLES)) return sendFail(res, 403, 'FORBIDDEN', 'Your role cannot issue this report.');
     const c = store.get(String(req.body?.caseId ?? ''));
-    if (!c) return sendFail(res, 404, 'NOT_FOUND', 'Case not found.');
+    if (!c || !caseVisibleTo(c, actor)) return sendFail(res, 404, 'NOT_FOUND', 'Case not found.');
+    if (!checkReauth({ workspaces, sendFail }, req, res, actor)) return;
     try {
       const doc = await issueReport(c, actor, originOf(req));
       res.json({ success: true, data: publicDoc(doc) });
@@ -735,8 +816,9 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
 
   router.get('/api/v5/documents', (req, res) => {
     const actor = actorOf(req);
-    if (!actor || !FULL_READ_ROLES.includes(actor.role)) return sendFail(res, 403, 'FORBIDDEN', 'Staff only.');
-    res.json({ success: true, data: store.documents().map(publicDoc) });
+    if (!actor || !can(actor, FULL_READ_ROLES) || actor.onlyCaseId) return sendFail(res, 403, 'FORBIDDEN', 'Staff only.');
+    const own = new Set(visible(actor).map((c) => c.id));
+    res.json({ success: true, data: store.documents().filter((d) => own.has(d.caseId)).map(publicDoc) });
   });
 
   router.get('/api/v5/documents/:id/pdf', (req, res) => {
@@ -797,8 +879,8 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
   // ---- Agency head and admin: read real records ----------------------------------------------
   router.get('/api/v5/dashboard/agency', (req, res) => {
     const actor = actorOf(req);
-    if (!actor || !['AGENCY_HEAD', 'COORDINATOR', 'APPROVER', 'AUDITOR'].includes(actor.role)) return sendFail(res, 403, 'FORBIDDEN', 'Your role cannot see this.');
-    const rows = store.list().map((c) => ({ c, ladder: ladderStatus(c, caseNow(c)) }));
+    if (!actor || !can(actor, ['AGENCY_HEAD', 'COORDINATOR', 'APPROVER', 'AUDITOR'])) return sendFail(res, 403, 'FORBIDDEN', 'Your role cannot see this.');
+    const rows = visible(actor).map((c) => ({ c, ladder: ladderStatus(c, caseNow(c)) }));
     const byLevel = (level: string) => rows.filter((r) => r.ladder.level === level).length;
     res.json({ success: true, data: {
       totalCases: rows.length,
@@ -812,7 +894,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
 
   router.get('/api/v5/admin/overview', (req, res) => {
     const actor = actorOf(req);
-    if (!actor || actor.role !== 'ADMIN') return sendFail(res, 403, 'FORBIDDEN', 'Region admins only.');
+    if (!actor || !can(actor, ['ADMIN'])) return sendFail(res, 403, 'FORBIDDEN', 'Operations Managers only.');
     const data = path.join(process.cwd(), 'docs', 'v5', 'data');
     const prices = parseCsv(fs.readFileSync(path.join(data, 'material_prices.csv'), 'utf8'));
     const ump = parseCsv(fs.readFileSync(path.join(data, 'ump_2026.csv'), 'utf8'));

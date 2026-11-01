@@ -12,6 +12,16 @@ export interface RoadOwner {
   officeName: string;
   segment: { name: string | null } | null;
   askCitizen: string | null;
+  handledBy?: HandledBy;
+}
+
+export interface HandledBy {
+  connected: boolean;
+  name: string;
+  fieldOffice: string | null;
+  address: string | null;
+  phone: string | null;
+  reason: string;
 }
 
 export const ROAD_STATUS_WORD: Record<string, string> = {
@@ -69,8 +79,11 @@ export const RoadOwnerCard: React.FC<{ latitude: number; longitude: number; accu
           <Landmark className="h-5 w-5" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-slate-400">Yang bertanggung jawab atas jalan ini</p>
-          <p className="mt-0.5 text-[15px] font-extrabold leading-snug text-white" data-testid="road-owner-office">{owner.officeName}</p>
+          <p className="text-xs text-slate-400">Ditangani oleh</p>
+          <p className="mt-0.5 text-[15px] font-extrabold leading-snug text-white" data-testid="road-owner-office">{owner.handledBy?.name ?? owner.officeName}</p>
+          {owner.handledBy?.reason && <p className="mt-1 text-xs leading-snug text-slate-300" data-testid="road-owner-reason">{owner.handledBy.reason}</p>}
+          {owner.handledBy?.address && <p className="mt-1 text-xs leading-snug text-slate-400">{owner.handledBy.address}</p>}
+          {owner.handledBy && !owner.handledBy.connected && <p className="mt-2 rounded-xl bg-[#FF6B2C]/15 px-3 py-2 text-xs font-semibold text-[#FF6B2C]" data-testid="road-owner-not-connected">Instansi ini belum terhubung. Laporan Anda tetap terbuka untuk umum, dan draf aduan ke SP4N-LAPOR! sudah disiapkan.</p>}
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <span className="rounded-full bg-white/[0.08] px-2.5 py-1 text-[11px] font-bold text-slate-200">{ROAD_STATUS_WORD[owner.status] ?? owner.status}</span>
             <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${CONFIDENCE_TONE[owner.confidence]}`} data-testid="road-owner-confidence">{CONFIDENCE_WORD[owner.confidence]}</span>

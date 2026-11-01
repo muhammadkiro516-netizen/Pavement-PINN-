@@ -1,4 +1,5 @@
 import { sweepEscalations } from '../../server/v5/escalationJob';
+import { V6_DUTIES } from '../../src/domain/v6/roles';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import type { Server } from 'node:http';
@@ -9,7 +10,7 @@ import test, { after, before } from 'node:test';
 import express from 'express';
 import { EventChain, GENESIS_HASH, assertIntegerPayload, canonicalize, hashEventBody, sha256Hex } from '../../server/v5/chain';
 import { registerV5Routes } from '../../server/v5/routes';
-import { PILOT_ROSTER, StaffAccounts } from '../../server/v5/staffAccounts';
+import { TEST_PIN, seedWorkspace } from '../helpers/v6Access';
 import { V5Store } from '../../server/v5/store';
 import { SYSTEM_ACTOR } from '../../src/domain/v5/stateMachine';
 import { ACTORS, ROWS, caseAt, ev } from '../helpers/v5Fixtures';
@@ -153,22 +154,20 @@ let httpStore: V5Store;
 const call = async (url: string, opts: { token?: string; body?: unknown } = {}) => {
   const res = await fetch(`${base}${url}`, {
     method: opts.body === undefined ? 'GET' : 'POST',
-    headers: { 'content-type': 'application/json', ...(opts.token ? { 'x-v5-session': opts.token } : {}) },
+    headers: { 'content-type': 'application/json', ...(opts.token ? { 'x-v5-session': opts.token, 'x-v6-pin': TEST_PIN } : {}) },
     ...(opts.body === undefined ? {} : { body: JSON.stringify(opts.body) })
   });
   return { status: res.status, body: (await res.json()) as any };
 };
-const PASSWORD = 'test-password-1';
-const emailOf = (accountId: string) => PILOT_ROSTER.find((a) => a.accountId === accountId)!.email;
-const login = async (accountId: string) => (await call('/api/v5/session/login', { body: { email: emailOf(accountId), password: PASSWORD } })).body.data.token as string;
+let codes: Record<string, string> = {};
+const login = async (accountId: string) => (await call('/api/v6/session', { body: { code: codes[accountId], pin: TEST_PIN } })).body.data.token as string;
 
 before(async () => {
   const app = express();
   app.use(express.json());
   const router = express.Router();
   const dataDir = tmp();
-  const staff = new StaffAccounts(path.join(dataDir, 'v5'));
-  for (const account of PILOT_ROSTER) staff.upsert(account, PASSWORD);
+  codes = seedWorkspace(dataDir);
   httpStore = registerV5Routes(router, { dataDir }).store;
   app.use(router);
   await new Promise<void>((resolve) => { server = app.listen(0, '127.0.0.1', () => resolve()); });
@@ -179,20 +178,20 @@ after(() => { server.close(); });
 
 function seededCase() {
   const c = caseAt('PLAN_PROPOSED', { plan: { ...caseAt('PLAN_PROPOSED').plan!, proposerPersonId: 'P-INSPECT' }, inspection: { ...caseAt('PLAN_PROPOSED').inspection!, inspectorPersonId: 'P-INSPECT' } });
-  const seeded = httpStore.apply({ ...c, version: 0 }, { action: 'ADD_RESPONSE', text: 'Seed note for this test.' }, ACTORS.coordinator, '2026-11-01T03:00:00.000Z', 0);
+  const seeded = httpStore.apply({ ...c, version: 0, agencyId: 'AGENCY-TEST' }, { action: 'ADD_RESPONSE', text: 'Seed note for this test.' }, ACTORS.coordinator, '2026-11-01T03:00:00.000Z', 0);
   assert.ok(!('ok' in seeded));
   return (seeded as { case: typeof c }).case;
 }
 
-test('API: staff sign in with a password; no account can be chosen without one', async () => {
+test('API: staff sign in with a code and PIN; no account can be chosen without one', async () => {
   const token = await login('ACC-AUDIT');
   assert.equal((await call('/api/v5/me', { token })).body.data.role, 'AUDITOR');
-  assert.equal((await call('/api/v5/session/login', { body: { email: emailOf('ACC-AUDIT'), password: 'wrong' } })).status, 401);
-  assert.equal((await call('/api/v5/session/login', { body: { email: 'nobody@example.org', password: PASSWORD } })).status, 401);
+  assert.equal((await call('/api/v6/session', { body: { code: codes['ACC-AUDIT'], pin: '000001' } })).status, 401);
+  assert.equal((await call('/api/v6/session', { body: { code: 'AAA-AAA-AAAA', pin: TEST_PIN } })).status, 401);
   // Routes that no longer exist: these two used to give a session or a staff list without a password.
   assert.equal((await fetch(`${base}/api/v5/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"accountId":"ACC-AUDIT"}' })).status, 404);
   assert.equal((await fetch(`${base}/api/v5/demo/accounts`)).status, 404);
-  assert.equal(new Set(PILOT_ROSTER.map((a) => a.role)).size, 8, 'eight staff roles; the citizen has no account');
+  assert.equal(new Set(Object.values(V6_DUTIES).flat()).size, 8, 'the eight v5 staff duties live in the v6 roles; the citizen has no account');
   const device = await call('/api/v5/session/device', { body: {} });
   assert.match(device.body.data.pseudonym, /^Warga-/);
   assert.equal((await call('/api/v5/me', { token: device.body.data.token })).body.data.role, 'CITIZEN');

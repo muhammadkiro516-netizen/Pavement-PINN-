@@ -184,19 +184,19 @@ function applyPayload(c: V5Case, cmd: V5Command, ctx: CommandContext): { patch: 
       if (ctx.mergeTargetOk && !ctx.mergeTargetOk(cmd.intoCaseId)) return fail('VALIDATION', 'The target must be an open case on the same road or within 25 m.');
       return { patch: { mergedIntoCaseId: cmd.intoCaseId }, payload: { into_case_id: cmd.intoCaseId } };
     case 'TRANSFER_AUTHORITY': {
-      const target = cmd.target as { authorityId: string; authorityName: string; level: string } | undefined;
+      const target = cmd.target as { authorityId: string; authorityName: string; level: string; agencyId?: string } | undefined;
       if (!target?.authorityId || !target.authorityName || !target.level) return fail('VALIDATION', 'Choose the agency to transfer to.');
       const decree = cmd.decreeRef as Record<string, string>;
       const decreeText = decree.decreeId ?? `${decree.number} (${decree.date})`;
       const crossLevel = c.routing ? c.routing.authorityLevel !== target.level : true;
       if (crossLevel) {
         return {
-          patch: { transferPending: { toAuthorityId: target.authorityId, toAuthorityName: target.authorityName, toLevel: target.level, decreeRef: decreeText, requestedByPersonId: actor.personId! } },
+          patch: { transferPending: { toAuthorityId: target.authorityId, toAuthorityName: target.authorityName, toLevel: target.level, decreeRef: decreeText, requestedByPersonId: actor.personId!, toAgencyId: target.agencyId ?? null } },
           payload: { to_authority_id: target.authorityId, decree_ref: decreeText, needs_confirmation: true }
         };
       }
       return {
-        patch: { authorityId: target.authorityId, routing: { ...c.routing!, authorityId: target.authorityId, authorityName: target.authorityName, authorityLevel: target.level, basis: decreeText, confidence: 'HIGH', note: null } },
+        patch: { authorityId: target.authorityId, ...(target.agencyId ? { agencyId: target.agencyId } : {}), routing: { ...c.routing!, authorityId: target.authorityId, authorityName: target.authorityName, authorityLevel: target.level, basis: decreeText, confidence: 'HIGH', note: null } },
         to: 'TRIAGE',
         payload: { to_authority_id: target.authorityId, decree_ref: decreeText, needs_confirmation: false }
       };
@@ -206,7 +206,7 @@ function applyPayload(c: V5Case, cmd: V5Command, ctx: CommandContext): { patch: 
       if (!t) return fail('INVALID_TRANSITION', 'No transfer is waiting for confirmation.');
       if (actor.scope !== '*' && !actor.scope.includes(t.toAuthorityId)) return fail('FORBIDDEN', 'Only the target agency can confirm this transfer.', 'SOD-7');
       return {
-        patch: { authorityId: t.toAuthorityId, transferPending: null, routing: { ...c.routing!, authorityId: t.toAuthorityId, authorityName: t.toAuthorityName, authorityLevel: t.toLevel, basis: t.decreeRef, confidence: 'HIGH', note: null } },
+        patch: { authorityId: t.toAuthorityId, ...(t.toAgencyId ? { agencyId: t.toAgencyId } : {}), transferPending: null, routing: { ...c.routing!, authorityId: t.toAuthorityId, authorityName: t.toAuthorityName, authorityLevel: t.toLevel, basis: t.decreeRef, confidence: 'HIGH', note: null } },
         payload: { to_authority_id: t.toAuthorityId, decree_ref: t.decreeRef }
       };
     }
@@ -438,8 +438,25 @@ function assignmentError(c: V5Case, cmd: V5Command, actor: V5Actor): V5Failure |
 }
 
 function inScope(c: V5Case, actor: V5Actor): boolean {
+  // v6: a workspace holds exactly the cases routed to it.
+  if (actor.agencyId) return c.agencyId === actor.agencyId;
   if (actor.scope === '*' || c.authorityId === null) return true;
   return actor.scope.includes(c.authorityId);
+}
+
+/** Whether this person may open the case at all: their agency's, and a guest only their own. */
+export function caseVisibleTo(c: V5Case, actor: V5Actor): boolean {
+  if (actor.onlyCaseId !== undefined && actor.onlyCaseId !== null) return c.id === actor.onlyCaseId;
+  // The agency a transfer is waiting on has to be able to read it before it says yes.
+  if (actor.agencyId && c.transferPending?.toAgencyId === actor.agencyId) return true;
+  return inScope(c, actor);
+}
+
+/** v6: the duty this action needs, so the log and the rules see the hat actually worn. */
+export function actorForAction(actor: V5Actor, action: string): V5Actor {
+  if (!actor.duties) return actor;
+  const role = V5_TRANSITIONS[action]?.roles.find((r) => actor.duties!.includes(r as V5Role));
+  return role ? { ...actor, role: role as V5Role } : actor;
 }
 
 export function applyCommand(c: V5Case, cmd: V5Command, ctx: CommandContext): V5Result {
@@ -447,7 +464,8 @@ export function applyCommand(c: V5Case, cmd: V5Command, ctx: CommandContext): V5
   if (!rule) return fail('INVALID_TRANSITION', 'Unknown action.');
   if (ctx.expectedVersion !== c.version) return fail('VERSION_CONFLICT', 'This case changed. Reload and try again.');
 
-  const { actor } = ctx;
+  const actor = actorForAction(ctx.actor, cmd.action);
+  if (actor.onlyCaseId && actor.onlyCaseId !== c.id) return fail('FORBIDDEN', 'This case belongs to another agency.');
   const sodEarly = actor.role === 'AUDITOR' || (actor.role === 'ADMIN' && cmd.action !== 'CONFIRM_TRANSFER');
   if (sodEarly) return fail('FORBIDDEN', 'Auditors and admins cannot change a case.', 'SOD-8');
   if (!rule.roles.includes(actor.role as ActorRole)) return fail('FORBIDDEN', 'Your role cannot do this.');
@@ -473,7 +491,7 @@ export function applyCommand(c: V5Case, cmd: V5Command, ctx: CommandContext): V5
     if (bad) return bad;
   }
 
-  const applied = applyPayload(c, cmd, ctx);
+  const applied = applyPayload(c, cmd, { ...ctx, actor });
   if ('ok' in applied) return applied;
 
   const nextState: V5State | null = applied.to ?? (rule.to === 'SAME' ? c.state : rule.to);

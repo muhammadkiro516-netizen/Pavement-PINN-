@@ -109,8 +109,16 @@ export interface V5Actor {
   role: V5Role | 'SYSTEM';
   subType?: string | null;
   orgId?: string | null;
-  /** Authority ids this actor may act on. '*' only for demo accounts and SYSTEM. */
+  /** Authority ids this actor may act on. '*' only for SYSTEM. */
   scope: '*' | readonly string[];
+  /** v6: the v5 duties this person's role merges; the duty is picked per action (actorForAction). */
+  duties?: readonly V5Role[];
+  v6Role?: 'OM' | 'FE' | 'AUDITOR' | 'CONTRACTOR';
+  agencyId?: string;
+  /** v6: the only person with this role in the agency. Two SoD rules become a logged exception (§2.3). */
+  soleInRole?: boolean;
+  /** v6: a contractor's guest code opens this one case only. */
+  onlyCaseId?: string | null;
   /** Every role this person holds in the authority; two or more is an overlap to log (SOD-6). */
   heldRoles?: readonly V5Role[];
   /** Provider organisations this person declared a link to (SOD-3). */
@@ -283,7 +291,13 @@ export interface V5Case {
   // Overlays, not states (02 §3.1).
   pending: { code: string; until: string; note: string; consecutive: number } | null;
   hazard: boolean;
-  transferPending: { toAuthorityId: string; toAuthorityName: string; toLevel: string; decreeRef: string; requestedByPersonId: string } | null;
+  transferPending: { toAuthorityId: string; toAuthorityName: string; toLevel: string; decreeRef: string; requestedByPersonId: string; toAgencyId?: string | null } | null;
+  /** v6: the workspace whose inbox holds this case. Null while the responsible agency is not connected. */
+  agencyId: string | null;
+  /** v6: what the citizen's "Handled by" card says. */
+  handledBy: { connected: boolean; name: string; fieldOffice: string | null; address: string | null; phone: string | null; reason: string } | null;
+  /** v6: set when an OM confirms a low-confidence owner, citing the road decree. */
+  ownershipConfirmed: { at: string; decreeRef: string } | null;
   underTechnicalReview: boolean;
   mergedIntoCaseId: string | null;
   warrantyFlag: boolean;
@@ -324,6 +338,9 @@ export function blankCase(fields: Pick<V5Case, 'id' | 'publicCode' | 'createdAt'
     pending: null,
     hazard: false,
     transferPending: null,
+    agencyId: null,
+    handledBy: null,
+    ownershipConfirmed: null,
     underTechnicalReview: false,
     mergedIntoCaseId: null,
     warrantyFlag: false,

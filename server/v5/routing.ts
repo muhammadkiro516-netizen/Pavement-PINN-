@@ -166,6 +166,12 @@ export class RoadRegistry {
     return { region: top?.region ?? sub?.region ?? null, kota: top?.name ?? null, kecamatan: sub?.name ?? null };
   }
 
+  /** Address and phone only as published for this very office; nothing is borrowed from its parent. */
+  officeContact(id: string): { address: string | null; phone: string | null; channel: string | null } {
+    const row = this.offices.get(id);
+    return { address: row?.address || null, phone: row?.phone || null, channel: row?.complaint_channel || null };
+  }
+
   private office(id: string): { name: string; status: 'VERIFIED' | 'TODO_VERIFY' } {
     const row = this.offices.get(id);
     return { name: row?.name || id, status: row?.status === 'VERIFIED' ? 'VERIFIED' : 'TODO_VERIFY' };

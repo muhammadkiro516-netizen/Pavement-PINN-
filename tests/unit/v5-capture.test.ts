@@ -9,7 +9,7 @@ import express from 'express';
 import type { V5Store } from '../../server/v5/store';
 import { CaptureService, NONCE_TTL_MS, analyseTrace, isCaptureFailure } from '../../server/v5/capture';
 import { registerV5Routes } from '../../server/v5/routes';
-import { PILOT_ROSTER, StaffAccounts } from '../../server/v5/staffAccounts';
+import { TEST_PIN, seedWorkspace } from '../helpers/v6Access';
 import { inclusionProof, merkleRoot, verifyInclusion } from '../../server/v5/merkle';
 import { bannedWordsIn } from '../../src/domain/v5/wording';
 import { normalizePdf, renderTemplate, reportProblems } from '../../server/v5/documents';
@@ -167,12 +167,12 @@ let base = '';
 let apiStore: V5Store;
 
 const call = async (url: string, opts: { token?: string; body?: unknown } = {}) => {
-  const res = await fetch(`${base}${url}`, { method: opts.body === undefined ? 'GET' : 'POST', headers: { 'content-type': 'application/json', ...(opts.token ? { 'x-v5-session': opts.token } : {}) }, ...(opts.body === undefined ? {} : { body: JSON.stringify(opts.body) }) });
+  const res = await fetch(`${base}${url}`, { method: opts.body === undefined ? 'GET' : 'POST', headers: { 'content-type': 'application/json', ...(opts.token ? { 'x-v5-session': opts.token, 'x-v6-pin': TEST_PIN } : {}) }, ...(opts.body === undefined ? {} : { body: JSON.stringify(opts.body) }) });
   const type = res.headers.get('content-type') ?? '';
   return { status: res.status, body: (type.includes('json') ? await res.json() : await res.text()) as any };
 };
-const PASSWORD = 'test-password-1';
-const login = async (accountId: string) => (await call('/api/v5/session/login', { body: { email: PILOT_ROSTER.find((a) => a.accountId === accountId)!.email, password: PASSWORD } })).body.data.token as string;
+let codes: Record<string, string> = {};
+const login = async (accountId: string) => (await call('/api/v6/session', { body: { code: codes[accountId], pin: TEST_PIN } })).body.data.token as string;
 const AT = { lat: -6.2006, lon: 106.8574, accuracyM: 8, speedMps: 0 };
 
 async function shot(token: string, _name: string, kind: string, stage?: string) {
@@ -187,8 +187,7 @@ before(async () => {
   app.use(express.json({ limit: '7mb' }));
   const router = express.Router();
   const dataDir = tmp();
-  const staff = new StaffAccounts(path.join(dataDir, 'v5'));
-  for (const account of PILOT_ROSTER) staff.upsert(account, PASSWORD);
+  codes = seedWorkspace(dataDir);
   apiStore = registerV5Routes(router, { dataDir, lenientCapture: true }).store;
   app.use(router);
   await new Promise<void>((resolve) => { server = app.listen(0, '127.0.0.1', () => resolve()); });
@@ -241,11 +240,12 @@ test('API walkthrough: report to accepted repair, every number from a real path'
   const approver = await login('ACC-APPROVE');
   ok(await act(approver, 'APPROVE_PLAN', { reason: 'Fair cost and size look right.', budgetSource: 'APBD' }));
 
-  const sameCrew = await act(coord, 'ISSUE_WORK_ORDER', { type: 'SWAKELOLA', crewAccountId: 'ACC-CREW', supervisorAccountId: 'ACC-CREW', targetDate: '2027-01-01T00:00:00.000Z' });
+  const sameCrew = await act(coord, 'ISSUE_WORK_ORDER', { type: 'SWAKELOLA', executorName: 'Regu Uji', supervisorAccountId: 'ACC-CREW', targetDate: '2027-01-01T00:00:00.000Z' });
   assert.equal(sameCrew.status, 400, 'the crew cannot be chosen as supervisor');
-  ok(await act(coord, 'ISSUE_WORK_ORDER', { type: 'SWAKELOLA', crewAccountId: 'ACC-CREW', supervisorAccountId: 'ACC-SUPERVISE', targetDate: '2027-01-01T00:00:00.000Z' }));
+  const issued = await act(coord, 'ISSUE_WORK_ORDER', { type: 'SWAKELOLA', executorName: 'Regu Uji', supervisorAccountId: 'ACC-SUPERVISE', targetDate: '2027-01-01T00:00:00.000Z' });
+  ok(issued);
 
-  const crew = await login('ACC-CREW');
+  const crew = (await call('/api/v6/session', { body: { code: issued.body.data.guestBadge.code } })).body.data.token as string;
   const stage = async (s: string, values?: Record<string, unknown>) => ok(await call(`/api/v5/cases/${caseId}/stage-evidence`, { token: crew, body: { evidenceId: await shot(crew, `stage-${s.toLowerCase().replace(/_/g, '-')}`, 'WORK_STAGE', s), values } }));
   await stage('BEFORE');
   assert.equal((await act(crew, 'START_WORK', { useSavedStages: true })).status, 400, 'cut edges are still missing');

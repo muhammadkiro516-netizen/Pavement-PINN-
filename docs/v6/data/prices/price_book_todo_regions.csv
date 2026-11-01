@@ -1,0 +1,5 @@
+region_code,region_name,document_to_load,where_to_get_it,status
+31,Provinsi DKI Jakarta,HSPK / e-HSPK DKI 2026 (Keputusan/Peraturan Gubernur),jdih.jakarta.go.id; Bappeda/BPKD DKI e-HSPK portal,TODO_VERIFY
+18,Provinsi Lampung,Standar Harga Satuan TA 2026 (Pergub Lampung),jdih.lampungprov.go.id,TODO_VERIFY
+1871,Kota Bandar Lampung,Standar Harga Satuan TA 2026 (Perwali),jdih.bandarlampungkota.go.id,TODO_VERIFY
+3603,Kabupaten Tangerang,Perbup 68/2025 (amendment of 32/2025),peraturan.bpk.go.id,TODO_VERIFY

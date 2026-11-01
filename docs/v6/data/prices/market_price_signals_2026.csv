@@ -1,0 +1,5 @@
+date,region,item,unit,price_idr,reference_price_idr,source,source_url,status,notes
+2026-10-26,"Kabupaten Sumbawa, NTB",Semen (merek/ukuran tidak disebut),sak,100000,83000,"SuaraNTB, 27 Oct 2026 (Kadis KUKMindag Sumbawa)",https://suarantb.com/2026/10/27/pasokan-terbatas-harga-semen-rp-100-ribu-per-sak/,SOURCE,"Supply shortage; market price, not a government standard."
+2026-04,Cilacap supply point (Pertamina),Aspal curah (bulk bitumen),kg,11565,9400,"TimesIndonesia, 15 Apr 2026",(see docs/v5/research/06_biaya_dan_upah.md),SOURCE,Pertamina list price change Mar→Apr 2026.
+2026-04,Gresik supply point (Pertamina),Aspal drum,kg,13600,11600,"TimesIndonesia, 15 Apr 2026",(see docs/v5/research/06_biaya_dan_upah.md),SOURCE,
+2026-06,Indonesia,IHPB semen (wholesale price index),index,107.01,,"BPS via Databoks, 24 Aug 2026",https://databoks.katadata.co.id/datapublish/2026/08/24/indeks-harga-semen-bahan-bangunan,SOURCE,Use as national trend multiplier only.

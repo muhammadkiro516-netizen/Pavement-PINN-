@@ -6,7 +6,7 @@
 import { randomBytes, randomUUID, sign } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { applyCommand, isV5Failure, type CommandContext, type V5Command, type V5Failure } from '../../src/domain/v5/stateMachine';
+import { actorForAction, applyCommand, isV5Failure, type CommandContext, type V5Command, type V5Failure } from '../../src/domain/v5/stateMachine';
 import { blankCase, type V5Actor, type V5Case } from '../../src/domain/v5/model';
 import { EventChain, KEY_ID, sha256Hex, type ChainEvent, type ChainId, type VerifyReport } from './chain';
 import { checkpointText, merkleRoot } from './merkle';
@@ -107,10 +107,25 @@ export class V5Store {
   apply(c: V5Case, cmd: V5Command, actor: V5Actor, now: string, expectedVersion: number, extra: Partial<CommandContext> = {}): TransitionOutcome | V5Failure {
     const result = applyCommand(c, cmd, { actor, now, expectedVersion, ...extra });
     if (isV5Failure(result)) return result;
-    const event = this.chainEvent(result.next, result.event.type, result.event.payload, actor, now, { evidence_sha256: result.event.evidenceSha256, prev_state: result.event.prevState, next_state: result.event.nextState }, result.event.overlapBasis);
+    const event = this.chainEvent(result.next, result.event.type, result.event.payload, actorForAction(actor, cmd.action), now, { evidence_sha256: result.event.evidenceSha256, prev_state: result.event.prevState, next_state: result.event.nextState }, result.event.overlapBasis);
     this.snapshot.cases[result.next.id] = result.next;
     this.save();
     return { case: result.next, event };
+  }
+
+  /** A change to something other than a case, such as who may enter a workspace. Chained the same way. */
+  recordEntity(type: string, entity: { type: string; id: string }, payload: Record<string, unknown>, actor: V5Actor, now: string): ChainEvent {
+    const event = this.chain.append('prod', {
+      type,
+      entity,
+      actor: { ref: this.chain.actorRef(actor.kind, actor.personId ?? actor.accountId), role: actor.role, kind: actor.kind, overlap_basis: null },
+      server_received_at: now,
+      payload,
+      refs: { evidence_sha256: [], corrects_event_hash: null, prev_state: null, next_state: null }
+    });
+    this.snapshot.heads.prod = { seq: event.seq, hash: event.event_hash };
+    this.save();
+    return event;
   }
 
   /** An analysis or note that does not change the state: chained, and no version bump. */

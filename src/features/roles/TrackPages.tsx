@@ -5,7 +5,7 @@ import { useV5 } from './context';
 import { Capture, apiUrl } from './Capture';
 import { Card, Chip, Confidence, ErrorNote, Ladder, Timeline, dateOnly, useAction, useLoad, type LadderView, type TimelineItem } from './ui';
 import { V5_STATE_LABELS, type V5State } from '../../domain/v5/model';
-import { ROAD_STATUS_WORD } from '../road-owner/RoadOwnerCard';
+import { ROAD_STATUS_WORD, type HandledBy } from '../road-owner/RoadOwnerCard';
 
 export interface PublicCase {
   publicCode: string;
@@ -27,6 +27,7 @@ export interface PublicCase {
   confirmations: { stillFixed: number; brokeAgain: number };
   ladder: LadderView;
   complaintDraftAvailable: boolean;
+  handledBy: HandledBy | null;
   timeline: TimelineItem[];
 }
 
@@ -91,10 +92,20 @@ export function TrackPage({ code }: { code: string }) {
         </Card>
       )}
 
+      {data.handledBy && (
+        <Card title="Ditangani oleh" testId="v6-handled-by">
+          <p><strong data-testid="v6-handled-name">{data.handledBy.name}</strong></p>
+          {data.handledBy.fieldOffice && <p className="v5-muted">{data.handledBy.fieldOffice}</p>}
+          <p className="v5-muted">{data.handledBy.reason}</p>
+          {data.handledBy.address && <p className="v5-muted">{data.handledBy.address}</p>}
+          {!data.handledBy.connected && <p className="v5-warn" data-testid="v6-not-connected">Instansi ini belum terhubung ke aplikasi. Laporan tetap terbuka untuk umum.</p>}
+        </Card>
+      )}
+
       <Card title="Lama menunggu"><Ladder ladder={data.ladder} /></Card>
 
       {data.complaintDraftAvailable && (
-        <Card title="Belum ditangani lebih dari 14 hari" testId="v5-complaint">
+        <Card title={data.handledBy && !data.handledBy.connected ? 'Kirim aduan ke SP4N-LAPOR!' : 'Belum ditangani lebih dari 14 hari'} testId="v5-complaint">
           <p>Anda bisa mengunduh draf pengaduan untuk SP4N-LAPOR! atau Ombudsman. Tidak ada yang terkirim otomatis.</p>
           <a className="v5-btn" href={apiUrl(`/api/v5/public/track/${encodeURIComponent(code)}/complaint-draft`)} data-testid="v5-complaint-link">Unduh draf</a>
         </Card>

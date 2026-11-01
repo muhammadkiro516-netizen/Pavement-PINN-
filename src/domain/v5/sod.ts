@@ -36,6 +36,7 @@ function overlapBasisFor(actor: V5Actor): string | null {
 export function checkSod(action: string, payload: Record<string, any>, c: V5Case, actor: V5Actor): SodResult {
   const person = actor.personId;
   const wo = c.workOrder;
+  let soleException: string | null = null;
 
   // SOD-8: auditors and admins never operate. An ADMIN may only confirm a cross-level transfer.
   if (NON_OPERATING.includes(actor.role) && !(actor.role === 'ADMIN' && action === 'CONFIRM_TRANSFER')) {
@@ -68,8 +69,11 @@ export function checkSod(action: string, payload: Record<string, any>, c: V5Case
       break;
     case 'APPROVE_PLAN':
       // SOD-2: the person who recommended a plan cannot approve it.
-      if (person && person === c.plan?.proposerPersonId) return deny('SOD-2', 'You proposed this plan, so you cannot approve it.');
-      if (person && person === c.inspection?.inspectorPersonId) return deny('SOD-2', 'You inspected this case, so you cannot approve its plan.');
+      if (person && (person === c.plan?.proposerPersonId || person === c.inspection?.inspectorPersonId)) {
+        // v6 §2.3: a small agency with one OM may go on, as an exception the auditor sees.
+        if (!actor.soleInRole) return deny('SOD-2', person === c.plan?.proposerPersonId ? 'You proposed this plan, so you cannot approve it.' : 'You inspected this case, so you cannot approve its plan.');
+        soleException = 'Only one Operations Manager in this agency';
+      }
       break;
     case 'ISSUE_WORK_ORDER': {
       // SOD-1: the crew and the supervisor must be different people (and firms, on contracts).
@@ -78,8 +82,11 @@ export function checkSod(action: string, payload: Record<string, any>, c: V5Case
         return deny('SOD-1', 'On a contract, the supervisor cannot come from the crew\'s organisation.');
       }
       const decided = [c.plan?.proposerPersonId, c.plan?.approverPersonId];
-      if (decided.includes(payload.crewPersonId) || decided.includes(payload.supervisorPersonId)) {
-        return deny('SOD-1', 'The crew and the supervisor cannot be the person who proposed or approved the plan.');
+      if (decided.includes(payload.crewPersonId)) return deny('SOD-1', 'The crew and the supervisor cannot be the person who proposed or approved the plan.');
+      if (decided.includes(payload.supervisorPersonId)) {
+        // v6 §2.3: with one Field Engineer the verifier is the proposer, recorded as an exception.
+        if (payload.soleFieldEngineer !== true) return deny('SOD-1', 'The crew and the supervisor cannot be the person who proposed or approved the plan.');
+        soleException = 'Only one Field Engineer in this agency';
       }
       break;
     }
@@ -89,7 +96,10 @@ export function checkSod(action: string, payload: Record<string, any>, c: V5Case
       if (wo?.type === 'CONTRACT' && actor.orgId && actor.orgId === wo.crewOrgId) {
         return deny('SOD-1', 'You work for the crew\'s organisation, so you cannot check this repair.');
       }
-      if (person && person === c.plan?.proposerPersonId) return deny('SOD-1', 'You proposed this plan, so you cannot check its repair.');
+      if (person && person === c.plan?.proposerPersonId) {
+        if (!actor.soleInRole) return deny('SOD-1', 'You proposed this plan, so you cannot check its repair.');
+        soleException = 'Only one Field Engineer in this agency';
+      }
       break;
     case 'ACCEPT_WORK':
       // SOD-5: acceptance needs an independent supervisor's verification first.
@@ -109,13 +119,13 @@ export function checkSod(action: string, payload: Record<string, any>, c: V5Case
       break;
     case 'SET_PENDING':
       // SOD-13: after three consecutive delay reasons, the Agency Head decides.
-      if ((c.pending?.consecutive ?? 0) >= MAX_COORDINATOR_PENDING && actor.role !== 'AGENCY_HEAD') {
+      if ((c.pending?.consecutive ?? 0) >= MAX_COORDINATOR_PENDING && actor.role !== 'AGENCY_HEAD' && !actor.duties?.includes('AGENCY_HEAD')) {
         return deny('SOD-13', 'Agency Head must approve this extension.');
       }
       break;
   }
 
-  return { ok: true, overlapBasis: overlapBasisFor(actor) };
+  return { ok: true, overlapBasis: soleException ?? overlapBasisFor(actor) };
 }
 
 export function hasDecree(ref: unknown): boolean {
