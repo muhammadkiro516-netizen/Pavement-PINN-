@@ -1,3 +1,13 @@
+# v5 progress (handoff; spec: docs/v5/, read 00_README then 01_CLAUDE_CODE_PROMPT)
+
+- Branch `v5` from `v4`. Demo path work order A to F is in the kickoff request; A is done.
+- Decision: v5 is additive. `src/domain/v5`, `server/v5` (`/api/v5`), `src/v5` (pages at `/v5/`). The v4 machine and tests stay, so no test was changed to fit.
+- Decision: with `DEMO_MODE=1` every record goes on the `demo` chain, because demo staff handle it. A live capture still has `capture_trust=LIVE_NONCE`; only sample photos carry the "not a live capture" stamp.
+- Decision: step 7 keeps the spec's two steps. Supervisor verifies, then Approver accepts, then "Repaired — under watch" (SOD-5).
+- A done: 9 roles, 34 transitions, SoD 1-13, hash-chained signed log, tamper tests, role switcher.
+- Host: `scripts/v5-live.ps1` (data in `.data/v5-demo`, port 3100); stop with `scripts/v5-stop.ps1`.
+- Next: B citizen capture, demo mode, routing, map.
+
 # PROGRESS — PAVEMENT-PINN v4 (rujuk SPEC.md per ID)
 
 Branch `v4` dari `lean-real` 3165218. Riwayat lama: `git show 3165218:PROGRESS.md`. Tidak di-commit: `docs/POST_STRUCTURE_AUDIT.md`, `docs/CLAUDE_PROJECT_STATUS_HANDOFF.md`.

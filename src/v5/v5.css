@@ -1,0 +1,21 @@
+:root {
+  --v5-ink: #0d1015;
+  --v5-muted: #55606e;
+  --v5-line: #d9dee5;
+  --v5-yellow: #ffc72c;
+  --v5-red: #b92c12;
+  --v5-green: #0b7a50;
+}
+body { margin: 0; background: #fff; color: var(--v5-ink); font-family: Barlow, system-ui, sans-serif; }
+.v5-page { max-width: 640px; margin: 0 auto; padding: 16px; }
+.v5-page h1 { margin: 16px 0 0; font-family: 'Barlow Condensed', system-ui, sans-serif; font-size: 2rem; }
+.v5-page h2 { margin: 24px 0 8px; font-family: 'Barlow Condensed', system-ui, sans-serif; font-size: 1.4rem; }
+.v5-lead { margin: 0; color: var(--v5-muted); }
+.v5-demo-banner { padding: 8px 12px; background: var(--v5-yellow); font-weight: 600; border-radius: 6px; }
+.v5-roles { display: grid; gap: 8px; }
+.v5-roles button { display: grid; gap: 2px; min-height: 44px; padding: 10px 12px; text-align: left; background: #fff; color: inherit; border: 1px solid var(--v5-line); border-radius: 8px; font: inherit; cursor: pointer; }
+.v5-roles button:hover { border-color: var(--v5-ink); }
+.v5-roles button:focus-visible { outline: 3px solid var(--v5-ink); outline-offset: 2px; }
+.v5-roles span { color: var(--v5-muted); font-size: 0.9rem; }
+.v5-ok { color: var(--v5-green); font-weight: 600; }
+.v5-bad { color: var(--v5-red); font-weight: 600; }
