@@ -17,7 +17,6 @@ New-Item -ItemType Directory -Force $data | Out-Null
 if ($Fresh) { Remove-Item -Recurse -Force "$data\v5" -ErrorAction SilentlyContinue }
 
 $env:VITE_BASE_PATH = "/"
-$env:VITE_V5_HOME = "1"
 npm run build
 if ($LASTEXITCODE -ne 0) { throw "build failed" }
 
@@ -29,6 +28,8 @@ $env:NODE_ENV = "production"
 $env:PORT = "$port"
 $env:DATA_DIR = $data
 $env:DEMO_MODE = "1"
+# Original login screen: bundled test accounts per role, until Prompt 3 brings real accounts.
+$env:DEMO_AUTH = "true"
 $env:INFERENCE_URL = "http://127.0.0.1:8100"
 if (-not $env:SESSION_SECRET) {
   $bytes = New-Object byte[] 32
@@ -58,5 +59,5 @@ for ($i = 0; $i -lt 40 -and -not $url; $i++) {
   }
 }
 if (-not $url) { throw "tunnel did not report a URL; see $log" }
-Write-Host "Local:  http://localhost:$port/v5/"
+Write-Host "Local:  http://localhost:$port/"
 Write-Host "Public: $url/"
