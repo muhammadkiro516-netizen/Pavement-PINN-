@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 /** SPEC M4: captions stay neutral in every tone; the share link page and its counters. */
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
@@ -34,6 +37,8 @@ const CASE = {
 } as unknown as ReportCase;
 
 before(async () => {
+  // Visit counts must not leak in from the shared data folder or from earlier days.
+  process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'share-test-'));
   const store = new MemoryCaseStore();
   const snap = await store.load();
   await store.commit({ ...snap, revision: snap.revision + 1, cases: [CASE] });

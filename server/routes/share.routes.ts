@@ -12,7 +12,8 @@ import type { ReportCase } from "../../src/domain/workflow/model";
 
 const DATA_DIR = process.env.DATA_DIR || ".data";
 const OG_DIR = path.join(DATA_DIR, "share-og");
-const VISITS_FILE = path.join(DATA_DIR, "share-visits.json");
+/** Read per load, not per module, so a test run can point it away from the real data folder. */
+const visitsFile = () => path.join(process.env.DATA_DIR || DATA_DIR, "share-visits.json");
 const CODE = /^[0-9A-F]{3}-[0-9A-F]{4}$/;
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
 
@@ -20,7 +21,7 @@ let visits: Record<string, string[]> | null = null;
 function loadVisits(): Record<string, string[]> {
   if (!visits) {
     try {
-      visits = JSON.parse(fs.readFileSync(VISITS_FILE, "utf8"));
+      visits = JSON.parse(fs.readFileSync(visitsFile(), "utf8"));
     } catch {
       visits = {};
     }
@@ -42,8 +43,8 @@ function recordVisit(code: string, req: Request): number {
   if (!list.includes(key)) {
     list.push(key);
     try {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-      fs.writeFileSync(VISITS_FILE, JSON.stringify(v));
+      fs.mkdirSync(path.dirname(visitsFile()), { recursive: true });
+      fs.writeFileSync(visitsFile(), JSON.stringify(v));
     } catch {
       /* counting is best effort */
     }
