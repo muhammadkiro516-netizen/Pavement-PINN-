@@ -38,11 +38,11 @@ code { font-size: 0.8rem; word-break: break-all; }
 :focus-visible { outline: 2px solid var(--pp-focus); outline-offset: 2px; }
 
 .v5-appbar { position: sticky; top: 0; z-index: 1000; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 16px; background: var(--pp-ink); color: #fff; }
-.v5-brand { background: none; border: 0; color: var(--pp-signal); font: 600 1.15rem 'Barlow Condensed', system-ui, sans-serif; letter-spacing: .02em; cursor: pointer; padding: 6px 0; min-height: 36px; }
+.v5-brand { white-space: nowrap; background: none; border: 0; color: var(--pp-signal); font: 600 1.15rem 'Barlow Condensed', system-ui, sans-serif; letter-spacing: .02em; cursor: pointer; padding: 6px 0; min-height: 36px; }
 .v5-rolechip { display: flex; align-items: center; gap: 6px; font-size: .78rem; min-width: 0; }
 .v5-rolechip > span:first-child { color: #c9ced6; white-space: nowrap; }
 .v5-rolechip-box { display: flex; align-items: center; gap: 2px; background: #fff; color: var(--pp-ink); border-radius: 8px; padding: 0 6px; min-width: 0; }
-.v5-rolechip select { appearance: none; border: 0; background: transparent; font: 600 .82rem Barlow, sans-serif; color: inherit; min-height: 34px; max-width: 170px; }
+.v5-rolechip select { appearance: none; border: 0; background: transparent; font: 600 .82rem Barlow, sans-serif; color: inherit; min-height: 34px; max-width: 150px; }
 .v5-demo-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 16px; background: var(--pp-signal); color: var(--pp-ink); font-weight: 600; font-size: .86rem; }
 .v5-demo-banner .v5-check { margin: 0 0 0 auto; font-weight: 600; }
 .v5-demo-doc { padding: 10px 14px; margin-bottom: 12px; border-radius: 10px; background: var(--pp-signal); font-weight: 600; }
@@ -208,7 +208,6 @@ code { font-size: 0.8rem; word-break: break-all; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
 }
-@media (max-width: 380px) {
+@media (max-width: 440px) {
   .v5-rolechip > span:first-child { display: none; }
-  .v5-rolechip select { max-width: 140px; }
 }

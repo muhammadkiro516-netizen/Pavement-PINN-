@@ -8,6 +8,7 @@ docs/v5/data/road_status_rules.json and carries their confidence (04_AUTHORITY_R
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import time
@@ -16,7 +17,8 @@ import urllib.request
 from datetime import date
 from pathlib import Path
 
-MIRRORS = ["https://overpass.private.coffee/api/interpreter", "https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
+MIRRORS = ["https://lz4.overpass-api.de/api/interpreter", "https://z.overpass-api.de/api/interpreter", "https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
+CACHE = Path(__file__).resolve().parent.parent / ".data" / "osm-tiles"
 OUT = Path(__file__).resolve().parent.parent / "config" / "v5" / "roads_snapshot.json"
 
 # Jakarta plus the Karawang corridor.
@@ -26,12 +28,23 @@ USER_AGENT = "PAVEMENT-PINN/1.0 (road damage reporting pilot)"
 
 
 def overpass(query: str) -> dict:
+    """Answers are cached by query, so a failed run resumes where it stopped."""
+    CACHE.mkdir(parents=True, exist_ok=True)
+    cached = CACHE / f"{hashlib.sha256(query.encode()).hexdigest()[:20]}.json"
+    if cached.exists():
+        return json.loads(cached.read_text(encoding="utf8"))
+    data = fetch(query)
+    cached.write_text(json.dumps(data), encoding="utf8")
+    return data
+
+
+def fetch(query: str) -> dict:
     last: Exception | None = None
-    for attempt in range(4):
+    for attempt in range(8):
         for url in MIRRORS:
             try:
                 req = urllib.request.Request(url, data=urllib.parse.urlencode({"data": query}).encode(), headers={"User-Agent": USER_AGENT})
-                with urllib.request.urlopen(req, timeout=90) as resp:
+                with urllib.request.urlopen(req, timeout=70) as resp:
                     return json.load(resp)
             except Exception as exc:  # noqa: BLE001 - try the next mirror
                 print(f"  {url} failed: {exc}", file=sys.stderr, flush=True)

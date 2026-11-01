@@ -108,8 +108,11 @@ export function Capture({ kind, stage, caseId, purpose, title, hint, sampleId, v
       .then((s) => {
         if (stopped) { s.getTracks().forEach((t) => t.stop()); return; }
         stream = s;
-        if (video.current) { video.current.srcObject = s; void video.current.play().catch(() => undefined); }
-        setCamera('on');
+        const el = video.current;
+        if (!el) return;
+        el.srcObject = s;
+        // The shutter opens only once real frames exist, or the photo would be empty.
+        el.onloadedmetadata = () => { void el.play().catch(() => undefined); if (!stopped) setCamera('on'); };
       })
       .catch(() => setCamera('denied'));
     return () => { stopped = true; stream?.getTracks().forEach((t) => t.stop()); };
@@ -128,7 +131,7 @@ export function Capture({ kind, stage, caseId, purpose, title, hint, sampleId, v
   });
 
   const shoot = async () => {
-    if (!video.current) return;
+    if (!video.current || video.current.videoWidth === 0) return;
     setFlash(true);
     setTimeout(() => setFlash(false), 120);
     if (navigator.vibrate) navigator.vibrate(10);
@@ -144,7 +147,7 @@ export function Capture({ kind, stage, caseId, purpose, title, hint, sampleId, v
       <h3>{title}</h3>
       <p>{hint}</p>
       <div className="v5-viewfinder">
-        {camera === 'on' && <video ref={video} playsInline muted aria-label="Live camera" />}
+        <video ref={video} playsInline muted autoPlay aria-label="Live camera" hidden={camera !== 'on'} />
         {camera === 'starting' && <p className="v5-viewfinder-note">Starting camera…</p>}
         {camera === 'denied' && <p className="v5-viewfinder-note">Camera is off. Allow the camera in your browser settings, then open this again.</p>}
         {flash && <div className="v5-flash" />}

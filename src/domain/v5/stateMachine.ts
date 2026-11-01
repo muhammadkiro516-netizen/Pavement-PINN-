@@ -377,7 +377,9 @@ function applyPayload(c: V5Case, cmd: V5Command, ctx: CommandContext): { patch: 
       const wo = c.workOrder;
       const maintenanceEnd = wo?.phoDate && wo.maintenanceMonths ? addMonthsIso(wo.phoDate, wo.maintenanceMonths) : null;
       const warrantyFlag = maintenanceEnd !== null && now <= maintenanceEnd;
-      return { patch: { closureReason: null, warrantyFlag: c.warrantyFlag || warrantyFlag }, payload: { warranty_flag: warrantyFlag } };
+      // Photos of the failed repair stay on record, but cannot tick the next repair's checklist.
+      const evidence = c.evidence.map((e) => (e.kind === 'WORK_STAGE' && e.stage && !e.stage.startsWith('PREV_') ? { ...e, stage: `PREV_${e.stage}` } : e));
+      return { patch: { closureReason: null, warrantyFlag: c.warrantyFlag || warrantyFlag, evidence }, payload: { warranty_flag: warrantyFlag } };
     }
     case 'CLOSE_MONITORING': {
       const preFho = c.followUps.find((f) => f.milestone === 'PRE_FHO');

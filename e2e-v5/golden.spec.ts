@@ -102,7 +102,7 @@ test('golden path, steps 1 to 9, on a phone viewport', async ({ page, request })
   await id(page, 'v5-reason').fill('Fair cost and measurements look right.');
   await id(page, 'v5-approve').click();
   await expect(id(page, 'v5-error')).toContainText('SOD-2');
-  await expect(id(page, 'v5-error')).toContainText('You inspected this case');
+  await expect(id(page, 'v5-error')).toContainText('You proposed this plan, so you cannot approve it.');
   await expect(id(page, 'v5-state-label')).toHaveText('Repair plan proposed');
 
   await asRole(page, 'ACC-APPROVE');
@@ -288,6 +288,7 @@ test('routing: low confidence asks the coordinator; a transfer must cite the dec
 
 test('nine roles are reachable, and auditor and admin have no case actions', async ({ page }) => {
   await page.goto('/v5/');
+  await expect(id(page, 'v5-role-switch').locator('option')).toHaveCount(11);
   const options = await id(page, 'v5-role-switch').locator('option').allTextContents();
   for (const name of ['Citizen', 'Field Inspector', 'Coordinator', 'Approving Officer', 'Repair Crew', 'Supervisor', 'Auditor', 'Agency Head', 'Region Admin']) {
     expect(options.join(' | ')).toContain(name);

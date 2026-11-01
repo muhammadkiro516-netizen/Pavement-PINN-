@@ -16,7 +16,8 @@
     "lint": "tsc --noEmit",
     "test": "tsx --test \"tests/**/*.test.ts\"",
     "test:py": "cd inference && .venv/bin/python -m pytest -q",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:v5": "playwright test -c playwright.v5.config.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

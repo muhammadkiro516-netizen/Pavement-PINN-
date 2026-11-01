@@ -18,7 +18,7 @@ export interface StaffCase extends V5Case {
 }
 
 const QUEUES: Partial<Record<V5Role, { title: string; states: V5State[]; empty: string }>> = {
-  COORDINATOR: { title: 'Priority queue', states: ['TRIAGE', 'ACCEPTED', 'INSPECTED', 'PLAN_APPROVED', 'WORK_VERIFIED', 'MONITORING', 'REOPENED'], empty: 'No cases waiting for you.' },
+  COORDINATOR: { title: 'Priority queue', states: ['TRIAGE', 'ACCEPTED', 'INSPECTED', 'INSPECTION_VERIFIED', 'PLAN_APPROVED', 'MONITORING', 'REOPENED'], empty: 'No cases waiting for you.' },
   FIELD_INSPECTOR: { title: 'My inspections', states: ['INSPECTION_ASSIGNED', 'INSPECTION_VERIFIED', 'MONITORING', 'REOPENED'], empty: 'No inspections assigned to you.' },
   APPROVER: { title: 'Waiting for approval', states: ['PLAN_PROPOSED', 'WORK_VERIFIED'], empty: 'No plans waiting for approval.' },
   REPAIR_CREW: { title: 'My work orders', states: ['WORK_ORDERED', 'IN_PROGRESS'], empty: 'No work orders for you.' },
@@ -100,7 +100,7 @@ function Num({ children, kind, title }: { children: ReactNode; kind: ChipKind; t
   return <span className="v5-num">{children} <Chip kind={kind} title={title} /></span>;
 }
 
-function CaseRecord({ c }: { c: StaffCase }) {
+function CaseRecord({ c }: { c: StaffCase & { now?: string } }) {
   const i = c.inspection;
   const cost = c.costRun as CostView | null;
   const shots = c.evidence;
@@ -151,7 +151,7 @@ function CaseRecord({ c }: { c: StaffCase }) {
           <p className="v5-caption">Attached to this case, never to a person. Not an audit finding.</p>
         </Card>
       )}
-      {c.followUps.length > 0 && <Card title="Follow-ups"><FollowUps items={c.followUps.map((f) => ({ ...f, due: !f.result && !!f.dueAt && f.dueAt <= new Date().toISOString(), overdue: false }))} /></Card>}
+      {c.followUps.length > 0 && <Card title="Follow-ups"><FollowUps items={c.followUps.map((f) => { const now = c.now ?? new Date().toISOString(); return { ...f, due: !f.result && !!f.dueAt && f.dueAt <= now, overdue: !f.result && !!f.dueAt && new Date(new Date(f.dueAt).getTime() + f.windowDays * 86_400_000).toISOString() < now }; })} /></Card>}
       {shots.length > 0 && (
         <Card title={`Evidence photos (${shots.length})`}>
           <div className="v5-strip">{shots.map((e) => <figure key={e.id}><img src={apiUrl(`/api/v5/evidence/${e.id}/image`)} alt={e.stage ?? e.kind} loading="lazy" /><figcaption>{e.stage ?? e.kind}</figcaption></figure>)}</div>
@@ -332,6 +332,7 @@ function CoordinatorPanel({ c, onChange }: PanelProps) {
           <Reason value={reason} onChange={setReason} />
           <button type="button" className="v5-btn v5-btn-primary" disabled={t.busy} onClick={acceptAndAssign} data-testid="v5-accept-assign">{state === 'TRIAGE' ? 'Accept and assign' : 'Assign inspector'}</button>
           {state !== 'REOPENED' && <button type="button" className="v5-link" onClick={() => setShowTransfer(!showTransfer)} data-testid="v5-transfer-toggle">Transfer to another agency</button>}
+          {state !== 'REOPENED' && <button type="button" className="v5-link" disabled={t.busy} onClick={() => t.send('CLOSE_INVALID', { reason, closureReason: 'INVALID' })} data-testid="v5-close-invalid">Close: not road damage</button>}
           {showTransfer && (
             <div className="v5-note">
               <label className="v5-field"><span>Agency</span><select value={target} onChange={(e) => setTarget(Number(e.target.value))} data-testid="v5-transfer-target">{TRANSFER_TARGETS.map((x, i) => <option key={x.authorityId} value={i}>{x.authorityName}</option>)}</select></label>
@@ -350,6 +351,13 @@ function CoordinatorPanel({ c, onChange }: PanelProps) {
             <button type="button" className="v5-btn v5-btn-primary" disabled={t.busy} onClick={() => t.send('VERIFY_INSPECTION', { reason, acknowledgeRulerMismatch: true })} data-testid="v5-verify-inspection">Inspection is complete</button>
             <button type="button" className="v5-btn" disabled={t.busy} onClick={() => t.send('REQUEST_REINSPECTION', { reason })}>Inspect again</button>
           </div>
+        </>
+      )}
+      {state === 'INSPECTION_VERIFIED' && (
+        <>
+          <p>The inspector proposes the plan next. If the site needs no repair, close it here.</p>
+          <Reason value={reason} onChange={setReason} />
+          <button type="button" className="v5-btn" disabled={t.busy} onClick={() => t.send('CLOSE_NO_ACTION', { reason })} data-testid="v5-close-no-action">Close: no repair needed</button>
         </>
       )}
       {state === 'PLAN_APPROVED' && (

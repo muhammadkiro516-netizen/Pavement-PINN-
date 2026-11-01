@@ -311,6 +311,15 @@ test('reopening inside the maintenance period raises the warranty flag', () => {
   if (!isV5Failure(after)) assert.equal(after.next.warrantyFlag, false);
 });
 
+test('a reopened case cannot reuse the failed repair\'s photos for the next checklist', () => {
+  const c = caseAt('MONITORING', { evidence: [ev('WORK_STAGE', 'BEFORE'), ev('WORK_STAGE', 'AFTER'), ev('OVERVIEW')] });
+  const r = run(c, 'REOPEN', ACTORS.coordinator, { reason: REASON });
+  assert.ok(!isV5Failure(r));
+  if (isV5Failure(r)) return;
+  assert.deepEqual(r.next.evidence.map((e) => e.stage), ['PREV_BEFORE', 'PREV_AFTER', null], 'kept on record, with their stage retired');
+  assert.equal(r.next.evidence.length, 3);
+});
+
 test('accusing words are refused in free text; neutral wording passes', () => {
   for (const word of ['korupsi', 'corruption', 'fraud', 'mark-up', 'markup', 'nakal']) assert.ok(bannedWordsIn(`ada ${word} di sini`).length > 0, word);
   assert.deepEqual(bannedWordsIn('Needs clarification; perlu klarifikasi oleh instansi'), []);

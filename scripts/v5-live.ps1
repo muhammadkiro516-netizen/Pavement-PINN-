@@ -1,6 +1,8 @@
+param([switch]$Fresh)
 # PAVEMENT-PINN v5 demo: build, run in DEMO MODE on its own data folder, open a public HTTPS link.
 #
-#   powershell -ExecutionPolicy Bypass -File scripts\v5-live.ps1
+#   powershell -ExecutionPolicy Bypass -File scripts\v5-live.ps1          keep demo data
+#   powershell -ExecutionPolicy Bypass -File scripts\v5-live.ps1 -Fresh   back to the two seeded cases
 #
 # DATA_DIR is .data\v5-demo so the tunnel never serves the pilot data in .data\.
 # The link is printed into .data\v5-demo\tunnel.log. Stop with scripts\v5-stop.ps1.
@@ -12,6 +14,7 @@ $data = "$root\.data\v5-demo"
 New-Item -ItemType Directory -Force $data | Out-Null
 
 & "$PSScriptRoot\v5-stop.ps1"
+if ($Fresh) { Remove-Item -Recurse -Force "$data\v5" -ErrorAction SilentlyContinue }
 
 $env:VITE_BASE_PATH = "/"
 $env:VITE_V5_HOME = "1"
