@@ -1,0 +1,12 @@
+{
+  "source": "docs/v5/07_AUDIT_INTEGRITY.md §13.1",
+  "wordings": {
+    "W-01": { "id": "Terdapat indikasi ketidaksesuaian antara kondisi lapangan dan data pekerjaan pada kasus ini; perlu klarifikasi dan pemeriksaan oleh instansi berwenang.", "en": "There is an indication of a mismatch between field conditions and works data on this case; clarification and checking by the competent authority is needed." },
+    "W-02": { "id": "Estimasi biaya wajar berbeda «x»% dari nilai yang dilaporkan (berdasarkan struktur AHSP dan asumsi yang tercantum; bukan temuan audit).", "en": "The fair-cost estimate differs by «x»% from the reported value (based on the AHSP structure and listed assumptions; not an audit finding)." },
+    "W-03": { "id": "Kerusakan dini teramati dalam masa pemeliharaan; berdasarkan data yang tersedia, ruas ini diduga masih dalam masa pemeliharaan. Mohon verifikasi oleh PPK.", "en": "Early damage observed; based on available data this segment may still be in its maintenance period. Verification by the PPK is requested." },
+    "W-05": { "id": "Bukti foto tahap «x» tidak tersedia dalam catatan; mohon konfirmasi pelaksanaan tahap tersebut.", "en": "Photo evidence for stage «x» is not in the record; please confirm this stage was carried out." },
+    "W-06": { "id": "Suhu campuran yang tercatat («x» °C) berada di bawah ambang yang dikonfigurasi (120 °C); mohon konfirmasi kesesuaian dengan spesifikasi.", "en": "The recorded mix temperature («x» °C) is below the configured threshold (120 °C); please confirm compliance with the specification." },
+    "W-07": { "id": "Volume yang dideklarasikan berbeda «x»% dari volume hasil pengukuran; perlu pemeriksaan bersama.", "en": "Declared quantity differs by «x»% from the measured quantity; a joint check is needed." },
+    "W-10": { "id": "Direkomendasikan uji inti (core drill) untuk memeriksa tebal lapisan dan kepadatan (persyaratan ≥ 98% sesuai spesifikasi yang berlaku).", "en": "A core-drill test is recommended to check layer thickness and density (requirement ≥ 98% under the applicable specification)." }
+  }
+}
