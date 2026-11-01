@@ -14,6 +14,7 @@ New-Item -ItemType Directory -Force $data | Out-Null
 & "$PSScriptRoot\v5-stop.ps1"
 
 $env:VITE_BASE_PATH = "/"
+$env:VITE_V5_HOME = "1"
 npm run build
 if ($LASTEXITCODE -ne 0) { throw "build failed" }
 
@@ -55,4 +56,4 @@ for ($i = 0; $i -lt 40 -and -not $url; $i++) {
 }
 if (-not $url) { throw "tunnel did not report a URL; see $log" }
 Write-Host "Local:  http://localhost:$port/v5/"
-Write-Host "Public: $url/v5/"
+Write-Host "Public: $url/"
