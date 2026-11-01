@@ -136,23 +136,47 @@ def stitch(members: list[dict]) -> list[list[list[float]]]:
     return rings
 
 
+def in_rings(rings: list[list[list[float]]], lat: float, lon: float) -> bool:
+    for ring in rings:
+        inside = False
+        j = len(ring) - 1
+        for i in range(len(ring)):
+            (ay, ax), (by, bx) = ring[i], ring[j]
+            if (ay > lat) != (by > lat) and lon < (bx - ax) * (lat - ay) / (by - ay) + ax:
+                inside = not inside
+            j = i
+        if inside:
+            return True
+    return False
+
+
 def admin() -> list[dict]:
-    out: list[dict] = []
-    # Level 5 = kota administrasi / kabupaten, level 6 = kecamatan.
-    for label, query_area, levels in (("jakarta", 'area["ISO3166-2"="ID-JK"][admin_level=4]->.a;', "5|6"), ("karawang", 'area["name"="Karawang"][admin_level=5]->.a;', "6")):
-        print(f"admin: {label}")
-        data = overpass(f'[out:json][timeout:85];{query_area}relation["boundary"="administrative"]["admin_level"~"^({levels})$"](area.a);out tags geom;')
+    """Level 5 = kota administrasi / kabupaten, level 6 = kecamatan, kept when inside a chosen level 5."""
+    wanted = {"jakarta": ["Jakarta Pusat", "Jakarta Utara", "Jakarta Barat", "Jakarta Selatan", "Jakarta Timur"], "karawang": ["Karawang"]}
+    top: list[dict] = []
+    for region, (s, w, n, e) in BOXES.items():
+        print(f"admin level 5: {region}", flush=True)
+        data = overpass(f'[out:json][timeout:85];relation["boundary"="administrative"]["admin_level"="5"]({s},{w},{n},{e});out geom;')
+        for el in data["elements"]:
+            name = el["tags"].get("name", "")
+            if any(k in name for k in wanted[region]):
+                rings = stitch(el.get("members", []))
+                if rings:
+                    top.append({"name": name, "level": 5, "region": region, "rings": rings})
+    out = list(top)
+    for region, (s, w, n, e) in BOXES.items():
+        print(f"admin level 6: {region}", flush=True)
+        data = overpass(f'[out:json][timeout:85];relation["boundary"="administrative"]["admin_level"="6"]({s},{w},{n},{e});out geom;')
+        parents = [t for t in top if t["region"] == region]
         for el in data["elements"]:
             rings = stitch(el.get("members", []))
-            if rings:
-                out.append({"name": el["tags"].get("name"), "level": int(el["tags"]["admin_level"]), "region": label, "rings": rings})
-        time.sleep(3)
-    print("admin: karawang outline")
-    data = overpass('[out:json][timeout:85];relation["boundary"="administrative"]["admin_level"="5"]["name"="Karawang"];out tags geom;')
-    for el in data["elements"]:
-        rings = stitch(el.get("members", []))
-        if rings:
-            out.append({"name": el["tags"].get("name"), "level": 5, "region": "karawang", "rings": rings})
+            if not rings:
+                continue
+            pts = max(rings, key=len)
+            lat = sum(x[0] for x in pts) / len(pts)
+            lon = sum(x[1] for x in pts) / len(pts)
+            if any(in_rings(t["rings"], lat, lon) for t in parents):
+                out.append({"name": el["tags"].get("name"), "level": 6, "region": region, "rings": rings})
     return out
 
 
