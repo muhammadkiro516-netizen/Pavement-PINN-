@@ -165,6 +165,15 @@ export function buildOptions(book: PriceBook, agencyId: string, regionCode: stri
   ];
 }
 
+/** Names only the options whose price really came from another region; a region with its own prices is not told it has none. */
+export function borrowedPriceNote(options: { label: string; price?: { how: string } | null }[]): string {
+  const priced = options.filter((o) => o.price);
+  const borrowed = priced.filter((o) => o.price!.how === 'OTHER_REGION_IKK');
+  if (!borrowed.length) return '';
+  if (borrowed.length === priced.length) return 'Harga resmi wilayah ini belum tersedia. Angka di bawah hanya perkiraan dari harga wilayah lain × IKK. ';
+  return `Harga ${borrowed.map((o) => o.label).join(', ')} hanya perkiraan dari harga wilayah lain × IKK. Harga lainnya dari dokumen wilayah ini. `;
+}
+
 const QA_RECOMMEND: Record<string, string> = { 'Core Drill (pengujian campuran aspal)': 'Tebal dan kepadatan lapisan aspal', Marshall: 'Kekuatan campuran aspal', 'Ekstraksi (Teknis)': 'Kadar aspal dalam campuran', 'Sand Cone': 'Kepadatan lapis pondasi' };
 
 interface Deps {
@@ -308,8 +317,7 @@ export function registerPriceRoutes(router: Router, deps: Deps): PriceBook {
     const options = compareOptions(buildOptions(book, actor.agencyId!, agency?.region ?? '', life), { areaM2, depthCm });
     const best = options.find((o) => o.best);
     const now = new Date().toISOString();
-    const estimated = options.some((o) => o.price?.how === 'OTHER_REGION_IKK');
-    const costComparison = { bestLabel: best?.label ?? null, ranAt: now, options, excluded: `${estimated ? 'Harga resmi wilayah ini belum tersedia. Angka di bawah hanya perkiraan dari Karawang × IKK. ' : ''}Upah dan alat dihitung untuk aspal; jumlah orang dan produktivitasnya masih asumsi sampai koefisien AHSP resmi dimuat. Beton belum termasuk upah dan alat.`, regionCode: agency?.region ?? '', measure: { areaM2, depthCm } };
+    const costComparison = { bestLabel: best?.label ?? null, ranAt: now, options, excluded: `${borrowedPriceNote(options)}Upah dan alat dihitung untuk aspal; jumlah orang dan produktivitasnya masih asumsi sampai koefisien AHSP resmi dimuat. Beton belum termasuk upah dan alat.`, regionCode: agency?.region ?? '', measure: { areaM2, depthCm } };
     const next = store.record(c, { costComparison }, 'cost.compared', { region: agency?.region ?? '', options: options.map((o) => ({ key: o.key, status: o.status, mid_idr: o.totalIdr?.mid ?? null, per_year_idr: o.costPerYearIdr?.mid ?? null })), best: best?.key ?? null }, actor, now);
     res.json({ success: true, data: next.costComparison });
   });
