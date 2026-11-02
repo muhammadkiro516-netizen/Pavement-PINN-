@@ -3,6 +3,7 @@
  * and poor fixes do not count (same 20 m limit as the server's trace check, 05 §6.4).
  */
 import { Capture } from '../roles/Capture';
+import { ensureDeviceSession } from '../roles/api';
 import React, { useEffect, useRef, useState } from 'react';
 import { Footprints, MapPin } from 'lucide-react';
 import { Pavi } from '../../components/brand/Pavi';
@@ -81,7 +82,7 @@ export const LongDamageWalk: React.FC<{ onDone: (trace: LongDamageTrace) => void
             <div className="h-full rounded-full bg-[#FFD60A] transition-[width] duration-500" style={{ width: `${pct}%` }} />
           </div>
           <p className="mt-2 text-xs text-slate-300" data-testid="long-walk-photos">{walkPhotos.length} foto di sepanjang jalur</p>
-          {photoDue && !shooting && <button type="button" onClick={() => setShooting(true)} className="mt-2 h-11 w-full cursor-pointer rounded-xl bg-[#FF6B2C] text-sm font-bold text-white" data-testid="long-walk-photo">Foto titik ini ({Math.round(lengthM)} m)</button>}
+          {photoDue && !shooting && <button type="button" onClick={() => { void ensureDeviceSession().then(() => setShooting(true)); }} className="mt-2 h-11 w-full cursor-pointer rounded-xl bg-[#FF6B2C] text-sm font-bold text-white" data-testid="long-walk-photo">Foto titik ini ({Math.round(lengthM)} m)</button>}
           {shooting && (
             <div className="mt-3 text-left" data-testid="long-walk-camera">
               <Capture kind="TRACE_POINT" purpose="REPORT" title="Foto di titik ini" hint="Tunjukkan kerusakan di bagian jalan ini." onDone={(e) => { setWalkPhotos((list) => [...list, { evidenceId: e.id, atM: lengthM }]); setShooting(false); }} />

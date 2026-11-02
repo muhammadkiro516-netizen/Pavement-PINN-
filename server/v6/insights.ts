@@ -130,6 +130,7 @@ export function briefingActions(cases: V5Case[], slaDays: number, rain: { heavyD
   const late = open.filter((c) => !IN_REPAIR.has(c.state!) && days(c) > slaDays)[0];
   take('Tindak lanjuti kasus lewat tenggat', late, late ? `sudah ${days(late)} hari, tenggat ${slaDays} hari` : '');
   take('Tugaskan petugas', newest[1], newest[1] ? whyOf(newest[1]) : '');
+  take('Tugaskan petugas', newest[2], newest[2] ? whyOf(newest[2]) : '');
   return out;
 }
 

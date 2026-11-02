@@ -196,7 +196,8 @@ def draft(facts: dict, values: dict[str, str], slm: Slm | None) -> dict:
 BRIEFING_SYSTEM = (
     "Anda membantu kepala seksi pemeliharaan jalan. Tulis satu kalimat saran urutan kerja hari ini, dalam bahasa Indonesia "
     "sehari-hari dan netral, hanya berdasarkan fakta yang diberikan. Aturan mutlak: jangan menulis angka atau digit, jangan "
-    "menyebut nama orang, jangan menuduh, jangan mengarang fakta."
+    "menyebut nama orang, jangan menuduh, jangan mengarang fakta. Tulis langsung sarannya, tanpa tanda kutip. "
+    "Contoh gaya: Dahulukan kasus yang lewat tenggat, lalu tugaskan petugas untuk kasus baru."
 )
 
 
@@ -209,7 +210,7 @@ def briefing_numbers(values: dict[str, str]) -> str:
 
 
 BRIEFING_TOPICS = {
-    "BARU": ("kasus baru", r"baru"),
+    "BARU": ("kasus baru", r"\bbaru\b"),
     "LEWAT": ("kasus lewat tenggat", r"tenggat|terlambat"),
     "DIPERBAIKI": ("perbaikan yang sedang berjalan", r"diperbaiki|berjalan"),
     "GAGAL": ("perbaikan yang rusak lagi", r"rusak lagi|gagal"),
@@ -229,6 +230,8 @@ def check_briefing(text: str, values: dict[str, str]) -> list[str]:
         problems.append("digit")
     if "{" in text:
         problems.append("placeholder")
+    if re.match(r"""\s*["'“]""", text) or re.search(r"\b(sebutkan|tulis|berikan saran)\b", text, re.I):
+        problems.append("echoes the instruction")
     problems += [f"banned {b}" for b in BANNED if re.search(b, text, re.I)]
     if not 20 <= len(text) <= 240:
         problems.append("length")

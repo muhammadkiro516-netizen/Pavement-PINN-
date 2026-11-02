@@ -39,7 +39,8 @@ export function useGps(): { fix: Fix | null; denied: boolean } {
     if (!navigator.geolocation) { setDenied(true); return; }
     const id = navigator.geolocation.watchPosition(
       (p) => { setDenied(false); setFix({ lat: p.coords.latitude, lon: p.coords.longitude, accuracyM: p.coords.accuracy, speedMps: p.coords.speed, t: p.timestamp }); },
-      () => setDenied(true),
+      // Slow GPS is not a refusal: the watch keeps going and the shutter keeps waiting.
+      (e) => { if (e.code === e.PERMISSION_DENIED) setDenied(true); },
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 }
     );
     return () => navigator.geolocation.clearWatch(id);

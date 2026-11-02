@@ -119,7 +119,7 @@ export function CostModule() {
       {isOm && <Importer onDone={reload} />}
       <Card title="Pemeriksaan mutu yang disarankan" testId="v6-qa-panel">
         <p className="v5-muted">Harga acuan dari Sulawesi Tenggara, sebagai contoh. Untuk wilayah lain, nilainya perkiraan.</p>
-        {data.qa.map((t) => (
+        {data.qa.filter((t) => t.purpose).map((t) => (
           <div key={t.test_as_written} className="v6-row">
             <div><strong>{t.test_as_written}</strong> <StatusBadge status={t.status} />{t.purpose && <div className="v5-caption">Untuk memeriksa: {t.purpose}</div>}<SourceLine doc={t.source_doc} page={t.source_page_approx} url={t.source_url} /></div>
             <span>{rp(Number(t.price_idr))} / {t.unit}</span>

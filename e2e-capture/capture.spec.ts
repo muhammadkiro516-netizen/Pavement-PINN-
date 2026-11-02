@@ -2,6 +2,7 @@
  * Records the clips of the Capture Kit (docs/v6/FINAL_PLAN_VIDEO_DECK.md, Prompt B1): the real UI through the real
  * API with real codes and PINs. Only the camera picture and the GPS are supplied by the browser.
  */
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
@@ -19,6 +20,14 @@ const FORBIDDEN = /\b(demo|test|uji|dummy|sample)\b|contoh-data/i;
 const scenes: Record<string, Record<string, unknown>> = {};
 const issues: string[] = [];
 const data: Record<string, unknown> = {};
+/** After a failure, the clips already in .data/capture/finished stay; recording goes on from the auditor. */
+const RESUME = process.env.CAPTURE_RESUME === '1';
+if (RESUME) {
+  const before = JSON.parse(fs.readFileSync(`${ROOT}/scenes.raw.json`, 'utf8'));
+  Object.assign(scenes, before.scenes);
+  Object.assign(data, before.data);
+  issues.push(...before.issues);
+}
 
 const id = (p: Page, t: string) => p.getByTestId(t);
 const dataUrl = (name: string) => `data:image/jpeg;base64,${fs.readFileSync(`${ROOT}/scenes/${name}.jpg`).toString('base64')}`;
@@ -83,22 +92,49 @@ async function clip(browser: Browser, name: string, kind: 'phone' | 'desktop', o
     timezoneId: 'Asia/Jakarta',
     permissions: ['geolocation', 'camera'],
     geolocation: opts.at ? { latitude: opts.at.lat, longitude: opts.at.lon, accuracy: 6 } : { latitude: POINTS.caseA.lat, longitude: POINTS.caseA.lon, accuracy: 6 },
-    storageState: opts.storage,
-    recordVideo: { dir: `${RAW}/${name}`, size: { width: size.width * scale, height: size.height * scale } }
+    storageState: opts.storage
   });
   await pointer(context);
   await camera(context, opts.camera ?? ['hole_main']);
   const page = await context.newPage();
+  // A phone's GPS keeps reporting; the browser's stand-in does so only when told.
+  const here = opts.at ?? { lat: POINTS.caseA.lat, lon: POINTS.caseA.lon };
+  const gps = kind === 'phone' && name !== '01b_long_damage' ? setInterval(() => void context.setGeolocation({ latitude: here.lat, longitude: here.lon, accuracy: 6 }).catch(() => undefined), 1000) : null;
+  context.on('close', () => { if (gps) clearInterval(gps); });
+  // Chrome's own screencast: real device pixels at @3x, which recordVideo does not give.
+  const framesDir = `${RAW}/${name}`;
+  fs.mkdirSync(framesDir, { recursive: true });
+  const cdp = await context.newCDPSession(page);
+  const frames: { file: string; t: number }[] = [];
+  cdp.on('Page.screencastFrame', (f: { data: string; sessionId: number; metadata: { timestamp?: number } }) => {
+    const file = `${String(frames.length).padStart(6, '0')}.jpg`;
+    fs.writeFileSync(`${framesDir}/${file}`, Buffer.from(f.data, 'base64'));
+    frames.push({ file, t: Date.now() });
+    void cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => undefined);
+  });
   const started = Date.now();
+  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 85, maxWidth: size.width * scale, maxHeight: size.height * scale, everyNthFrame: 1 });
   const marks: Record<string, number> = {};
   const c: Clip = {
     page, context, name, started, marks,
     mark: (k) => { marks[k] = Date.now() - started; },
     finish: async () => {
       await scan(page, name);
-      const video = page.video();
+      const ended = Date.now();
+      await cdp.send('Page.stopScreencast').catch(() => undefined);
       await context.close();
-      if (video) fs.renameSync(await video.path(), `${RAW}/${name}.webm`);
+      // Each frame stays on screen until the next one arrived, so time in the clip is real time.
+      const list = frames.map((f, i) => `file '${f.file}'
+duration ${(((frames[i + 1]?.t ?? ended) - f.t) / 1000).toFixed(3)}`);
+      if (frames.length) list.unshift(`file '${frames[0].file}'
+duration ${((frames[0].t - started) / 1000).toFixed(3)}`);
+      fs.writeFileSync(`${framesDir}/list.txt`, [...list, `file '${frames[frames.length - 1]?.file}'`, ''].join(String.fromCharCode(10)));
+      // The disk may be tight: each clip is encoded at once and its raw frames go away.
+      fs.mkdirSync(`${ROOT}/finished`, { recursive: true });
+      const target = kind === 'phone' ? '1170:2532' : '1920:1080';
+      const done = spawnSync(process.env.CAPTURE_FFMPEG!, ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', `${framesDir}/list.txt`, '-ss', '0.4', '-vf', `scale=${target}:flags=lanczos,fps=30,format=yuv420p`, '-c:v', 'libx264', '-preset', 'fast', '-crf', '20', '-an', `${ROOT}/finished/${name}.mp4`]);
+      if (done.status !== 0) throw new Error(`encode ${name}: ${done.stderr}`);
+      fs.rmSync(framesDir, { recursive: true, force: true });
       scenes[name] = { ...(scenes[name] ?? {}), kind, marks, recordedAt: new Date(started).toISOString() };
       save();
     }
@@ -197,6 +233,12 @@ async function offCamera(browser: Browser, who: string, code: string, run: (p: P
   await context.close();
 }
 
+async function pickDamage(p: Page, label: string) {
+  if (await p.getByText('Dideteksi otomatis').count()) return;
+  await p.locator('select').filter({ hasText: 'Retak Buaya' }).first().selectOption({ label });
+  await hold(p, 500);
+}
+
 /** Report through the citizen screens. Returns the tracking code. */
 async function citizenReport(p: Page, c: Clip | null, severity = 'Sedang') {
   await p.goto('/beranda/');
@@ -209,12 +251,15 @@ async function citizenReport(p: Page, c: Clip | null, severity = 'Sedang') {
   await hold(p, 1800);
   c?.mark('camera_live');
   await tap(p, p.getByRole('button', { name: /ambil foto|potret/i }));
+  await p.getByRole('button', { name: /gunakan|lanjut|pakai foto/i }).first().click({ timeout: 15_000 }).catch(() => undefined);
   await expect(id(p, 'road-owner')).toBeVisible({ timeout: 120_000 });
   c?.mark('ai_result');
   await hold(p, 2200);
   await glide(p, id(p, 'road-owner'));
   c?.mark('handled_by_preview');
   await hold(p, 1500);
+  // Only where the detector did not already choose: the person picks, as on any phone.
+  await pickDamage(p, '🕳 Lubang');
   await tap(p, p.getByRole('radio', { name: severity }).or(p.getByRole('button', { name: severity })));
   await hold(p, 500);
   await tap(p, p.getByRole('button', { name: 'Kirim laporan' }));
@@ -224,9 +269,22 @@ async function citizenReport(p: Page, c: Clip | null, severity = 'Sedang') {
   return (await id(p, 'report-code').innerText()).trim();
 }
 
+test.afterEach(async ({ browser }, info) => {
+  if (info.status === 'passed') return;
+  let n = 0;
+  for (const context of browser.contexts()) for (const p of context.pages()) {
+    await p.screenshot({ path: `${ROOT}/fail-${n}.png` }).catch(() => undefined);
+    fs.writeFileSync(`${ROOT}/fail-${n++}.txt`, await p.evaluate(() => document.body.innerText).catch(() => ''));
+  }
+});
+
 test('capture kit', async ({ browser }) => {
   const A = POINTS.caseA;
-
+  let codeA = (data.caseA as { code: string } | undefined)?.code ?? '';
+  const citizenState = `${ROOT}/citizen-a.json`;
+  let guestCode = '';
+  let codeDup = '';
+  if (!RESUME) {
   // ---- Measured engine numbers, read from the running services
   {
     const health = await (await fetch('http://127.0.0.1:8100/v1/health')).json();
@@ -246,10 +304,9 @@ test('capture kit', async ({ browser }) => {
       scenes['01_citizen_report'] = { ...(scenes['01_citizen_report'] ?? {}), routing: { road: b.routing?.segment?.name, status: b.routing?.status, agency: b.handledBy?.name, confidence: b.routing?.confidence, reason: b.handledBy?.reason, ruleIds: b.routing?.ruleIds }, screening: b.screening };
     }
   });
-  const codeA = await citizenReport(a1.page, a1);
+  codeA = await citizenReport(a1.page, a1);
   await still(a1.page, 'citizen-sent');
   data.caseA = { code: codeA, ...A };
-  const citizenState = `${ROOT}/citizen-a.json`;
   await a1.context.storageState({ path: citizenState });
   await a1.finish();
 
@@ -257,7 +314,7 @@ test('capture kit', async ({ browser }) => {
   const second = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, permissions: ['geolocation', 'camera'], geolocation: { latitude: A.lat + 0.00005, longitude: A.lon, accuracy: 6 } });
   await camera(second, ['hole_second']);
   const secondPage = await second.newPage();
-  const codeDup = await citizenReport(secondPage, null);
+  codeDup = await citizenReport(secondPage, null);
   await second.close();
   data.caseDuplicate = { code: codeDup };
 
@@ -284,6 +341,7 @@ test('capture kit', async ({ browser }) => {
         await p.waitForTimeout(2200);
       }
     };
+    const feed = setInterval(() => void c.context.setGeolocation({ latitude: lat, longitude: A.lon + 0.002, accuracy: 6 }).catch(() => undefined), 1000);
     await step(5);
     await expect(id(p, 'long-walk-photo')).toBeVisible();
     c.mark('photo_due_15m');
@@ -299,12 +357,15 @@ test('capture kit', async ({ browser }) => {
     await hold(p);
     await tap(p, id(p, 'long-walk-end'));
     c.mark('walk_done');
+    clearInterval(feed);
     await hold(p, 1800);
     await tap(p, p.getByRole('button', { name: /ambil foto|potret/i }));
+    await p.getByRole('button', { name: /gunakan|lanjut|pakai foto/i }).first().click({ timeout: 15_000 }).catch(() => undefined);
     await expect(id(p, 'road-owner')).toBeVisible({ timeout: 120_000 });
     await hold(p, 1800);
     await glide(p, id(p, 'long-summary'));
     await hold(p, 1500);
+    await pickDamage(p, '〰 Retak Permukaan');
     await tap(p, p.getByRole('radio', { name: 'Sedang' }).or(p.getByRole('button', { name: 'Sedang' })));
     await tap(p, p.getByRole('button', { name: 'Kirim laporan' }));
     await expect(id(p, 'report-code')).toBeVisible({ timeout: 120_000 });
@@ -625,7 +686,6 @@ test('capture kit', async ({ browser }) => {
   }
 
   // ---- 05 Approval: self-approval refused, then the second OM
-  let guestCode = '';
   {
     const c = await clip(browser, '05a_self_approval_refused', 'desktop');
     const p = c.page;
@@ -673,7 +733,7 @@ test('capture kit', async ({ browser }) => {
 
   // ---- 06 Contractor, then the other FE
   {
-    const c = await clip(browser, '06a_contractor', 'phone', { camera: ['repair_0', 'repair_1', 'repair_2', 'repair_3', 'repair_4', 'repair_5', 'repair_6', 'repair_7', 'repair_8', 'other_0', 'other_1'], at: A });
+    const c = await clip(browser, '06a_contractor', 'phone', { camera: ['repair_0', 'repair_1', 'repair_2', 'repair_3', 'repair_4', 'repair_5', 'repair_6', 'repair_7', 'repair_8', 'repair_10'], at: A });
     const p = c.page;
     await p.goto('/login/');
     await type(p, id(p, 'v6-code'), guestCode);
@@ -715,7 +775,7 @@ test('capture kit', async ({ browser }) => {
     await hold(p, 2000);
     await c.finish();
 
-    const d = await clip(browser, '06b_fe_verify', 'phone', { camera: ['other_2'], at: A });
+    const d = await clip(browser, '06b_fe_verify', 'phone', { camera: ['repair_11'], at: A });
     const q = d.page;
     await signIn(q, `${KRW}-fe2`);
     await tap(q, id(q, 'v6-tab-work'));
@@ -759,6 +819,8 @@ test('capture kit', async ({ browser }) => {
     await e.finish();
   }
 
+  }
+
   // ---- 07 Auditor
   let docId = '';
   let pdfBytes: Buffer | null = null;
@@ -780,17 +842,12 @@ test('capture kit', async ({ browser }) => {
     await glide(p, id(p, 'v5-issue-report'));
     await tap(p, id(p, 'v5-issue-report'));
     await confirmPin(p, `${KRW}-auditor`);
-    await expect(id(p, 'v5-doc-id')).toContainText(`DOC-${codeA}-v1`);
+    await expect(id(p, 'v5-doc-id')).toContainText(`DOC-${codeA}-v`);
     docId = (await id(p, 'v5-doc-id').innerText()).trim();
     const sha = (await id(p, 'v5-doc-hash').innerText()).trim();
     c.mark('pdf_issued');
     await hold(p, 2500);
-    const pdf = await p.evaluate(async (d) => {
-      const token = localStorage.getItem('pp-v6-staff-session')!;
-      const r = await fetch(`/api/v5/documents/${d}/pdf`, { headers: { 'x-v5-session': token } });
-      const b = new Uint8Array(await r.arrayBuffer());
-      return Array.from(b);
-    }, docId);
+    const pdf = await (await p.request.get(`/api/v5/documents/${docId}/pdf`)).body();
     pdfBytes = Buffer.from(pdf);
     await tap(p, id(p, 'v5-doc-verify'));
     await p.waitForURL(/\/v\//);
