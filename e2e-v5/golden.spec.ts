@@ -199,6 +199,9 @@ test('golden path: report, route, assign, measure, approve, repair, supervise, c
     await expect(id(p, 'v6-option-total-CONCRETE_K350')).toContainText('Rp');
     await expect(id(p, 'v6-option-missing-COLD_MIX_PATCH')).toContainText('Harga belum tersedia');
     await expect(id(p, 'v6-compare-excluded')).toContainText('masih asumsi');
+    // Cost per service-year really comes out of the physics model.
+    await expect(id(p, 'v6-option-year-HOT_MIX_PATCH')).toContainText('per tahun');
+    await expect(id(p, 'v6-option-year-AC_WC_OVERLAY')).toContainText('per tahun');
     await id(p, 'v6-submitted').fill('99000000');
     await id(p, 'v6-submitted-option').selectOption('HOT_MIX_PATCH');
     await id(p, 'v6-submitted-send').click();

@@ -157,11 +157,11 @@ export function buildOptions(book: PriceBook, agencyId: string, regionCode: stri
   const overlayCrew = ratesFor(regionCode, book.ikk, 'AC_WC_OVERLAY');
   const noLife = 'Umur bahan ini belum bisa dihitung; modelnya hanya mencakup aspal.';
   return [
-    { key: 'HOT_MIX_PATCH', price: acPrice, choices, coefficients: patchCrew?.coefficients, crewNote: patchCrew?.note, lifeMonths: life.patch, lifeNote: life.patch ? life.note : noLife },
+    { key: 'HOT_MIX_PATCH', price: acPrice, choices, coefficients: patchCrew?.coefficients, crewNote: patchCrew?.note, lifeMonths: life.patch, lifeNote: life.patch ? life.note : life.note || noLife },
     { key: 'COLD_MIX_PATCH', price: lookupPrice({ ...base, match: WANTS.COLD_MIX_PATCH, documentToLoad: 'harga cold mix/CPHMA dari HSPK instansi, lewat Impor CSV' }), lifeMonths: null, lifeNote: noLife },
     { key: 'FAST_TRACK_CONCRETE', price: lookupPrice({ ...base, match: WANTS.FAST_TRACK_CONCRETE }), lifeMonths: null, lifeNote: noLife },
     { key: 'CONCRETE_K350', price: lookupPrice({ ...base, match: WANTS.CONCRETE_K350 }), lifeMonths: null, lifeNote: noLife },
-    { key: 'AC_WC_OVERLAY', price: acPrice, choices, coefficients: overlayCrew?.coefficients, crewNote: overlayCrew?.note, lifeMonths: life.overlay, lifeNote: life.overlay ? life.note : noLife }
+    { key: 'AC_WC_OVERLAY', price: acPrice, choices, coefficients: overlayCrew?.coefficients, crewNote: overlayCrew?.note, lifeMonths: life.overlay, lifeNote: life.overlay ? life.note : life.note || noLife }
   ];
 }
 
@@ -278,7 +278,7 @@ export function registerPriceRoutes(router: Router, deps: Deps): PriceBook {
   /** Life per option from the physics service; the spread comes from the case's PINN run. */
   const lifeFor = async (c: V5Case, esalYear: number, h: number, cbr: number): Promise<LifeByOption> => {
     const none = { patch: null, overlay: null, note: 'Layanan fisika tidak terjangkau.' };
-    const reply = await callInference('POST', '/v1/decide', { layers: [{ h_mm: h, E_mpa: 3000, nu: 0.35 }, { h_mm: 300, E_mpa: 300, nu: 0.35 }], subgrade: { cbr, soaked_factor: 0.5 }, esal_day: esalYear / 365 });
+    const reply = await callInference('POST', '/v1/decide', { segment_id: c.id, layers: [{ h_mm: h, E_mpa: 3000, nu: 0.35 }, { h_mm: 300, E_mpa: 300, nu: 0.35 }], subgrade: { cbr, soaked_factor: 0.5 }, esal_day: esalYear / 365 });
     if ('unavailable' in reply || !reply.ok) return none;
     const options = (reply.body as { options: { code: string; life_years: number | null }[] }).options;
     const months = (code: string) => { const y = options.find((o) => o.code === code)?.life_years; return y === null || y === undefined ? null : y * 12; };
