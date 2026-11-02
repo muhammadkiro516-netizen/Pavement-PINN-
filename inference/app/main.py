@@ -531,6 +531,22 @@ async def briefing(req: BriefingRequest) -> dict:
     return await run_in_threadpool(slm_mod.briefing, req.values, model)
 
 
+@app.post("/v1/image/embed")
+async def image_embed(request: Request) -> dict:
+    """CLIP image embedding, to compare two photos of what may be the same hole."""
+    from .cv.engine import decode_image
+    from .cv.scene import SceneModel
+    model = await run_in_threadpool(SceneModel.get)
+    if model is None:
+        raise HTTPException(status_code=503, detail="CLIP model not installed")
+    try:
+        image = await run_in_threadpool(decode_image, await request.body())
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    vector = (await run_in_threadpool(model.embed, image)).flatten()
+    return {"embedding": [round(float(x), 5) for x in vector], "model": "clip-vit-b32"}
+
+
 from . import imageconv  # noqa: E402
 
 

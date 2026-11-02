@@ -11,8 +11,9 @@ import { rateLimit } from '../middleware/rateLimit';
 import { weatherAt, type WeatherSummary } from '../services/weather';
 import { callInference } from '../services/inferenceClient';
 import { ladderStatus } from '../../src/domain/v5/escalation';
-import { bannedWordsIn } from '../../src/domain/v5/wording';
+import { bannedWordsIn, neutralize } from '../../src/domain/v5/wording';
 import { checkReauth } from './routes';
+import { nearestPlaces } from './poi';
 import { caseVisibleTo } from '../../src/domain/v5/stateMachine';
 import { V5_STATE_LABELS, type V5Actor, type V5Case } from '../../src/domain/v5/model';
 import type { V5Store } from '../v5/store';
@@ -76,6 +77,14 @@ export class AiDecisionLog {
 }
 
 const DAY = 86_400_000;
+/** Same photo, cropped or relit: 89-97. Other roads: 61-75 (7 photos, measured once). Not calibrated on local photos. */
+export const SAME_PHOTO_PCT = 85;
+
+export function cosine(a: number[], b: number[]): number {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return na && nb ? dot / Math.sqrt(na * nb) : 0;
+}
 const median = (xs: number[]) => {
   if (xs.length === 0) return null;
   const s = [...xs].sort((a, b) => a - b);
@@ -96,6 +105,45 @@ export function todayNumbers(cases: V5Case[], slaDays: number, now: string) {
     inRepair: cases.filter((c) => c.state && IN_REPAIR.has(c.state)).length,
     failedInWarranty: cases.filter((c) => c.warrantyFlag).length
   };
+}
+
+/** Three things to do today: what, where, why. Every value is read from the cases by code. */
+export function briefingActions(cases: V5Case[], slaDays: number, rain: { heavyDays: number; days: string[] } | null, now: string): { what: string; where: string; why: string; caseId: string }[] {
+  const nowMs = Date.parse(now);
+  const days = (c: V5Case) => Math.floor((nowMs - Date.parse(c.createdAt)) / DAY);
+  const whyOf = (c: V5Case) => {
+    const places = nearestPlaces(c.location.latE6 / 1e6, c.location.lonE6 / 1e6);
+    return [places.school ? `${places.school.distanceM} m dari ${places.school.name}` : null, places.hospital ? `${places.hospital.distanceM} m dari ${places.hospital.name}` : null, days(c) > 0 ? `menunggu ${days(c)} hari` : 'baru masuk hari ini'].filter(Boolean).join(', ');
+  };
+  const open = cases.filter(isOpen);
+  const out: { what: string; where: string; why: string; caseId: string }[] = [];
+  const take = (what: string, c: V5Case | undefined, why: string) => {
+    if (c && out.length < 3 && !out.some((a) => a.caseId === c.id)) out.push({ what, where: PLACE(c), why, caseId: c.id });
+  };
+  const newest = open.filter((c) => c.state === 'TRIAGE' || c.state === 'ACCEPTED').sort((a, b) => Number(!!nearestPlaces(b.location.latE6 / 1e6, b.location.lonE6 / 1e6).school) - Number(!!nearestPlaces(a.location.latE6 / 1e6, a.location.lonE6 / 1e6).school) || Date.parse(a.createdAt) - Date.parse(b.createdAt));
+  const proposed = open.find((c) => c.state === 'PLAN_PROPOSED');
+  if (proposed) take('Putuskan usulan perbaikan', proposed, proposed.plan?.repairType ? `usulan sudah lengkap, ${whyOf(proposed)}` : whyOf(proposed));
+  take('Tugaskan petugas', newest[0], whyOf(newest[0] ?? open[0] ?? ({ location: { latE6: 0, lonE6: 0 }, createdAt: now } as V5Case)));
+  const hole = open.find((c) => c.damageClass === 'POTHOLE' && !out.some((a) => a.caseId === c.id) && c.state && !IN_REPAIR.has(c.state));
+  if (rain && rain.heavyDays > 0) take('Tambal sebelum hujan', hole, `hujan lebat diperkirakan ${rain.days[0] ?? 'minggu ini'}, lubang bisa tergenang`);
+  take('Periksa hasil perbaikan', open.find((c) => c.state === 'WORK_SUBMITTED'), 'bukti kontraktor sudah masuk');
+  const late = open.filter((c) => !IN_REPAIR.has(c.state!) && days(c) > slaDays)[0];
+  take('Tindak lanjuti kasus lewat tenggat', late, late ? `sudah ${days(late)} hari, tenggat ${slaDays} hari` : '');
+  take('Tugaskan petugas', newest[1], newest[1] ? whyOf(newest[1]) : '');
+  return out;
+}
+
+/** Other open reports close by, with how alike the photos look when CLIP has seen both. */
+export function duplicatesOf(c: V5Case, deps: Pick<Deps, 'capture' | 'store'>): { id: string; publicCode: string; distanceM: number; similarityPct: number | null }[] {
+  const vector = (x: V5Case) => x.evidence.map((e) => deps.capture.get(e.id)?.clipEmbedding).find(Boolean) ?? null;
+  const mine = vector(c);
+  return deps.store.list().flatMap((o) => {
+    if (o.id === c.id || !o.state || !V5_STATE_LABELS[o.state].open || o.agencyId !== c.agencyId) return [];
+    const distanceM = Math.round(Math.hypot((o.location.latE6 - c.location.latE6) * 0.11132, (o.location.lonE6 - c.location.lonE6) * 0.11132));
+    if (distanceM > 25) return [];
+    const theirs = vector(o);
+    return [{ id: o.id, publicCode: o.publicCode, distanceM, similarityPct: mine && theirs ? Math.round(cosine(mine, theirs) * 100) : null }];
+  });
 }
 
 /** Numbers come from code; the sentence around them is fixed (§3 rule 12). */
@@ -222,13 +270,14 @@ export function caseFindings(c: V5Case, deps: Pick<Deps, 'capture' | 'decisions'
     what: 'Mencari laporan lain untuk lubang yang sama.',
     benefit: 'Petugas tidak datang berkali-kali untuk satu lubang.',
     status: 'REAL',
-    result: near.length ? `${near.length + 1} laporan dalam radius 25 m: ${near.map((o) => o.publicCode).join(', ')}.` : 'Tidak ada laporan lain dalam radius 25 m.',
+    result: near.length ? `${near.length + 1} laporan dalam radius 25 m: ${duplicatesOf(c, deps).map((d) => `${d.publicCode}${d.similarityPct === null ? '' : ` (foto mirip ${d.similarityPct}%)`}`).join(', ')}.` : 'Tidak ada laporan lain dalam radius 25 m.',
     confidence: null,
-    how: 'Memakai jarak GPS. Kemiripan gambar dengan CLIP: belum diukur.'
+    how: `Jarak GPS, lalu kemiripan foto dengan CLIP di OpenVINO. Foto dianggap sama bila kemiripannya ${SAME_PHOTO_PCT}% atau lebih. Ambang ini belum dikalibrasi pada foto lokal.`
   });
 
   const openDays = ladderStatus(c, now).daysWaiting;
-  const factors = [c.hazard ? 'ditandai berbahaya' : null, c.damageClass === 'POTHOLE' ? 'lubang' : null, openDays > 0 ? `sudah menunggu ${openDays} hari` : null, c.witnesses > 0 ? `${c.witnesses} warga lain melihat` : null, (weather?.heavyDays ?? 0) > 0 ? 'hujan lebat diperkirakan' : null].filter(Boolean);
+  const places = nearestPlaces(c.location.latE6 / 1e6, c.location.lonE6 / 1e6);
+  const factors = [places.school ? `dekat ${places.school.name} (${places.school.distanceM} m)` : null, places.hospital ? `dekat ${places.hospital.name} (${places.hospital.distanceM} m)` : null, c.hazard ? 'ditandai berbahaya' : null, c.damageClass === 'POTHOLE' ? 'lubang' : null, openDays > 0 ? `sudah menunggu ${openDays} hari` : null, c.witnesses > 0 ? `${c.witnesses} warga lain melihat` : null, (weather?.heavyDays ?? 0) > 0 ? 'hujan lebat diperkirakan' : null].filter(Boolean);
   findings.push({
     feature: 4, key: 'priority', title: 'Skor prioritas',
     what: 'Menyusun urutan kerja dan menjelaskan alasannya.',
@@ -236,7 +285,7 @@ export function caseFindings(c: V5Case, deps: Pick<Deps, 'capture' | 'decisions'
     status: 'REAL',
     result: factors.length ? `Alasan: ${factors.join(' · ')}.` : 'Belum ada faktor yang menaikkan prioritas.',
     confidence: null,
-    how: 'Aturan terbuka dari data kasus dan prakiraan hujan. Kepadatan motor dan jarak ke sekolah atau rumah sakit: belum ada datanya.'
+    how: 'Aturan terbuka dari data kasus, prakiraan hujan, dan sekolah serta rumah sakit dalam 300 m (OpenStreetMap). Kepadatan motor: belum ada datanya.'
   });
 
   findings.push({
@@ -359,7 +408,7 @@ export function registerV6Insights(router: Router, deps: Deps): void {
     const anchor = holes[0] ?? cases[0];
     const weather = anchor ? await weatherFor(anchor.location.latE6 / 1e6, anchor.location.lonE6 / 1e6) : null;
     const rain = weather ? { heavyDays: weather.heavyDays, openHoles: holes.length, days: weather.forecast.filter((d) => d.mm >= 20).map((d) => d.date), source: weather.source } : null;
-    res.json({ success: true, data: { numbers, briefing: briefingLines(numbers, rain), rain, briefingSource: 'Disusun otomatis dari angka kasus', holes: rain?.heavyDays ? holes.slice(0, 8).map((c) => ({ id: c.id, publicCode: c.publicCode, place: PLACE(c) })) : [] } });
+    res.json({ success: true, data: { numbers, actions: briefingActions(cases, agency?.slaDays ?? 7, rain, now), briefing: briefingLines(numbers, rain), rain, briefingSource: 'Disusun otomatis dari angka kasus', holes: rain?.heavyDays ? holes.slice(0, 8).map((c) => ({ id: c.id, publicCode: c.publicCode, place: PLACE(c) })) : [] } });
   });
 
   router.get('/api/v6/monitor', (req, res) => {
@@ -464,6 +513,24 @@ export function registerV6Insights(router: Router, deps: Deps): void {
     const text = typeof body.text === 'string' ? body.text : typeof body.draft === 'string' ? body.draft : null;
     if (!text) return sendFail(res, 503, 'MODEL_UNAVAILABLE', 'Layanan penulisan belum tersedia. Coba lagi.');
     res.json({ success: true, data: { text, source: body.source ?? 'TEMPLAT', label: 'Disusun AI, perlu persetujuan' } });
+  });
+
+  router.get('/api/v6/cases/:id/duplicates', (req, res) => {
+    const actor = staff(req, res);
+    if (!actor) return;
+    if (actor.onlyCaseId) return sendFail(res, 403, 'FORBIDDEN', 'Peran Anda tidak bisa membuka ini.');
+    const c = ownCase(req, res, actor);
+    if (!c) return;
+    res.json({ success: true, data: duplicatesOf(c, deps) });
+  });
+
+  // Rewrites accusing words into neutral ones. A person still reads it before it is saved.
+  router.post('/api/v6/wording/neutral', writeLimit, (req, res) => {
+    const actor = staff(req, res);
+    if (!actor) return;
+    const text = String(req.body?.text ?? '').slice(0, 1000);
+    const found = bannedWordsIn(text);
+    res.json({ success: true, data: { changed: found.length > 0, found, text: neutralize(text) } });
   });
 
   // Today's briefing in words from the local model. Numbers stay with the code (§3 feature 12).

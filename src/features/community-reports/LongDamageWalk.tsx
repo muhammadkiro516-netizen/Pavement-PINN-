@@ -2,12 +2,15 @@
  * "Kerusakan panjang": Mulai, berjalan sepanjang kerusakan, Selesai. The length comes from live GPS,
  * and poor fixes do not count (same 20 m limit as the server's trace check, 05 §6.4).
  */
+import { Capture } from '../roles/Capture';
 import React, { useEffect, useRef, useState } from 'react';
 import { Footprints, MapPin } from 'lucide-react';
 import { Pavi } from '../../components/brand/Pavi';
 import { readPaviHelmet } from '../../components/brand/paviPrefs';
 
 export interface LongDamageTrace {
+  /** Photos taken during the walk. */
+  photoIds: string[];
   lengthM: number;
   points: { lat: number; lon: number; accuracyM: number; t: number }[];
   start: { lat: number; lon: number; accuracyM: number };
@@ -15,6 +18,7 @@ export interface LongDamageTrace {
 
 const MIN_LENGTH_M = 10;
 const MAX_FIX_ACCURACY_M = 20;
+const PHOTO_EVERY_M = 15;
 
 export function traceLengthM(points: readonly { lat: number; lon: number }[]): number {
   let total = 0;
@@ -51,6 +55,11 @@ export const LongDamageWalk: React.FC<{ onDone: (trace: LongDamageTrace) => void
   }, []);
 
   const lengthM = traceLengthM(points);
+  // A photo is due every 15 m. It is offered, not forced: the walk goes on either way.
+  const [walkPhotos, setWalkPhotos] = useState<{ evidenceId: string; atM: number }[]>([]);
+  const [shooting, setShooting] = useState(false);
+  const lastPhotoAtM = walkPhotos.length ? walkPhotos[walkPhotos.length - 1].atM : 0;
+  const photoDue = lengthM - lastPhotoAtM >= PHOTO_EVERY_M;
   const gpsReady = accuracy !== null && accuracy <= MAX_FIX_ACCURACY_M;
   const pct = Math.min(100, (lengthM / MIN_LENGTH_M) * 100);
 
@@ -71,6 +80,13 @@ export const LongDamageWalk: React.FC<{ onDone: (trace: LongDamageTrace) => void
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
             <div className="h-full rounded-full bg-[#FFD60A] transition-[width] duration-500" style={{ width: `${pct}%` }} />
           </div>
+          <p className="mt-2 text-xs text-slate-300" data-testid="long-walk-photos">{walkPhotos.length} foto di sepanjang jalur</p>
+          {photoDue && !shooting && <button type="button" onClick={() => setShooting(true)} className="mt-2 h-11 w-full cursor-pointer rounded-xl bg-[#FF6B2C] text-sm font-bold text-white" data-testid="long-walk-photo">Foto titik ini ({Math.round(lengthM)} m)</button>}
+          {shooting && (
+            <div className="mt-3 text-left" data-testid="long-walk-camera">
+              <Capture kind="TRACE_POINT" purpose="REPORT" title="Foto di titik ini" hint="Tunjukkan kerusakan di bagian jalan ini." onDone={(e) => { setWalkPhotos((list) => [...list, { evidenceId: e.id, atM: lengthM }]); setShooting(false); }} />
+            </div>
+          )}
           {lengthM < MIN_LENGTH_M && <p className="mt-1.5 text-xs text-slate-400">Minimal {MIN_LENGTH_M} m. Kurang {Math.ceil(MIN_LENGTH_M - lengthM)} m lagi.</p>}
         </div>
       ) : (
@@ -83,7 +99,7 @@ export const LongDamageWalk: React.FC<{ onDone: (trace: LongDamageTrace) => void
       <div className="grid grid-cols-2 gap-3">
         <button type="button" onClick={onCancel} className="h-12 cursor-pointer rounded-2xl border border-white/[0.1] bg-white/[0.04] text-sm font-medium text-slate-100">Batal</button>
         {walking ? (
-          <button type="button" disabled={lengthM < MIN_LENGTH_M} onClick={() => onDone({ lengthM: Math.round(lengthM * 10) / 10, points, start: points[0] })} className="h-12 cursor-pointer rounded-2xl bg-[#FFD60A] text-sm font-extrabold text-[#0B0D10] disabled:cursor-not-allowed disabled:opacity-40" data-testid="long-walk-end">Selesai jalan</button>
+          <button type="button" disabled={lengthM < MIN_LENGTH_M} onClick={() => onDone({ photoIds: walkPhotos.map((w) => w.evidenceId), lengthM: Math.round(lengthM * 10) / 10, points, start: points[0] })} className="h-12 cursor-pointer rounded-2xl bg-[#FFD60A] text-sm font-extrabold text-[#0B0D10] disabled:cursor-not-allowed disabled:opacity-40" data-testid="long-walk-end">Selesai jalan</button>
         ) : (
           <button type="button" disabled={!gpsReady} onClick={() => { setPoints([]); setWalking(true); }} className="inline-flex h-12 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[#FFD60A] text-sm font-extrabold text-[#0B0D10] disabled:cursor-not-allowed disabled:opacity-40" data-testid="long-walk-start"><Footprints className="h-4 w-4" aria-hidden="true" /> Mulai</button>
         )}

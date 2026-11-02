@@ -10,3 +10,10 @@ const PATTERNS = banned.words.map((word) => ({ word, re: new RegExp(`(^|[^\\p{L}
 export function bannedWordsIn(text: string): string[] {
   return PATTERNS.filter((p) => p.re.test(text)).map((p) => p.word);
 }
+
+/** Accusing words become "perlu klarifikasi"; everything else stays as written. */
+export function neutralize(text: string): string {
+  let out = text;
+  for (const p of PATTERNS) out = out.replace(new RegExp(p.re.source, 'giu'), '$1perlu klarifikasi$2');
+  return out.replace(/(perlu klarifikasi)(\s+perlu klarifikasi)+/gi, '$1').replace(/\s{2,}/g, ' ').trim();
+}

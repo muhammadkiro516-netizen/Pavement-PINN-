@@ -50,6 +50,7 @@ const Stat = ({ label, value, tone, testId }: { label: string; value: ReactNode;
 
 interface Today {
   numbers: { newCases: number; late: number; inRepair: number; failedInWarranty: number };
+  actions: { what: string; where: string; why: string; caseId: string }[];
   briefing: string[];
   briefingSource: string;
   rain: { heavyDays: number; openHoles: number; days: string[]; source: string } | null;
@@ -78,6 +79,11 @@ export function TodayModule() {
               <div>
                 {error && <p>{error.message}</p>}
                 {(data?.briefing ?? ['Memuat…']).map((line) => <p key={line}>{line}</p>)}
+                {data && data.actions.length > 0 && (
+                  <ol className="v6-actions" data-testid="v6-actions">
+                    {data.actions.map((a) => <li key={a.caseId}><button type="button" className="v5-link" onClick={() => go(`/kerja/${a.caseId}`)}><strong>{a.what}</strong></button><span>{a.where}</span><span className="v5-caption">{a.why}</span></li>)}
+                  </ol>
+                )}
                 <p className="v5-caption">{data?.briefingSource}</p>
                 {ai && <div className="v5-note" data-testid="v6-ai-briefing"><p className="v5-warn">{ai.label}</p><p>{ai.text}</p><p className="v5-caption">{ai.source === 'SLM' ? 'Saran ditulis Qwen2.5 lewat OpenVINO GenAI; angka ditulis sistem.' : 'Semua kalimat ditulis sistem.'}</p></div>}
                 <button type="button" className="v5-link" disabled={write.busy} onClick={() => write.run(async () => setAi(await v6('/today/ai-briefing', {})))} data-testid="v6-ai-briefing-run">{write.busy ? 'AI sedang menulis…' : 'Tulis dengan AI'}</button>

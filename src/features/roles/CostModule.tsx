@@ -117,7 +117,7 @@ export function CostModule() {
         ))}
       </Card>
       {isOm && <Importer onDone={reload} />}
-      <Card title="Uji mutu yang disarankan" testId="v6-qa-panel">
+      <Card title="Pemeriksaan mutu yang disarankan" testId="v6-qa-panel">
         <p className="v5-muted">Harga acuan dari Sulawesi Tenggara, sebagai contoh. Untuk wilayah lain, nilainya perkiraan.</p>
         {data.qa.map((t) => (
           <div key={t.test_as_written} className="v6-row">

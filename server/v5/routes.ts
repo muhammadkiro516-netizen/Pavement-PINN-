@@ -21,6 +21,7 @@ import { Workspaces } from '../v6/workspaces';
 import { checkReauth, registerV6Routes } from '../v6/routes';
 import { AiDecisionLog, registerV6Insights } from '../v6/insights';
 import { registerPriceRoutes } from '../v6/priceBook';
+import { nearestPlaces } from '../v6/poi';
 import { PIN_ACTIONS } from '../../src/domain/v6/roles';
 import { sweepEscalations } from './escalationJob';
 import { canonicalize, sha256Hex, type ChainEvent, type ChainId } from './chain';
@@ -173,6 +174,9 @@ export function priorityOf(c: V5Case, now: string) {
   if (c.witnesses > 0) reasons.push({ text: `${c.witnesses} witness${c.witnesses === 1 ? '' : 'es'}`, points: Math.min(20, c.witnesses * 5) });
   const ladder = ladderStatus(c, now);
   if (ladder.applies && ladder.daysWaiting > 0) reasons.push({ text: `Waiting ${ladder.daysWaiting} day${ladder.daysWaiting === 1 ? '' : 's'}`, points: Math.min(30, ladder.daysWaiting) });
+  const near = nearestPlaces(c.location.latE6 / 1e6, c.location.lonE6 / 1e6);
+  if (near.school) reasons.push({ text: `Dekat sekolah: ${near.school.name} (${near.school.distanceM} m)`, points: 20 });
+  if (near.hospital) reasons.push({ text: `Dekat rumah sakit: ${near.hospital.name} (${near.hospital.distanceM} m)`, points: 20 });
   if (c.routing?.confidence === 'LOW') reasons.push({ text: 'Coordinator to confirm the owner', points: 5 });
   return { score: reasons.reduce((sum, r) => sum + r.points, 0), reasons };
 }
@@ -297,7 +301,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     const maxM = can(actor, ['SUPERVISOR']) && c?.state === 'WORK_SUBMITTED' ? 200 : 50;
     const result = await capture.capture({ ownerId: actor.accountId, image: body.image, nonce: body.nonce, kind: body.kind, stage: body.stage, gps: body.gps, motionSamples: body.motionSamples, queuedOffline: body.queuedOffline === true, clientTime: body.clientTime, values: body.values ?? null, near: c ? { latE6: c.location.latE6, lonE6: c.location.lonE6, maxM } : null });
     if (isCaptureFailure(result)) return sendFail(res, httpStatus(result.code) === 400 && result.code !== 'VALIDATION' ? 422 : httpStatus(result.code), result.code, result.message);
-    const { ownerId: _owner, sha256OriginalEnc: _enc, ...view } = result;
+    const { ownerId: _owner, sha256OriginalEnc: _enc, clipEmbedding: _clip, ...view } = result;
     res.json({ success: true, data: { ...view, imageUrl: `/api/v5/evidence/${result.id}/image` } });
   });
 
@@ -312,7 +316,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
   router.get('/api/v5/evidence/:id', (req, res) => {
     const r = capture.get(req.params.id);
     if (!r) return sendFail(res, 404, 'NOT_FOUND', 'Photo not found.');
-    const { ownerId: _owner, sha256OriginalEnc: _enc, gps: _gps, ...view } = r;
+    const { ownerId: _owner, sha256OriginalEnc: _enc, gps: _gps, clipEmbedding: _clip, ...view } = r;
     res.json({ success: true, data: { ...view, imageUrl: `/api/v5/evidence/${r.id}/image` } });
   });
 

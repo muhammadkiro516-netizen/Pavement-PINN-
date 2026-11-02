@@ -311,6 +311,7 @@ function ActionPanel({ c, onChange }: PanelProps) {
     if (state === 'INSPECTION_ASSIGNED') return <InspectPanel c={c} onChange={onChange} />;
     if (state === 'INSPECTION_VERIFIED') return <PlanPanel c={c} onChange={onChange} />;
     if (state === 'MONITORING') return <FollowUpPanel c={c} onChange={onChange} />;
+    if (state === 'PLAN_PROPOSED') return <ProposedPanel c={c} onChange={onChange} />;
   }
   if (role === 'APPROVER') {
     if (state === 'PLAN_PROPOSED') return <ApprovePanel c={c} onChange={onChange} />;
@@ -350,6 +351,7 @@ function CoordinatorPanel({ c, onChange }: PanelProps) {
   const [ownDate, setOwnDate] = useState('');
   const [guestBadge, setGuestBadge] = useState<Badge | null>(null);
   const agencies = useLoad(() => v6<{ id: string; name: string }[]>('/agencies'), []);
+  const duplicates = useLoad(() => v6<{ id: string; publicCode: string; distanceM: number; similarityPct: number | null }[]>(`/cases/${c.id}/duplicates`), [c.id]);
   // The one who proposed the plan does not check it, when there is someone else who can.
   const [supervisor, setSupervisor] = useState(() => staff.find((a) => a.role === 'FE' && a.accountId !== c.inspection?.inspectorAccountId)?.accountId ?? firstOf('FE'));
   const [delay, setDelay] = useState('AWAITING_BUDGET');
@@ -372,6 +374,17 @@ function CoordinatorPanel({ c, onChange }: PanelProps) {
   return (
     <Card title={NEXT_STEP[state] ?? 'Tindakan'} testId="v5-panel-coordinator">
       {guestBadge && <AccessBadge badge={guestBadge} title="Kode tamu untuk pelaksana" />}
+      {(state === 'TRIAGE' || state === 'ACCEPTED') && (duplicates.data ?? []).length > 0 && (
+        <div className="v5-note" data-testid="v6-duplicates">
+          <p><strong>Mungkin lubang yang sama</strong></p>
+          {(duplicates.data ?? []).map((d) => (
+            <div key={d.id} className="v6-row">
+              <span>{d.publicCode} · {d.distanceM} m{d.similarityPct === null ? '' : ` · foto mirip ${d.similarityPct}%`}</span>
+              <button type="button" className="v5-link" disabled={t.busy} onClick={() => t.send('MERGE', { intoCaseId: d.id, reason: `Lubang yang sama dengan ${d.publicCode}.` })} data-testid={`v6-merge-${d.publicCode}`}>Gabungkan</button>
+            </div>
+          ))}
+        </div>
+      )}
       {c.transferPending && (
         <div className="v5-note" data-testid="v5-transfer-pending">
           <p>Pengalihan ke <strong>{c.transferPending.toAuthorityName}</strong> menunggu konfirmasi orang kedua di instansi itu. SK: {c.transferPending.decreeRef}</p>
@@ -411,7 +424,7 @@ function CoordinatorPanel({ c, onChange }: PanelProps) {
               <label className="v5-field"><span>Instansi</span><select value={target} onChange={(e) => setTarget(Number(e.target.value))} data-testid="v5-transfer-target">{(agencies.data ?? []).map((x, i) => <option key={x.id} value={i}>{x.name}</option>)}</select></label>
               <label className="v5-field"><span>Nomor SK penetapan jalan</span><input value={decreeNo} onChange={(e) => setDecreeNo(e.target.value)} placeholder="Kepmen PUPR 1688/KPTS/M/2022" data-testid="v5-decree-number" /></label>
               <label className="v5-field"><span>Tanggal SK</span><input type="date" value={decreeDate} onChange={(e) => setDecreeDate(e.target.value)} data-testid="v5-decree-date" /></label>
-              <button type="button" className="v5-btn" disabled={t.busy} onClick={() => t.send('TRANSFER_AUTHORITY', { reason, target: { agencyId: agencies.data?.[target]?.id }, decreeRef: { number: decreeNo, date: decreeDate } })} data-testid="v5-transfer">Kirim pengalihan</button>
+              <button type="button" className="v5-btn" disabled={t.busy} onClick={() => t.send('TRANSFER_AUTHORITY', { reason, target: { agencyId: agencies.data?.[target]?.id }, decreeRef: decreeDate ? { number: decreeNo, date: decreeDate } : { decreeId: decreeNo } })} data-testid="v5-transfer">Kirim pengalihan</button>
             </div>
           )}
         </>
@@ -565,6 +578,20 @@ function ApprovePanel({ c, onChange }: PanelProps) {
   );
 }
 
+/** The FE waits for an OM. Trying anyway reaches the server, which refuses: the rule lives there, not in a hidden button. */
+function ProposedPanel({ c, onChange }: PanelProps) {
+  const t = useTransition(c, onChange);
+  const [reason, setReason] = useState('');
+  return (
+    <Card title="Menunggu persetujuan Operations Manager" testId="v6-proposed">
+      <p>Usulan ini sudah dikirim. Yang menyetujui harus orang lain.</p>
+      <label className="v5-field"><span>Alasan</span><input value={reason} onChange={(e) => setReason(e.target.value)} data-testid="v6-self-reason" /></label>
+      <button type="button" className="v5-link" disabled={t.busy} onClick={() => t.send('APPROVE_PLAN', { reason, budgetSource: 'APBD' })} data-testid="v6-self-approve">Coba setujui sendiri</button>
+      <ErrorNote error={t.error} />
+    </Card>
+  );
+}
+
 function AcceptPanel({ c, onChange }: PanelProps) {
   const t = useTransition(c, onChange);
   const [reason, setReason] = useState('');
@@ -712,6 +739,7 @@ function AuditPanel({ c, onChange }: PanelProps) {
   const [doc, setDoc] = useState<{ id: string; sha256: string; pdfUrl: string; verifyUrl: string; version: number } | null>(null);
   const [wording, setWording] = useState('W-01');
   const [note, setNote] = useState('');
+  const [neutralDone, setNeutralDone] = useState(false);
   const issue = () => action.run(async () => { setDoc(await v5('/documents/audit-report', { caseId: c.id })); reload(); });
   const flag = () => action.run(async () => { const out = await v5<{ case: V5Case }>(`/cases/${c.id}/flags`, { wordingId: wording, note, code: 'AUDITOR_NOTE', value: '' }); setNote(''); onChange(out.case as Partial<StaffCase>); reload(); });
   return (
@@ -737,6 +765,8 @@ function AuditPanel({ c, onChange }: PanelProps) {
           <select value={wording} onChange={(e) => setWording(e.target.value)} data-testid="v5-wording"><option value="W-01">Ada ketidaksesuaian, perlu klarifikasi</option><option value="W-10">Disarankan uji inti (core drill)</option></select>
         </label>
         <label className="v5-field"><span>Keterangan, opsional</span><input value={note} onChange={(e) => setNote(e.target.value)} data-testid="v5-flag-note" /></label>
+        <button type="button" className="v5-link" disabled={action.busy || !note.trim()} onClick={() => action.run(async () => { const out = await v6<{ changed: boolean; text: string }>('/wording/neutral', { text: note }); setNeutralDone(out.changed); setNote(out.text); })} data-testid="v6-neutralize">Bantu tulis dengan kata netral</button>
+        {neutralDone && <p className="v6-ok" data-testid="v6-neutral-done">Kata yang menuduh sudah diganti. Baca lagi sebelum menyimpan.</p>}
         <button type="button" className="v5-btn" disabled={action.busy} onClick={flag} data-testid="v5-add-flag">Tambah catatan</button>
         <p className="v5-caption">Catatan melekat pada kasus, bukan pada orang. Kata yang menuduh akan ditolak.</p>
       </Card>

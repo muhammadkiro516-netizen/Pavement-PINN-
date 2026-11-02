@@ -12,7 +12,7 @@ import { parseCsv } from '../v5/routing';
 import type { V5Store } from '../v5/store';
 import { caseVisibleTo } from '../../src/domain/v5/stateMachine';
 import type { V5Actor, V5Case } from '../../src/domain/v5/model';
-import { CREW_ASSUMPTION, compareOptions, compareSubmitted, crewPerTon, lookupPrice, nonMonotonicKSeries, validateImport, type Coefficients, type FoundPrice, type Lookup, type OptionInput, type OptionKey, type PriceRow, type PriceStatus } from '../../src/domain/v6/costV6';
+import { MIN_AC_WC_CM, CREW_ASSUMPTION, compareOptions, compareSubmitted, crewPerTon, lookupPrice, nonMonotonicKSeries, validateImport, type Coefficients, type FoundPrice, type Lookup, type OptionInput, type OptionKey, type PriceRow, type PriceStatus } from '../../src/domain/v6/costV6';
 import { checkReauth } from './routes';
 import type { Workspaces } from './workspaces';
 
@@ -280,13 +280,16 @@ export function registerPriceRoutes(router: Router, deps: Deps): PriceBook {
     const none = { patch: null, overlay: null, note: 'Layanan fisika tidak terjangkau.' };
     const reply = await callInference('POST', '/v1/decide', { segment_id: c.id, layers: [{ h_mm: h, E_mpa: 3000, nu: 0.35 }, { h_mm: 300, E_mpa: 300, nu: 0.35 }], subgrade: { cbr, soaked_factor: 0.5 }, esal_day: esalYear / 365 });
     if ('unavailable' in reply || !reply.ok) return none;
-    const options = (reply.body as { options: { code: string; life_years: number | null }[] }).options;
+    const body = reply.body as { options: { code: string; life_years: number | null }[]; overlay: { candidates: { h_mm: number; life_years: number | null }[] } };
+    const options = body.options;
     const months = (code: string) => { const y = options.find((o) => o.code === code)?.life_years; return y === null || y === undefined ? null : y * 12; };
     const p = c.pinnRun?.lifeMonths;
     const single = (m: number | null) => (m === null ? null : { low: Math.round(m * 10) / 10, mid: Math.round(m * 10) / 10, high: Math.round(m * 10) / 10 });
     // A patch keeps the old road, so PINN's range for that road applies. An overlay is a new layer: its range is not modelled.
     const patch = p && p.p50 > 0 ? { low: p.p10, mid: p.p50, high: p.p90 } : single(months('RUTIN'));
-    return { patch, overlay: single(months('BERKALA')), note: `Tambal: ${p ? 'rentang dari PINN kasus ini' : 'satu angka dari model fisika; jalankan PINN untuk rentangnya'}. Lapis ulang: satu angka dari model fisika, rentangnya belum dimodelkan. Beban ${Math.round(esalYear).toLocaleString('id-ID')} ESAL/tahun, tebal aspal ${h} mm, CBR ${cbr}; tebal, CBR, dan modulus adalah asumsi sampai diukur.` };
+    // The overlay priced here is the minimum wearing course, so its life is read at that same thickness.
+    const costedOverlay = body.overlay.candidates.find((row) => row.h_mm === MIN_AC_WC_CM * 10)?.life_years ?? null;
+    return { patch, overlay: single(costedOverlay === null ? null : costedOverlay * 12), note: `Tambal: ${p ? 'rentang dari PINN kasus ini' : 'satu angka dari model fisika; jalankan PINN untuk rentangnya'}. Lapis ulang setebal ${MIN_AC_WC_CM} cm: satu angka dari model fisika. Beban ${Math.round(esalYear).toLocaleString('id-ID')} ESAL/tahun, tebal aspal ${h} mm, CBR ${cbr}; tebal, CBR, dan modulus adalah asumsi sampai diukur.` };
   };
 
   router.post('/api/v6/cases/:id/compare-options', limit, async (req, res) => {

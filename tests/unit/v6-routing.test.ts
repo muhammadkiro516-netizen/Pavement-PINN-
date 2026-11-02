@@ -191,3 +191,19 @@ test('public rankings carry service numbers and no person', async () => {
   assert.ok(rows.some((r: any) => r.agency === 'Dinas PUPR Kabupaten Karawang' && r.totalCases > 0));
   assert.doesNotMatch(JSON.stringify(rows), /OM |dpupr-karawang-om/);
 });
+
+test('duplicates list nearby reports, the words get neutral, and today has concrete actions', async () => {
+  const a = await report(KARAWANG);
+  const b = await report(KARAWANG);
+  const list = await inbox('karawang');
+  const one = list.find((x) => x.publicCode === a.publicCode);
+  const dup = (await call(`/api/v6/cases/${one.id}/duplicates`, { token: tokens.karawang })).body.data;
+  assert.ok(dup.some((d: any) => d.publicCode === b.publicCode && d.distanceM <= 25));
+  const neutral = (await call('/api/v6/wording/neutral', { token: tokens.karawang, body: { text: 'Kontraktor ini korupsi dan curang' } })).body.data;
+  assert.equal(neutral.changed, true);
+  assert.doesNotMatch(neutral.text, /korupsi|curang/i);
+  assert.match(neutral.text, /perlu klarifikasi/);
+  const today = (await call('/api/v6/today', { token: tokens.karawang })).body.data;
+  assert.ok(today.actions.length >= 1 && today.actions.length <= 3);
+  assert.ok(today.actions.every((x: any) => x.what && x.where && x.why));
+});

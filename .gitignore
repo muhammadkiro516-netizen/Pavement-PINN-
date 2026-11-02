@@ -39,3 +39,6 @@ eval/local_test/scenes/
 
 ~$*
 .e2e-tmp/
+
+capture-kit/
+capture-kit.zip

@@ -284,3 +284,5 @@ code { font-size: 0.8rem; word-break: break-all; }
 .v6-stat-num { animation: v6-pop 240ms ease both; }
 @keyframes v6-pop { from { transform: scale(.8); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .v5-pavi, .pp-float-soft, .v6-stat-num { animation: none; } .v5-list button { transition: none; } }
+.v6-actions { margin: 8px 0; padding-left: 20px; display: grid; gap: 8px; }
+.v6-actions li > * { display: block; }

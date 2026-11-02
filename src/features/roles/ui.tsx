@@ -126,6 +126,7 @@ const SOD_WORD: Record<string, string> = {
 };
 
 const MESSAGE_WORD: Array<[RegExp, string]> = [
+  [/^Your role cannot do this/, 'Ditolak server: peran Anda tidak boleh melakukan ini.'],
   [/at least \d+ characters/, 'Tulis alasan minimal 10 huruf.'],
   [/neutral wording/i, 'Gunakan kata yang netral, misalnya "perlu klarifikasi".'],
   [/changed\. Reload/, 'Kasus ini baru berubah. Muat ulang lalu coba lagi.'],

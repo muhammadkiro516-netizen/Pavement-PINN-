@@ -38,6 +38,8 @@ export interface EvidenceRecord {
   marker: { found: boolean; pxPerMm: number | null; tiltRatio: number | null } | null;
   values: Record<string, unknown> | null;
   usedByCaseId: string | null;
+  /** CLIP vector of the photo, to compare it with others. Never sent to a browser. */
+  clipEmbedding?: number[] | null;
 }
 
 export type CaptureFailure = { code: string; message: string };
@@ -250,11 +252,19 @@ export class CaptureService {
       ai,
       marker,
       values: input.values ?? null,
-      usedByCaseId: null
+      usedByCaseId: null,
+      clipEmbedding: await this.embed(kind, publicBytes)
     };
     this.records.set(id, record);
     this.save();
     return record;
+  }
+
+  private async embed(kind: EvidenceKind, bytes: Buffer): Promise<number[] | null> {
+    if (kind !== 'OVERVIEW' && kind !== 'CLOSEUP' && kind !== 'TRACE_POINT') return null;
+    const reply = await callInferenceBytes('/v1/image/embed', bytes, 'image/jpeg', 30_000);
+    if ('unavailable' in reply || !reply.ok) return null;
+    return (reply.body as { embedding: number[] }).embedding;
   }
 
   private async detect(kind: EvidenceKind, bytes: Buffer): Promise<EvidenceRecord['ai']> {

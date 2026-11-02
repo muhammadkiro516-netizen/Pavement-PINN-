@@ -309,7 +309,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
   // Long damage: chosen before the camera. The walk gives the length; photos then follow as usual.
   const [walkOpen, setWalkOpen] = useState(false);
   const [longTrace, setLongTrace] = useState<LongDamageTrace | null>(null);
-  const longPhotoCount = (selectedImage ? 1 : 0) + Object.keys(extraShots).length;
+  const longPhotoCount = (selectedImage ? 1 : 0) + Object.keys(extraShots).length + (longTrace?.photoIds.length ?? 0);
   const longNeedsPhotos = !!longTrace && longPhotoCount < MIN_LONG_DAMAGE_PHOTOS;
   const [cvAnalysis, setCvAnalysis] = useState<CvAnalysis | null>(null);
   const [cvError, setCvError] = useState<{ code: string; message: string } | null>(null);
@@ -878,7 +878,7 @@ export const ReportRoadIssueCard: React.FC<ReportRoadIssueCardProps> = ({
     try {
       const sent = await submitReport({
         photo: selectedImage!,
-        extraEvidenceIds: Object.values(extraShots).flatMap((x) => (x?.evidenceId ? [x.evidenceId] : [])),
+        extraEvidenceIds: [...Object.values(extraShots).flatMap((x) => (x?.evidenceId ? [x.evidenceId] : [])), ...(longTrace?.photoIds ?? [])],
         latitude: lat,
         longitude: lng,
         accuracyM: gpsAccuracy,
