@@ -44,3 +44,29 @@ def test_a_list_of_facts_without_recommendation_is_rejected():
 
 def test_trim_drops_a_cut_sentence():
     assert slm.trim("Kalimat pertama lengkap. Kalimat kedua terpot") == "Kalimat pertama lengkap."
+
+
+class _FakeSlm:
+    def __init__(self, text):
+        self.text = text
+
+    def generate(self, prompt, max_new_tokens=320, system=None):
+        return {"text": self.text}
+
+
+BRIEF_VALUES = {"BARU": "6", "LEWAT": "2", "DIPERBAIKI": "5", "GAGAL": "1"}
+
+
+def test_briefing_fills_numbers_only_from_values():
+    from app.slm import briefing
+    good = "Pagi ini ada {BARU} kasus baru, {LEWAT} lewat tenggat, {DIPERBAIKI} sedang diperbaiki, dan {GAGAL} rusak lagi."
+    out = briefing(BRIEF_VALUES, _FakeSlm(good))
+    assert out["source"] == "SLM" and "6 kasus baru" in out["text"] and "{" not in out["text"]
+
+
+def test_briefing_falls_back_when_the_model_writes_a_number_or_accuses():
+    from app.slm import briefing
+    for bad in ("Ada 9 kasus {BARU} {LEWAT} {DIPERBAIKI} {GAGAL} hari ini yang perlu dilihat segera.", "Petugas lalai {BARU} {LEWAT} {DIPERBAIKI} {GAGAL} dan perlu ditindak hari ini juga."):
+        out = briefing(BRIEF_VALUES, _FakeSlm(bad))
+        assert out["source"] == "TEMPLAT" and "6 kasus baru" in out["text"]
+    assert briefing(BRIEF_VALUES, None)["source"] == "TEMPLAT"

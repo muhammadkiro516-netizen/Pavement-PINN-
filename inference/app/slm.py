@@ -143,9 +143,9 @@ class Slm:
         self.available = available
         self.lock = threading.Lock()
 
-    def generate(self, prompt: str, max_new_tokens: int = 320) -> dict:
+    def generate(self, prompt: str, max_new_tokens: int = 320, system: str | None = None) -> dict:
         tok = self.pipe.get_tokenizer()
-        chat = tok.apply_chat_template([{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}], add_generation_prompt=True)
+        chat = tok.apply_chat_template([{"role": "system", "content": system or SYSTEM}, {"role": "user", "content": prompt}], add_generation_prompt=True)
         cfg = self.g.GenerationConfig()
         cfg.max_new_tokens = max_new_tokens
         cfg.do_sample = False
@@ -191,3 +191,39 @@ def draft(facts: dict, values: dict[str, str], slm: Slm | None) -> dict:
         "model": MODEL_DIR.name if slm else None,
         "label": "DRAF — disusun otomatis, wajib ditinjau dan disetujui pejabat berwenang",
     }
+
+
+BRIEFING_FIELDS = ("{BARU}", "{LEWAT}", "{DIPERBAIKI}", "{GAGAL}")
+BRIEFING_SYSTEM = (
+    "Anda menulis ringkasan pagi untuk kepala seksi pemeliharaan jalan, dalam bahasa Indonesia sehari-hari dan netral. "
+    "Aturan mutlak: jangan menulis angka atau digit. Setiap jumlah ditulis sebagai placeholder persis: {BARU} kasus baru, "
+    "{LEWAT} lewat tenggat, {DIPERBAIKI} sedang diperbaiki, {GAGAL} rusak lagi dalam masa pemeliharaan. Jangan menyebut nama "
+    "orang, jangan menuduh, jangan mengarang fakta. Tulis dua sampai tiga kalimat tanpa judul dan tanpa daftar."
+)
+BRIEFING_TEMPLATE = "Hari ini ada {BARU} kasus baru dan {DIPERBAIKI} sedang diperbaiki. Sebanyak {LEWAT} kasus lewat tenggat, dan {GAGAL} perbaikan rusak lagi dalam masa pemeliharaan."
+
+
+def check_briefing(text: str) -> list[str]:
+    """Reasons the briefing is not acceptable (empty list = accepted)."""
+    problems = [f"missing {f}" for f in BRIEFING_FIELDS if f not in text]
+    if re.search(r"\d", text):
+        problems.append("digit")
+    problems += [f"unknown placeholder {p}" for p in re.findall(r"\{[A-Z_]+\}", text) if p not in BRIEFING_FIELDS]
+    problems += [f"banned {b}" for b in BANNED if re.search(b, text, re.I)]
+    if not 40 <= len(text) <= 700:
+        problems.append("length")
+    return problems
+
+
+def briefing(values: dict[str, str], slm: "Slm | None") -> dict:
+    """The model writes the words; the numbers are only ever filled in here."""
+    text, source = BRIEFING_TEMPLATE, "TEMPLAT"
+    if slm is not None:
+        for _ in range(2):
+            candidate = slm.generate("Tulis ringkasan pagi ini.", max_new_tokens=120, system=BRIEFING_SYSTEM)["text"]
+            if not check_briefing(candidate):
+                text, source = candidate, "SLM"
+                break
+    for key, value in values.items():
+        text = text.replace("{" + key + "}", value)
+    return {"text": text, "source": source}

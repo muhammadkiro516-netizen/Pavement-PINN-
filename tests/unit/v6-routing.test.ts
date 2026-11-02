@@ -173,3 +173,21 @@ test('an AI decision is logged and never moves the case', async () => {
   assert.equal(again.version, c.version);
   assert.equal((await call(`/api/v6/cases/${c.id}/ai`, { token: tokens.jaktim })).status, 404, 'not another agency');
 });
+
+test('internal notes stay internal, words stay neutral, and the logo must be a real image from an OM', async () => {
+  const made = await report(KARAWANG);
+  const c = (await inbox('karawang')).find((x) => x.publicCode === made.publicCode);
+  assert.equal((await call(`/api/v6/cases/${c.id}/notes`, { token: tokens.karawang, body: { text: 'Kontraktor ini korupsi' } })).status, 400);
+  assert.equal((await call(`/api/v6/cases/${c.id}/notes`, { token: tokens.karawang, body: { text: 'Mohon dicek besok pagi.' } })).status, 200);
+  assert.equal((await inbox('karawang')).find((x) => x.id === c.id).internalNotes.length, 1);
+  assert.doesNotMatch(JSON.stringify((await call(`/api/v5/public/track/${made.publicCode}`)).body), /Mohon dicek besok/);
+  assert.equal((await call('/api/v6/agency/logo', { token: tokens.karawang, body: { dataUri: 'data:image/svg+xml;base64,AAAA' } })).status, 400);
+  assert.equal((await call('/api/v6/agency/logo', { token: tokens.karawang, body: { dataUri: 'data:image/png;base64,AAAA' } })).status, 200);
+  assert.equal((await call('/api/v5/me', { token: tokens.karawang })).body.data.agencyLogo, 'data:image/png;base64,AAAA');
+});
+
+test('public rankings carry service numbers and no person', async () => {
+  const rows = (await call('/api/v6/public/rankings')).body.data;
+  assert.ok(rows.some((r: any) => r.agency === 'Dinas PUPR Kabupaten Karawang' && r.totalCases > 0));
+  assert.doesNotMatch(JSON.stringify(rows), /OM |dpupr-karawang-om/);
+});

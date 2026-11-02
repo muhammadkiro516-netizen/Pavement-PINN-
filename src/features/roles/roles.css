@@ -277,3 +277,10 @@ code { font-size: 0.8rem; word-break: break-all; }
 .v6-money { font-size: 18px; font-weight: 800; color: #FFD60A; margin: 8px 0; }
 .v6-best { flex: none; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #FFD60A; color: #0B0D10; }
 @media (max-width: 600px) { .v5-top { flex-wrap: wrap; row-gap: 4px; } .v5-top-who { flex-wrap: wrap; justify-content: flex-end; gap: 8px; } .v5-agency { order: 3; width: 100%; max-width: none; text-align: right; } }
+.v5-pavi, .pp-float-soft { animation: v6-bob 3.2s ease-in-out infinite; }
+@keyframes v6-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.v5-list button { transition: transform 180ms ease, border-color 180ms ease; }
+.v5-list button:hover { border-color: #FFD60A; transform: translateY(-1px); }
+.v6-stat-num { animation: v6-pop 240ms ease both; }
+@keyframes v6-pop { from { transform: scale(.8); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .v5-pavi, .pp-float-soft, .v6-stat-num { animation: none; } .v5-list button { transition: none; } }

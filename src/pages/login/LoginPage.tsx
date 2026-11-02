@@ -134,7 +134,7 @@ export const LoginPage: React.FC = () => {
           <Wordmark />
         </button>
         <div className="rounded-[32px] border border-[#2A2F37] bg-[#15181D] p-6 shadow-[0_24px_60px_-28px_rgba(14,27,44,0.35)]">
-          <div className="mb-2 flex justify-center"><Pavi size={56} /></div>
+          <div className="mb-2 flex justify-center"><Pavi size={56} helmet="#FFC72C" vest="#FFC72C" className="pp-float-soft" /></div>
           <h1 className="text-center text-2xl font-extrabold tracking-tight">Masuk Instansi</h1>
           <p className="mt-1 text-center text-sm text-[#A1A1AA]" data-testid="v6-login-agency">{agency || 'Pakai kode atau QR dari Operations Manager Anda.'}</p>
           {endedNotice && <p className="mt-3 rounded-2xl bg-[#1E2229] p-3 text-sm text-[#FFD60A]">{endedNotice}</p>}

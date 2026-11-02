@@ -56,6 +56,8 @@ interface Today {
 export function TodayModule() {
   const { v6Role, role, go } = useV5();
   const { data, error } = useLoad(() => v6<Today>('/today'), []);
+  const write = useAction();
+  const [ai, setAi] = useState<{ text: string; source: string; label: string } | null>(null);
   return (
     <>
       {v6Role !== 'CONTRACTOR' && (
@@ -73,6 +75,9 @@ export function TodayModule() {
                 {error && <p>{error.message}</p>}
                 {(data?.briefing ?? ['Memuat…']).map((line) => <p key={line}>{line}</p>)}
                 <p className="v5-caption">{data?.briefingSource}</p>
+                {ai && <div className="v5-note" data-testid="v6-ai-briefing"><p className="v5-warn">{ai.label}</p><p>{ai.text}</p><p className="v5-caption">{ai.source === 'SLM' ? 'Ditulis Qwen2.5 lewat OpenVINO GenAI; angka diisi sistem.' : 'Model tidak lolos pemeriksaan, jadi memakai templat.'}</p></div>}
+                <button type="button" className="v5-link" disabled={write.busy} onClick={() => write.run(async () => setAi(await v6('/today/ai-briefing', {})))} data-testid="v6-ai-briefing-run">{write.busy ? 'AI sedang menulis…' : 'Tulis dengan AI'}</button>
+                <ErrorNote error={write.error} />
               </div>
             </div>
           </Card>
@@ -92,21 +97,35 @@ export function TodayModule() {
 
 const INBOX_COLORS: Record<string, string> = { POTHOLE: '#FF6B2C', SEVERE_BREAKUP: '#FF3B30', ALLIGATOR: '#FFD60A' };
 
-function InboxMap({ cases }: { cases: StaffCase[] }) {
+function InboxMap({ cases, rings }: { cases: StaffCase[]; rings: [number, number][][] }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const start = cases[0] ? [cases[0].location.lonE6 / 1e6, cases[0].location.latE6 / 1e6] : rings[0]?.[0] ? [rings[0][0][1], rings[0][0][0]] : null;
+  const hasStart = !!start;
   useEffect(() => {
-    if (!box.current || cases.length === 0 || map.current) return;
+    if (!box.current || !start || map.current) return;
     map.current = new maplibregl.Map({
       container: box.current,
       style: { version: 8, sources: { osm: { type: 'raster', tiles: ['https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap, © CARTO' } }, layers: [{ id: 'osm', type: 'raster', source: 'osm' }] },
-      center: [cases[0].location.lonE6 / 1e6, cases[0].location.latE6 / 1e6],
+      center: start as [number, number],
       zoom: 12,
       attributionControl: { compact: true }
     });
     return () => { map.current?.remove(); map.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cases.length > 0]);
+  }, [hasStart]);
+  // The agency's area, drawn from the same boundaries routing uses (§2.5).
+  useEffect(() => {
+    const m = map.current;
+    if (!m || rings.length === 0) return;
+    const draw = () => {
+      if (m.getSource('area')) return;
+      m.addSource('area', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'MultiLineString', coordinates: rings.map((r) => r.map(([lat, lon]) => [lon, lat])) } } });
+      m.addLayer({ id: 'area-line', type: 'line', source: 'area', paint: { 'line-color': '#FFD60A', 'line-width': 2, 'line-dasharray': [2, 2] } });
+    };
+    if (m.isStyleLoaded()) draw();
+    else m.once('load', draw);
+  }, [rings, hasStart]);
   useEffect(() => {
     if (!map.current) return;
     const pins = cases.map((c) => {
@@ -118,15 +137,16 @@ function InboxMap({ cases }: { cases: StaffCase[] }) {
     });
     return () => pins.forEach((p) => p.remove());
   }, [cases]);
-  if (cases.length === 0) return null;
+  if (!start) return null;
   return <div ref={box} className="v6-map" data-testid="v6-inbox-map" />;
 }
 
 export function InboxModule() {
   const { data } = useLoad(() => v5<StaffCase[]>('/cases'), []);
+  const area = useLoad(() => v6<[number, number][][]>('/agency/boundary'), []);
   return (
     <>
-      <InboxMap cases={data ?? []} />
+      <InboxMap cases={data ?? []} rings={area.data ?? []} />
       <CaseList title="Inbox, urut prioritas" scope="INBOX" />
     </>
   );
@@ -252,6 +272,19 @@ export function SettingsModule({ admin }: { admin: ReactNode }) {
           </>
         )}
       </Card>
+      {v6Role === 'OM' && (
+        <Card title="Logo instansi" testId="v6-logo">
+          {data?.agency?.logoUri && <img src={data.agency.logoUri} alt="Logo instansi" width={64} height={64} data-testid="v6-logo-image" />}
+          <p className="v5-muted">Unggah logo milik instansi Anda sendiri, PNG atau JPG, paling besar 200 KB. Aplikasi tidak membuat lambang.</p>
+          <input type="file" accept="image/png,image/jpeg" data-testid="v6-logo-file" onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => void action.run(async () => { await v6('/agency/logo', { dataUri: reader.result }); reload(); });
+            reader.readAsDataURL(file);
+          }} />
+        </Card>
+      )}
       <Card title="Wilayah tanggung jawab" testId="v6-jurisdictions">
         {(data?.jurisdictions ?? []).map((j, i) => <p key={i}>{j.adminArea} · {j.roadStatus}{j.decreeRefs.length ? <span className="v5-caption"> · {j.decreeRefs.join('; ')}</span> : null}</p>)}
       </Card>

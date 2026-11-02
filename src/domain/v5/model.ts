@@ -296,6 +296,8 @@ export interface V5Case {
   agencyId: string | null;
   /** v6: the side-by-side material comparison the Field Engineer ran last. */
   costComparison: { bestLabel: string | null; ranAt: string; options: unknown[]; audit?: { submittedIdr: number; differencePct: number; needsClarification: boolean; optionKey: string } } | null;
+  /** v6: staff discussion on a case. Never shown to the public or a contractor. */
+  internalNotes: { byMemberId: string; role: string; text: string; at: string }[];
   /** v6: what the citizen's "Handled by" card says. */
   handledBy: { connected: boolean; name: string; fieldOffice: string | null; address: string | null; phone: string | null; reason: string } | null;
   /** v6: set when an OM confirms a low-confidence owner, citing the road decree. */
@@ -341,6 +343,7 @@ export function blankCase(fields: Pick<V5Case, 'id' | 'publicCode' | 'createdAt'
     hazard: false,
     transferPending: null,
     agencyId: null,
+    internalNotes: [],
     costComparison: null,
     handledBy: null,
     ownershipConfirmed: null,

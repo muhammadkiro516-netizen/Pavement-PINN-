@@ -166,6 +166,15 @@ export class RoadRegistry {
     return { region: top?.region ?? sub?.region ?? null, kota: top?.name ?? null, kecamatan: sub?.name ?? null };
   }
 
+  /** The boundary of a kota or kabupaten, thinned for the map. */
+  areaRings(name: string): [number, number][][] {
+    const area = this.areas.find((a) => a.level === 5 && a.name.toLowerCase().includes(name.toLowerCase())) ?? this.areas.find((a) => a.name.toLowerCase().includes(name.toLowerCase()));
+    return (area?.rings ?? []).map((ring) => {
+      const step = Math.max(1, Math.floor(ring.length / 800));
+      return ring.filter((_, i) => i % step === 0);
+    });
+  }
+
   /** Address and phone only as published for this very office; nothing is borrowed from its parent. */
   officeContact(id: string): { address: string | null; phone: string | null; channel: string | null } {
     const row = this.offices.get(id);

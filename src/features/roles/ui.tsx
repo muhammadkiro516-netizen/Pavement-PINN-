@@ -19,15 +19,15 @@ export function TechDetails({ children }: { children: ReactNode }) {
 
 /** Pavi per role, in the app's own palette. */
 const PAVI_LOOK: Record<V5Role, { helmet: string; vest: string }> = {
-  CITIZEN: { helmet: '#FFD60A', vest: '#FFFFFF' },
-  FIELD_INSPECTOR: { helmet: '#FF6B2C', vest: '#FFD60A' },
-  COORDINATOR: { helmet: '#4C8DFF', vest: '#FFFFFF' },
-  APPROVER: { helmet: '#E5E7EB', vest: '#FFD60A' },
-  REPAIR_CREW: { helmet: '#FFD60A', vest: '#FF4D5E' },
-  SUPERVISOR: { helmet: '#2BD67B', vest: '#FFFFFF' },
-  AUDITOR: { helmet: '#FFFFFF', vest: '#38BDF8' },
-  AGENCY_HEAD: { helmet: '#E5E7EB', vest: '#2BD67B' },
-  ADMIN: { helmet: '#8E8E93', vest: '#FFFFFF' }
+  CITIZEN: { helmet: '#FF6B2C', vest: '#FFFFFF' },
+  FIELD_INSPECTOR: { helmet: '#FFC72C', vest: '#22D3EE' },
+  COORDINATOR: { helmet: '#FFC72C', vest: '#FFC72C' },
+  APPROVER: { helmet: '#FFC72C', vest: '#FFC72C' },
+  REPAIR_CREW: { helmet: '#FFC72C', vest: '#FF6B2C' },
+  SUPERVISOR: { helmet: '#FFC72C', vest: '#22D3EE' },
+  AUDITOR: { helmet: '#FFC72C', vest: '#A78BFA' },
+  AGENCY_HEAD: { helmet: '#FFC72C', vest: '#FFC72C' },
+  ADMIN: { helmet: '#FFC72C', vest: '#FFC72C' }
 };
 
 export function RolePavi({ role, mood = 'idle', size = 64 }: { role: V5Role; mood?: PaviMood; size?: number }) {

@@ -208,7 +208,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
   // Parsed on first use: every createApp() in the v4 tests passes through here.
   let loadedRegistry: RoadRegistry | null = null;
   const roads = () => (loadedRegistry ??= new RoadRegistry());
-  const registry = { officeContact: (id: string) => roads().officeContact(id), decide: (...args: Parameters<RoadRegistry['decide']>) => roads().decide(...args), segmentsInBox: (...args: Parameters<RoadRegistry['segmentsInBox']>) => roads().segmentsInBox(...args), get version() { return roads().version; }, get available() { return roads().available; } } as RoadRegistry;
+  const registry = { officeContact: (id: string) => roads().officeContact(id), areaRings: (name: string) => roads().areaRings(name), decide: (...args: Parameters<RoadRegistry['decide']>) => roads().decide(...args), segmentsInBox: (...args: Parameters<RoadRegistry['segmentsInBox']>) => roads().segmentsInBox(...args), get version() { return roads().version; }, get available() { return roads().available; } } as RoadRegistry;
   const writeLimit = rateLimit('v5-write', 240, 60_000);
 
   capture.purgeOriginals();
@@ -257,7 +257,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
 
   registerV6Routes(router, { workspaces, store, sessions, actorOf, sendFail, qrFor });
   registerPriceRoutes(router, { workspaces, store, actorOf, sendFail, dataDir: options.dataDir });
-  registerV6Insights(router, { workspaces, store, capture, decisions: new AiDecisionLog(path.join(options.dataDir, 'v6')), actorOf, sendFail, visible, caseNow });
+  registerV6Insights(router, { workspaces, store, capture, decisions: new AiDecisionLog(path.join(options.dataDir, 'v6')), actorOf, sendFail, visible, caseNow, boundary: (name) => registry.areaRings(name) });
 
   // Who can be assigned: staff only, no contact details.
   router.get('/api/v5/staff', (req, res) => {
@@ -276,7 +276,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     const actor = actorOf(req);
     if (!actor) return sendFail(res, 401, 'UNAUTHENTICATED', 'Choose a role first.');
     const member = workspaces.member(actor.accountId);
-    res.json({ success: true, data: { role: actor.role, kind: actor.kind, accountId: actor.accountId, displayName: member?.name ?? null, v6Role: actor.v6Role ?? null, agencyName: actor.agencyId ? workspaces.agency(actor.agencyId)?.name ?? null : null, onlyCaseId: actor.onlyCaseId ?? null } });
+    res.json({ success: true, data: { role: actor.role, kind: actor.kind, accountId: actor.accountId, displayName: member?.name ?? null, v6Role: actor.v6Role ?? null, agencyName: actor.agencyId ? workspaces.agency(actor.agencyId)?.name ?? null : null, agencyLogo: actor.agencyId ? workspaces.agency(actor.agencyId)?.logoUri ?? null : null, onlyCaseId: actor.onlyCaseId ?? null } });
   });
 
   // ---- Capture ------------------------------------------------------------------------------
@@ -295,7 +295,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     // A photo is sent first and attached to a case later, where the same limit applies again.
     if (actor.onlyCaseId && c && c.id !== actor.onlyCaseId) return sendFail(res, 403, 'FORBIDDEN', 'This code opens one work order only.');
     const maxM = can(actor, ['SUPERVISOR']) && c?.state === 'WORK_SUBMITTED' ? 200 : 50;
-    const result = await capture.capture({ ownerId: actor.accountId, image: body.image, nonce: body.nonce, kind: body.kind, stage: body.stage, gps: body.gps, motionSamples: body.motionSamples, clientTime: body.clientTime, values: body.values ?? null, near: c ? { latE6: c.location.latE6, lonE6: c.location.lonE6, maxM } : null });
+    const result = await capture.capture({ ownerId: actor.accountId, image: body.image, nonce: body.nonce, kind: body.kind, stage: body.stage, gps: body.gps, motionSamples: body.motionSamples, queuedOffline: body.queuedOffline === true, clientTime: body.clientTime, values: body.values ?? null, near: c ? { latE6: c.location.latE6, lonE6: c.location.lonE6, maxM } : null });
     if (isCaptureFailure(result)) return sendFail(res, httpStatus(result.code) === 400 && result.code !== 'VALIDATION' ? 422 : httpStatus(result.code), result.code, result.message);
     const { ownerId: _owner, sha256OriginalEnc: _enc, ...view } = result;
     res.json({ success: true, data: { ...view, imageUrl: `/api/v5/evidence/${result.id}/image` } });
@@ -417,7 +417,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     if (!can(actor, FULL_READ_ROLES)) return sendFail(res, 403, 'FORBIDDEN', 'Staff only.');
     const data = visible(actor).map((c) => {
       const now = caseNow(c);
-      return { ...c, stateLabel: c.state ? V5_STATE_LABELS[c.state].en : null, ladder: ladderStatus(c, now), priority: priorityOf(c, now) };
+      return { ...c, ...(actor.onlyCaseId ? { internalNotes: [] } : {}), stateLabel: c.state ? V5_STATE_LABELS[c.state].en : null, ladder: ladderStatus(c, now), priority: priorityOf(c, now) };
     }).sort((a, b) => b.priority.score - a.priority.score);
     res.json({ success: true, data });
   });
@@ -433,7 +433,7 @@ export function registerV5Routes(router: Router, options: V5Options): V5Runtime 
     const found = staffCase(req, res, FULL_READ_ROLES);
     if (!found) return;
     const now = caseNow(found.c);
-    res.json({ success: true, data: { ...found.c, stateLabel: found.c.state ? V5_STATE_LABELS[found.c.state].en : null, ladder: ladderStatus(found.c, now), priority: priorityOf(found.c, now), now } });
+    res.json({ success: true, data: { ...found.c, ...(found.actor.onlyCaseId ? { internalNotes: [] } : {}), stateLabel: found.c.state ? V5_STATE_LABELS[found.c.state].en : null, ladder: ladderStatus(found.c, now), priority: priorityOf(found.c, now), now } });
   });
 
   // ---- Measure: PINN and cost ---------------------------------------------------------------

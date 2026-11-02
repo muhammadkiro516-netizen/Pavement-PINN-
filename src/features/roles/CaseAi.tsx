@@ -73,3 +73,27 @@ export function CaseAiPanel({ caseId }: { caseId: string }) {
     </Card>
   );
 }
+
+const NOTE_ROLE: Record<string, string> = { OM: 'OM', FE: 'FE' };
+
+/** Internal discussion (§2.5). Not on the public page and not for contractors. */
+export function CaseNotes({ caseId, notes }: { caseId: string; notes: { role: string; text: string; at: string }[] }) {
+  const { v6Role } = useV5();
+  const [list, setList] = useState(notes ?? []);
+  const [text, setText] = useState('');
+  const action = useAction();
+  if (v6Role === 'CONTRACTOR') return null;
+  return (
+    <Card title="Diskusi internal" testId="v6-notes">
+      {list.length === 0 && <p className="v5-muted">Belum ada catatan.</p>}
+      {list.map((n, i) => <p key={i} data-testid="v6-note"><strong>{NOTE_ROLE[n.role] ?? n.role}</strong> {n.text} <span className="v5-caption">{new Date(n.at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</span></p>)}
+      {(v6Role === 'OM' || v6Role === 'FE') && (
+        <>
+          <label className="v5-field"><span>Tulis catatan</span><input value={text} onChange={(e) => setText(e.target.value)} data-testid="v6-note-text" /></label>
+          <button type="button" className="v5-btn" disabled={action.busy || text.trim().length < 2} onClick={() => action.run(async () => { setList((await v6<{ notes: typeof list }>(`/cases/${caseId}/notes`, { text })).notes); setText(''); })} data-testid="v6-note-send">Kirim</button>
+          <ErrorNote error={action.error} />
+        </>
+      )}
+    </Card>
+  );
+}

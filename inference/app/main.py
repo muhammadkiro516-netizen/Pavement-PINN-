@@ -516,6 +516,21 @@ async def proposal(req: ProposalRequest) -> dict:
     return out
 
 
+class BriefingRequest(Strict):
+    values: dict[str, str]
+
+
+@app.post("/v1/briefing")
+async def briefing(req: BriefingRequest) -> dict:
+    if set(req.values) != {"BARU", "LEWAT", "DIPERBAIKI", "GAGAL"}:
+        raise HTTPException(status_code=422, detail="values must be BARU, LEWAT, DIPERBAIKI, GAGAL")
+    try:
+        model = await run_in_threadpool(slm_mod.load_slm)
+    except RuntimeError:
+        model = None
+    return await run_in_threadpool(slm_mod.briefing, req.values, model)
+
+
 from . import imageconv  # noqa: E402
 
 

@@ -2,7 +2,7 @@
  * Staff screens. One case screen shows the record; the action panel depends on role and state.
  * The server decides every action: a button here only asks, and a refusal shows its SoD rule.
  */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ClipboardCheck, FileText, Link2, ShieldCheck } from 'lucide-react';
 import { V5_ROLE_NAMES, V5_STATE_LABELS, type V5Case, type V5Role, type V5State } from '../../domain/v5/model';
 import { ROAD_STATUS_WORD } from '../road-owner/RoadOwnerCard';
@@ -10,7 +10,7 @@ import { v5, v6 } from './api';
 import { useV5 } from './context';
 import { AccessBadge, type Badge } from './TeamPanel';
 import { panelDuty, type V6Role } from '../../domain/v6/roles';
-import { CaseAiPanel } from './CaseAi';
+import { CaseAiPanel, CaseNotes } from './CaseAi';
 import { CompareOptions } from './CostModule';
 import { Capture, DetectionView, apiUrl, type EvidenceView } from './Capture';
 import { FollowUps } from './TrackPages';
@@ -77,10 +77,31 @@ function inList(c: StaffCase, scope: CaseScope, v6Role: V6Role | null, me: strin
   return (mineInspect && ['INSPECTION_ASSIGNED', 'INSPECTION_VERIFIED', 'MONITORING', 'REOPENED'].includes(state)) || (mineVerify && state === 'WORK_SUBMITTED');
 }
 
+/** Nearest next stop from where the person stands: a plain, explainable order for the day. */
+function routeOrder(rows: StaffCase[], from: { lat: number; lon: number } | null): StaffCase[] {
+  if (!from) return rows;
+  const left = [...rows];
+  const out: StaffCase[] = [];
+  let at = from;
+  while (left.length) {
+    left.sort((a, b) => Math.hypot(a.location.latE6 / 1e6 - at.lat, a.location.lonE6 / 1e6 - at.lon) - Math.hypot(b.location.latE6 / 1e6 - at.lat, b.location.lonE6 / 1e6 - at.lon));
+    const next = left.shift()!;
+    out.push(next);
+    at = { lat: next.location.latE6 / 1e6, lon: next.location.lonE6 / 1e6 };
+  }
+  return out;
+}
+
 export function CaseList({ title, scope }: { title: string; scope: CaseScope }) {
+  const [here, setHere] = useState<{ lat: number; lon: number } | null>(null);
+  useEffect(() => {
+    if (scope !== 'FIELD' || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition((p) => setHere({ lat: p.coords.latitude, lon: p.coords.longitude }), () => undefined);
+  }, [scope]);
   const { role, v6Role, accountId, go } = useV5();
   const { data, error } = useLoad(() => v5<StaffCase[]>('/cases'), []);
-  const rows = (data ?? []).filter((c) => inList(c, scope, v6Role, accountId));
+  const filtered = (data ?? []).filter((c) => inList(c, scope, v6Role, accountId));
+  const rows = scope === 'FIELD' ? routeOrder(filtered, here) : filtered;
   return (
     <Card title={title} testId="v5-queue">
       {error && <p>{error.message}</p>}
@@ -90,7 +111,7 @@ export function CaseList({ title, scope }: { title: string; scope: CaseScope }) 
         {rows.map((c) => (
           <li key={c.id} data-code={c.publicCode}>
             <button type="button" onClick={() => go(`/kerja/${c.id}`)} data-testid={`v5-open-${c.publicCode}`}>
-              <span className="v5-row-between"><strong>{c.publicCode}</strong></span>
+              <span className="v5-row-between"><strong>{scope === 'FIELD' && here ? `${rows.indexOf(c) + 1}. ` : ''}{c.publicCode}</strong></span>
               <span>{stateWord(c)} · berikutnya: {NEXT_STEP[c.state as V5State] ?? 'tidak ada'}</span>
               <span className="v5-caption">{c.routing?.officeName ?? 'Instansi belum ditentukan'}{c.routing && <> <Confidence level={c.routing.confidence} /></>}{c.routing?.confidence === 'LOW' && !c.ownershipConfirmed && (c.state === 'TRIAGE' || c.state === 'ACCEPTED') && <span className="v5-warn" data-testid="v6-confirm-owner-label"> · Konfirmasi kepemilikan</span>}</span>
               {v6Role === 'OM' && c.priority.reasons.length > 0 && <span className="v5-reasons" data-testid="v5-priority-reasons">Kenapa didahulukan: {c.priority.reasons.map((r) => reasonWord(r.text)).join(' · ')}</span>}
@@ -124,6 +145,7 @@ export function CaseScreen({ id }: { id: string }) {
       <ActionPanel c={c} onChange={(next) => { if (next) setData({ ...c, ...next }); reload(); }} />
       <CompareOptions c={c} />
       <CaseAiPanel caseId={c.id} />
+      <CaseNotes caseId={c.id} notes={c.internalNotes} />
       <CaseRecord c={c} />
     </>
   );

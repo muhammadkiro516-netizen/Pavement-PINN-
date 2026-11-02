@@ -1,6 +1,7 @@
 /**
  * Live in-page camera (05 §2): getUserMedia only. No file input exists in this file, and a test checks that.
  */
+import { dropUpload, readUpload, saveUpload, uploadKey } from './offlineUploads';
 import { useEffect, useRef, useState } from 'react';
 import { Camera, MapPin } from 'lucide-react';
 import { v5 } from './api';
@@ -109,11 +110,43 @@ export function Capture({ kind, stage, caseId, purpose, title, hint, values, onD
     return null;
   };
 
+  const key = uploadKey(kind, stage, caseId);
+  const [queued, setQueued] = useState(false);
+
   const send = (extra: Record<string, unknown>) => run(async () => {
-    const { nonce } = await v5<{ nonce: string }>('/capture/nonce', { purpose, caseId, stage });
-    const rec = await v5<EvidenceView>('/evidence', { nonce, kind, stage, caseId, gps: gpsBody(), motionSamples: motion.current, clientTime: new Date().toISOString(), values, ...extra });
-    onDone(rec);
+    const body = { kind, stage, caseId, gps: gpsBody(), motionSamples: motion.current, clientTime: new Date().toISOString(), values, ...extra };
+    try {
+      const { nonce } = await v5<{ nonce: string }>('/capture/nonce', { purpose, caseId, stage });
+      onDone(await v5<EvidenceView>('/evidence', { nonce, ...body }));
+    } catch (e) {
+      // Only a lost connection waits. A refusal from the server is shown as usual.
+      if (!(e instanceof TypeError)) throw e;
+      await saveUpload({ key, body, purpose });
+      setQueued(true);
+    }
   });
+
+  // Sends a photo that waited on this phone, now or as soon as the signal returns.
+  useEffect(() => {
+    const flush = () => {
+      if (!navigator.onLine) return;
+      void readUpload(key).then((item) => {
+        if (!item) return;
+        setQueued(true);
+        return run(async () => {
+          const { nonce } = await v5<{ nonce: string }>('/capture/nonce', { purpose: item.purpose, caseId, stage });
+          const rec = await v5<EvidenceView>('/evidence', { nonce, ...item.body, queuedOffline: true });
+          await dropUpload(key);
+          setQueued(false);
+          onDone(rec);
+        });
+      }).catch(() => undefined);
+    };
+    flush();
+    window.addEventListener('online', flush);
+    return () => window.removeEventListener('online', flush);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   const shoot = async () => {
     if (!video.current || video.current.videoWidth === 0) return;
@@ -143,7 +176,8 @@ export function Capture({ kind, stage, caseId, purpose, title, hint, values, onD
       </p>
       {gpsPoor && fix && <p className="v5-warn">Pindah ke tempat terbuka agar lokasi lebih akurat.</p>}
       {tooFast && <p className="v5-warn">Anda sepertinya sedang berkendara. Berhenti dulu sebelum memotret.</p>}
-      <button type="button" className="v5-btn v5-btn-primary v5-shutter" disabled={camera !== 'on' || blocked || busy} onClick={shoot} data-testid="v5-shutter">
+      {queued && <p className="v5-warn" data-testid="v6-queued">Tidak ada sinyal. Foto tersimpan di HP dan terkirim otomatis saat sinyal kembali.</p>}
+      <button type="button" className="v5-btn v5-btn-primary v5-shutter" disabled={camera !== 'on' || blocked || busy || queued} onClick={shoot} data-testid="v5-shutter">
         <Camera size={20} aria-hidden="true" /> {busy ? 'Mengirim…' : 'Ambil foto'}
       </button>
       <ErrorNote error={error} />

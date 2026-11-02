@@ -51,6 +51,30 @@ function useMyCases(): { cases: PublicCase[] | null; failed: boolean } {
 
 const label = (state: string) => V5_STATE_LABELS[state as V5State]?.id ?? state;
 
+interface Rank { agency: string; totalCases: number; medianResponseDays: number | null; withinSlaPct: number | null; stillGood6Pct: number | null; late: number }
+
+/** Service numbers per agency, and no person's name (docs/v6 §2.5). */
+const PublicRankings: React.FC = () => {
+  const [rows, setRows] = useState<Rank[]>([]);
+  useEffect(() => {
+    fetch(apiUrl('/api/v6/public/rankings')).then((r) => r.json()).then((j) => { if (j?.success) setRows(j.data); }).catch(() => undefined);
+  }, []);
+  if (rows.length === 0) return null;
+  return (
+    <SnapCard>
+      <p className="font-extrabold">Rapor layanan instansi</p>
+      <div data-testid="v6-public-rankings">
+        {rows.map((r) => (
+          <div key={r.agency} className="mt-2">
+            <p className="text-sm font-bold">{r.agency}</p>
+            <p className="text-xs text-[#A1A1AA]">{r.totalCases} laporan · {r.medianResponseDays === null ? 'waktu respons belum ada data' : `respons ${Math.round(r.medianResponseDays * 10) / 10} hari`} · {r.withinSlaPct === null ? 'tepat waktu belum ada data' : `${r.withinSlaPct}% tepat waktu`} · {r.late} lewat tenggat</p>
+          </div>
+        ))}
+      </div>
+    </SnapCard>
+  );
+};
+
 const BADGES = [
   { need: 1, name: 'Pelapor Pertama' },
   { need: 5, name: 'Penjaga Jalan' },
@@ -114,6 +138,7 @@ export const CitizenReportsPage: React.FC<{ onOpen: (code: string) => void; onRe
         );
       })}
       <Contribution count={cases?.length ?? 0} />
+      <PublicRankings />
     </SnapPage>
   );
 };

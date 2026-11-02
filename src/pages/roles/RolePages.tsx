@@ -18,7 +18,7 @@ import { TourPage as Tour, VerifyPage as Verify, WhyPage as Why } from '../../fe
 import { Card } from '../../features/roles/ui';
 import '../../features/roles/roles.css';
 
-interface Me { role: V5Role; accountId: string; displayName: string | null; v6Role: V6Role | null; agencyName: string | null }
+interface Me { role: V5Role; accountId: string; displayName: string | null; v6Role: V6Role | null; agencyName: string | null; agencyLogo?: string | null }
 
 const PinDialog: React.FC<{ onDone: (pin: string | null) => void }> = ({ onDone }) => {
   const [pin, setPin] = useState('');
@@ -120,6 +120,7 @@ const Top: React.FC<{ me: Me | null; lock: () => void }> = ({ me, lock }) => {
       <button type="button" onClick={() => go(accountId ? '/kerja/' : '/beranda/')} aria-label="Beranda" style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer' }}><Wordmark /></button>
       {accountId && badge && (
         <span className="v5-top-who">
+          {me?.agencyLogo && <img src={me.agencyLogo} alt="" width={24} height={24} style={{ borderRadius: 8 }} data-testid="v6-top-logo" />}
           <span className="v5-agency" data-testid="v6-agency-name">{me?.agencyName}</span>
           <span className="v5-role-badge" style={{ color: badge.color, borderColor: badge.color }} data-testid="v5-role-name" title={badge.id}>{badge.short}</span>
           {me?.v6Role !== 'CONTRACTOR' && <button type="button" className="v5-link" onClick={lock} data-testid="v6-lock">Kunci</button>}

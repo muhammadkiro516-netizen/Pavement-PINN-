@@ -151,7 +151,15 @@ test('golden path: report, route, assign, measure, approve, repair, supervise, c
   {
     const p = inspector.page;
     await openCase(p, code);
-    for (const title of ['1. Foto keseluruhan', '2. Kartu penanda', '3. Penggaris di titik terdalam']) {
+    // No signal: the photo waits on the phone, and goes up by itself when the signal returns.
+    await expect(id(p, 'v5-shutter')).toBeEnabled();
+    await p.context().setOffline(true);
+    await shoot(p);
+    await expect(id(p, 'v6-queued')).toBeVisible();
+    await p.screenshot({ path: `${SHOTS}/fe-tanpa-sinyal.png` });
+    await p.context().setOffline(false);
+    await expect(id(p, 'v6-queued')).toHaveCount(0);
+    for (const title of ['2. Kartu penanda', '3. Penggaris di titik terdalam']) {
       await expect(id(p, 'v5-capture')).toContainText(title);
       await shoot(p);
     }
@@ -205,6 +213,9 @@ test('golden path: report, route, assign, measure, approve, repair, supervise, c
     await id(p, 'v6-ai-send-duplicates').click();
     await expect(id(p, 'v6-ai-decided-duplicates')).toContainText('Ditolak');
     await expect(id(p, 'v5-state-label')).toHaveText(stateBefore);
+    await id(p, 'v6-note-text').fill('Sudah dicek bersama regu.');
+    await id(p, 'v6-note-send').click();
+    await expect(id(p, 'v6-note').first()).toContainText('Sudah dicek bersama regu.');
     await id(p, 'v6-ai-draft').click();
     await expect(id(p, 'v6-ai-draft-text')).toContainText('Disusun AI, perlu persetujuan', { timeout: 130_000 });
     await p.screenshot({ path: `${SHOTS}/fe-bantuan-ai.png`, fullPage: true });

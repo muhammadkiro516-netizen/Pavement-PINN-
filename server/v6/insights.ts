@@ -11,6 +11,8 @@ import { rateLimit } from '../middleware/rateLimit';
 import { weatherAt, type WeatherSummary } from '../services/weather';
 import { callInference } from '../services/inferenceClient';
 import { ladderStatus } from '../../src/domain/v5/escalation';
+import { bannedWordsIn } from '../../src/domain/v5/wording';
+import { checkReauth } from './routes';
 import { caseVisibleTo } from '../../src/domain/v5/stateMachine';
 import { V5_STATE_LABELS, type V5Actor, type V5Case } from '../../src/domain/v5/model';
 import type { V5Store } from '../v5/store';
@@ -175,6 +177,7 @@ interface Deps {
   sendFail: (res: Response, status: number, code: string, message: string, rule?: string) => unknown;
   visible: (actor: V5Actor) => V5Case[];
   caseNow: (c: V5Case) => string;
+  boundary: (name: string) => [number, number][][];
 }
 
 /** The twelve features for one case. Each says plainly whether it really ran. */
@@ -208,7 +211,7 @@ export function caseFindings(c: V5Case, deps: Pick<Deps, 'capture' | 'decisions'
     what: 'Memeriksa apakah foto diambil langsung di lokasi dan bukan foto daur ulang.',
     benefit: 'Mencegah foto lama atau foto hasil editan dipakai sebagai bukti.',
     status: records.length ? 'REAL' : 'NO_DATA',
-    result: records.length === 0 ? 'Belum ada foto.' : `${passed} dari ${records.length} foto lolos. ${dups.length} mirip foto lain, ${offSite.length} di luar lokasi.`,
+    result: records.length === 0 ? 'Belum ada foto.' : `${passed} dari ${records.length} foto lolos. ${dups.length} mirip foto lain, ${offSite.length} di luar lokasi.${records.some((x) => x.rec!.checks.offline) ? ' Ada foto yang dikirim belakangan karena tidak ada sinyal.' : ''}`,
     confidence: records.length ? passed / records.length : null,
     how: 'Yang sudah berjalan: kode sekali pakai dari server, waktu server, GPS, dan sidik gambar. Pendeteksi foto layar dan editan AI: belum diukur, karena modelnya belum dilatih.'
   });
@@ -334,7 +337,7 @@ const weatherFor = (lat: number, lon: number) => {
 };
 
 export function registerV6Insights(router: Router, deps: Deps): void {
-  const { workspaces, store, actorOf, sendFail, visible, decisions } = deps;
+  const { workspaces, store, actorOf, sendFail, visible, decisions, boundary } = deps;
   const writeLimit = rateLimit('v6-ai', 120, 60_000);
 
   const staff = (req: Request, res: Response): V5Actor | null => {
@@ -461,6 +464,54 @@ export function registerV6Insights(router: Router, deps: Deps): void {
     const text = typeof body.text === 'string' ? body.text : typeof body.draft === 'string' ? body.draft : null;
     if (!text) return sendFail(res, 503, 'MODEL_UNAVAILABLE', 'Layanan penulisan belum tersedia. Coba lagi.');
     res.json({ success: true, data: { text, source: body.source ?? 'TEMPLAT', label: 'Disusun AI, perlu persetujuan' } });
+  });
+
+  // Today's briefing in words from the local model. Numbers stay with the code (§3 feature 12).
+  router.post('/api/v6/today/ai-briefing', writeLimit, async (req, res) => {
+    const actor = staff(req, res);
+    if (!actor) return;
+    if (actor.onlyCaseId) return sendFail(res, 403, 'FORBIDDEN', 'Peran Anda tidak bisa memakai ini.');
+    const n = todayNumbers(visible(actor), workspaces.agency(actor.agencyId!)?.slaDays ?? 7, new Date().toISOString());
+    const reply = await callInference('POST', '/v1/briefing', { values: { BARU: String(n.newCases), LEWAT: String(n.late), DIPERBAIKI: String(n.inRepair), GAGAL: String(n.failedInWarranty) } }, 120_000);
+    const body = ('unavailable' in reply || !reply.ok ? {} : reply.body) as { text?: string; source?: string };
+    if (!body.text) return sendFail(res, 503, 'MODEL_UNAVAILABLE', 'Layanan penulisan belum tersedia. Coba lagi.');
+    res.json({ success: true, data: { text: body.text, source: body.source, label: 'Disusun AI, perlu dibaca ulang' } });
+  });
+
+  // Staff discussion on a case. Neutral words only, like everything else in the record.
+  router.post('/api/v6/cases/:id/notes', writeLimit, (req, res) => {
+    const actor = staff(req, res);
+    if (!actor) return;
+    if (actor.v6Role !== 'OM' && actor.v6Role !== 'FE') return sendFail(res, 403, 'FORBIDDEN', 'Peran Anda hanya membaca.');
+    const c = ownCase(req, res, actor);
+    if (!c) return;
+    const text = String(req.body?.text ?? '').trim().slice(0, 1000);
+    if (text.length < 2) return sendFail(res, 400, 'VALIDATION', 'Tulis catatannya dulu.');
+    if (bannedWordsIn(text).length > 0) return sendFail(res, 400, 'VALIDATION', 'Mohon pakai kata yang netral.');
+    const at = new Date().toISOString();
+    const next = store.record(c, { internalNotes: [...(c.internalNotes ?? []), { byMemberId: actor.accountId, role: actor.v6Role, text, at }] }, 'case.internal_note', { sha256_len: text.length }, actor, at);
+    res.json({ success: true, data: { notes: next.internalNotes } });
+  });
+
+  router.get('/api/v6/agency/boundary', (req, res) => {
+    const actor = staff(req, res);
+    if (!actor) return;
+    const rings = workspaces.jurisdictions(actor.agencyId!).flatMap((j) => (j.adminArea === '*' ? [] : boundary(j.adminArea)));
+    res.json({ success: true, data: rings });
+  });
+
+  // The agency's own logo. The app never draws an emblem (§2.1).
+  router.post('/api/v6/agency/logo', writeLimit, (req, res) => {
+    const actor = staff(req, res);
+    if (!actor) return;
+    if (actor.v6Role !== 'OM') return sendFail(res, 403, 'FORBIDDEN', 'Hanya Operations Manager yang bisa mengubah ini.');
+    if (!checkReauth({ workspaces, sendFail }, req, res, actor)) return;
+    const uri = String(req.body?.dataUri ?? '');
+    if (!/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(uri)) return sendFail(res, 400, 'VALIDATION', 'Pakai gambar PNG atau JPG.');
+    if (uri.length > 280_000) return sendFail(res, 400, 'VALIDATION', 'Gambar terlalu besar. Batasnya 200 KB.');
+    workspaces.setLogo(actor.agencyId!, uri);
+    store.recordEntity('agency.logo_changed', { type: 'agency', id: actor.agencyId! }, { bytes: uri.length }, actor, new Date().toISOString());
+    res.json({ success: true, data: { logoUri: uri } });
   });
 
   // Settings: the OM's own workspace. Logos come from the agency itself; the app draws none.

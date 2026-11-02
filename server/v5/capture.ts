@@ -114,6 +114,7 @@ export class CaptureService {
     stage?: unknown;
     gps?: { lat?: unknown; lon?: unknown; accuracyM?: unknown; speedMps?: unknown } | null;
     motionSamples?: unknown;
+    queuedOffline?: unknown;
     clientTime?: unknown;
     values?: Record<string, unknown> | null;
     /** Where this photo must be, when it belongs to a case. */
@@ -177,6 +178,10 @@ export class CaptureService {
       }
     }
     checks.motion = Number(input.motionSamples) > 0 ? 'OK' : 'NO_SAMPLES';
+    if (input.queuedOffline === true) {
+      checks.offline = 'QUEUED';
+      warnings.push('Taken without signal and sent later. The server clock did not see the moment of capture.');
+    }
     if (checks.motion !== 'OK') warnings.push('No motion data from this device. Noted, not blocked.');
 
     // Hash, blur and stamp. Without the service the photo has no blur, so it is not kept as public.

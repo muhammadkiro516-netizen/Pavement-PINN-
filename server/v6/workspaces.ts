@@ -168,6 +168,13 @@ export class Workspaces {
     return agencyId ? this.data.jurisdictions.filter((j) => j.agencyId === agencyId) : this.data.jurisdictions;
   }
 
+  setLogo(agencyId: string, logoUri: string): void {
+    const a = this.agency(agencyId);
+    if (!a) return;
+    a.logoUri = logoUri;
+    this.save();
+  }
+
   setSessionHours(agencyId: string, hours: number): void {
     const a = this.agency(agencyId);
     if (!a) return;
