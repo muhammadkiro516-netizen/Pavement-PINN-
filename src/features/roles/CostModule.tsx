@@ -195,7 +195,7 @@ export function CompareOptions({ c }: { c: V5Case }) {
                 {o.price?.how === 'OTHER_REGION_IKK' && <p className="v5-warn" data-testid={`v6-option-estimate-${o.key}`}>Harga resmi belum tersedia. Ini perkiraan, bukan harga wilayah ini.</p>}
                 {o.totalIdr && <p className="v6-money" data-testid={`v6-option-total-${o.key}`}>{rangeWord(o.totalIdr)}</p>}
                 {o.totalIdr && <p className="v5-caption">{o.labourIdr ? 'Termasuk bahan, upah, dan alat' : 'Bahan saja, belum termasuk upah dan alat'}</p>}
-                <p className="v5-caption">{o.lifeMonths ? `Tahan sekitar ${Math.round(o.lifeMonths.mid)} bulan (${Math.round(o.lifeMonths.low)} sampai ${Math.round(o.lifeMonths.high)})` : 'Umur belum bisa dihitung'}</p>
+                <p className="v5-caption">{o.lifeMonths ? `Tahan sekitar ${Math.round(o.lifeMonths.mid)} bulan${o.lifeMonths.low !== o.lifeMonths.high ? ` (${Math.round(o.lifeMonths.low)} sampai ${Math.round(o.lifeMonths.high)})` : ''}` : 'Umur belum bisa dihitung'}</p>
                 {o.costPerYearIdr && <p data-testid={`v6-option-year-${o.key}`}><strong>{rp(o.costPerYearIdr.mid)}</strong> per tahun</p>}
                 {o.price && (
                   <p className="v5-caption">

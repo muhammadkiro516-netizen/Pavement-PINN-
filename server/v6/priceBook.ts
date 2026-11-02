@@ -283,10 +283,10 @@ export function registerPriceRoutes(router: Router, deps: Deps): PriceBook {
     const options = (reply.body as { options: { code: string; life_years: number | null }[] }).options;
     const months = (code: string) => { const y = options.find((o) => o.code === code)?.life_years; return y === null || y === undefined ? null : y * 12; };
     const p = c.pinnRun?.lifeMonths;
-    const lowRatio = p && p.p50 > 0 ? p.p10 / p.p50 : 1;
-    const highRatio = p && p.p50 > 0 ? p.p90 / p.p50 : 1;
-    const spread = (m: number | null) => (m === null ? null : { low: Math.round(m * lowRatio * 10) / 10, mid: Math.round(m * 10) / 10, high: Math.round(m * highRatio * 10) / 10 });
-    return { patch: spread(months('RUTIN')), overlay: spread(months('BERKALA')), note: `Dari model fisika dengan beban ${Math.round(esalYear).toLocaleString('id-ID')} ESAL/tahun, tebal aspal ${h} mm, CBR ${cbr}. ${p ? 'Rentang mengikuti hasil PINN kasus ini.' : 'Jalankan PINN untuk melihat rentangnya.'} Tebal, CBR, dan modulus adalah asumsi sampai diukur.` };
+    const single = (m: number | null) => (m === null ? null : { low: Math.round(m * 10) / 10, mid: Math.round(m * 10) / 10, high: Math.round(m * 10) / 10 });
+    // A patch keeps the old road, so PINN's range for that road applies. An overlay is a new layer: its range is not modelled.
+    const patch = p && p.p50 > 0 ? { low: p.p10, mid: p.p50, high: p.p90 } : single(months('RUTIN'));
+    return { patch, overlay: single(months('BERKALA')), note: `Tambal: ${p ? 'rentang dari PINN kasus ini' : 'satu angka dari model fisika; jalankan PINN untuk rentangnya'}. Lapis ulang: satu angka dari model fisika, rentangnya belum dimodelkan. Beban ${Math.round(esalYear).toLocaleString('id-ID')} ESAL/tahun, tebal aspal ${h} mm, CBR ${cbr}; tebal, CBR, dan modulus adalah asumsi sampai diukur.` };
   };
 
   router.post('/api/v6/cases/:id/compare-options', limit, async (req, res) => {
