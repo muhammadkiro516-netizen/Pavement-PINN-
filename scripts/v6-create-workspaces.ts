@@ -21,7 +21,7 @@ const JURISDICTIONS: Record<string, { adminArea: string; roadStatus: string; dec
 };
 
 const AGENCIES: Agency[] = [
-  { id: 'sudin-bm-jaktim', name: 'Suku Dinas Bina Marga Jakarta Timur', kind: 'PROVINSI', authorityIds: ['pemprov-dki'], region: '3175', logoUri: null, contact: '', slaDays: 7, sessionHours: 12 },
+  { id: 'sudin-bm-jaktim', name: 'Suku Dinas Bina Marga Jakarta Timur', kind: 'PROVINSI', authorityIds: ['pemprov-dki'], region: '3172', logoUri: null, contact: '', slaDays: 7, sessionHours: 12 },
   { id: 'dpupr-karawang', name: 'Dinas PUPR Kabupaten Karawang', kind: 'KABUPATEN', authorityIds: ['pemkab-karawang'], region: '3215', logoUri: null, contact: '', slaDays: 7, sessionHours: 12 }
 ];
 

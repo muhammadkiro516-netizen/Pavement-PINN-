@@ -198,7 +198,7 @@ test('golden path: report, route, assign, measure, approve, repair, supervise, c
     await expect(id(p, 'v6-option-total-HOT_MIX_PATCH')).toContainText('Rp');
     await expect(id(p, 'v6-option-total-CONCRETE_K350')).toContainText('Rp');
     await expect(id(p, 'v6-option-missing-COLD_MIX_PATCH')).toContainText('Harga belum tersedia');
-    await expect(id(p, 'v6-compare-excluded')).toContainText('Belum termasuk upah dan alat');
+    await expect(id(p, 'v6-compare-excluded')).toContainText('masih asumsi');
     await id(p, 'v6-submitted').fill('99000000');
     await id(p, 'v6-submitted-option').selectOption('HOT_MIX_PATCH');
     await id(p, 'v6-submitted-send').click();
@@ -514,6 +514,51 @@ test('the desktop layout shows the side menu, and the phone shows five tabs at m
   await expect(p.locator('.v6-side')).toBeVisible();
   await expect(p.locator('.v6-bottom')).toBeHidden();
   await p.screenshot({ path: `${SHOTS}/om-desktop.png` });
+  await close();
+});
+
+test('the AI briefing, the agency logo and the area on the map really work', async ({ browser }) => {
+  const { page: p, close } = await staffPage(browser, 'OM');
+  await id(p, 'v6-ai-briefing-run').click();
+  await expect(id(p, 'v6-ai-briefing')).toContainText('kasus baru', { timeout: 130_000 });
+  // The label says truthfully who wrote it.
+  await expect(id(p, 'v6-ai-briefing')).toContainText(/Saran disusun AI|Dari templat/);
+  await expect(id(p, 'v6-ai-briefing')).not.toContainText('{');
+  await p.screenshot({ path: `${SHOTS}/om-briefing-ai.png`, fullPage: true });
+
+  await p.goto('/kerja/m/settings/');
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==', 'base64');
+  await id(p, 'v6-logo-file').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png });
+  await confirmPin(p, 'OM');
+  await expect(id(p, 'v6-logo-image')).toBeVisible();
+  await p.reload();
+  await expect(id(p, 'v6-top-logo')).toBeVisible();
+
+  await p.goto('/kerja/m/inbox/');
+  await expect(id(p, 'v6-inbox-map').locator('canvas')).toBeVisible();
+  await p.waitForTimeout(7000);
+  const shot = await id(p, 'v6-inbox-map').screenshot();
+  const counts = await p.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const g = c.getContext('2d')!;
+    g.drawImage(img, 0, 0);
+    const { data } = g.getImageData(0, 0, img.width, img.height);
+    let yellow = 0;
+    const shades = new Set<number>();
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] > 220 && data[i + 1] > 180 && data[i + 2] < 70) yellow++;
+      shades.add(data[i]);
+    }
+    return { yellow, shades: shades.size };
+  }, shot.toString('base64'));
+  expect(counts.yellow, 'the area boundary is drawn').toBeGreaterThan(100);
+  expect(counts.shades, 'map tiles loaded, not one flat colour').toBeGreaterThan(5);
+  await p.screenshot({ path: `${SHOTS}/om-peta-wilayah.png`, fullPage: true });
   await close();
 });
 

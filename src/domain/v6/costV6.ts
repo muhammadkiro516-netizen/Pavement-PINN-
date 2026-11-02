@@ -84,10 +84,35 @@ export const OPTION_LABEL: Record<OptionKey, string> = {
 };
 
 export interface Coefficients {
-  /** Rupiah of labour and equipment per unit of material, from an official AHSP. Absent until loaded. */
-  labourPerUnitIdr?: number;
-  equipmentPerUnitIdr?: number;
+  /** Rupiah of labour and equipment per unit of material. */
+  labourPerUnitIdr?: Range;
+  equipmentPerUnitIdr?: Range;
   source: string;
+}
+
+/**
+ * Crew for one team-day of asphalt work. ASSUMED until the official AHSP coefficients are loaded: the rates are
+ * official, how many people and hours they buy is not. Output is the Surabaya benchmark (docs/v5/06 §7).
+ */
+export const CREW_ASSUMPTION = {
+  tonsPerTeamDay: { low: 5.6, mid: 6.15, high: 6.7 },
+  people: [['Mandor', 1], ['Tukang', 1], ['Pekerja', 4], ['Operator Alat Berat', 1]] as [string, number][],
+  /** 7 effective hours × the highest official equipment factor, 0.83 (ahsp_items.json). */
+  machineHoursPerDay: 7 * 0.83,
+  machines: {
+    HOT_MIX_PATCH: ['Concrete Cutter 130 Fe', 'Baby Vibratory Roller 1 - 2 T', 'Asphalt Sprayer'],
+    AC_WC_OVERLAY: ['Asphalt Finisher', 'Baby Vibratory Roller 1 - 2 T', 'Asphalt Distributor']
+  } as Record<string, string[]>
+};
+
+/** Per ton: the slow end of the benchmark is the expensive end. */
+export function crewPerTon(dayWageIdr: number, hourlyMachinesIdr: number): { labour: Range; equipment: Range } {
+  const t = CREW_ASSUMPTION.tonsPerTeamDay;
+  const machineDay = hourlyMachinesIdr * CREW_ASSUMPTION.machineHoursPerDay;
+  return {
+    labour: { low: dayWageIdr / t.high, mid: dayWageIdr / t.mid, high: dayWageIdr / t.low },
+    equipment: { low: machineDay / t.high, mid: machineDay / t.mid, high: machineDay / t.low }
+  };
 }
 
 export interface OptionInput {
@@ -96,6 +121,7 @@ export interface OptionInput {
   /** Shown when the price needs an OM's choice first (two AC-WC lines). */
   choices?: FoundPrice[];
   coefficients?: Coefficients | null;
+  crewNote?: string;
   /** Service life from PINN, months. Null when no model covers this material. */
   lifeMonths: { low: number; mid: number; high: number } | null;
   lifeNote: string;
@@ -117,6 +143,7 @@ export interface OptionResult {
   labourIdr: Range | null;
   equipmentIdr: Range | null;
   includesLabourEquipment: boolean;
+  crewNote: string | null;
   totalIdr: Range | null;
   lifeMonths: Range | null;
   lifeNote: string;
@@ -146,8 +173,8 @@ const withOverhead = (direct: Range): Range => ({
 
 const totalFor = (price: number, amount: Range, c?: Coefficients | null) => {
   const mat = { low: price * amount.low, mid: price * amount.mid, high: price * amount.high };
-  const lab = c?.labourPerUnitIdr ? { low: c.labourPerUnitIdr * amount.low, mid: c.labourPerUnitIdr * amount.mid, high: c.labourPerUnitIdr * amount.high } : null;
-  const eq = c?.equipmentPerUnitIdr ? { low: c.equipmentPerUnitIdr * amount.low, mid: c.equipmentPerUnitIdr * amount.mid, high: c.equipmentPerUnitIdr * amount.high } : null;
+  const lab = c?.labourPerUnitIdr ? { low: c.labourPerUnitIdr.low * amount.low, mid: c.labourPerUnitIdr.mid * amount.mid, high: c.labourPerUnitIdr.high * amount.high } : null;
+  const eq = c?.equipmentPerUnitIdr ? { low: c.equipmentPerUnitIdr.low * amount.low, mid: c.equipmentPerUnitIdr.mid * amount.mid, high: c.equipmentPerUnitIdr.high * amount.high } : null;
   const direct = { low: mat.low + (lab?.low ?? 0) + (eq?.low ?? 0), mid: mat.mid + (lab?.mid ?? 0) + (eq?.mid ?? 0), high: mat.high + (lab?.high ?? 0) + (eq?.high ?? 0) };
   return { mat, lab, eq, total: withOverhead(direct) };
 };
@@ -157,11 +184,11 @@ export const LASTS_MONTHS = 12;
 
 export function compareOptions(inputs: OptionInput[], m: Measure): OptionResult[] {
   const results: OptionResult[] = inputs.map((o) => {
-    const base = { key: o.key, label: OPTION_LABEL[o.key], lifeNote: o.lifeNote, lifeMonths: o.lifeMonths, includesLabourEquipment: !!(o.coefficients?.labourPerUnitIdr && o.coefficients.equipmentPerUnitIdr), lasts: false, best: false };
+    const base = { key: o.key, label: OPTION_LABEL[o.key], lifeNote: o.lifeNote, lifeMonths: o.lifeMonths, includesLabourEquipment: !!(o.coefficients?.labourPerUnitIdr && o.coefficients.equipmentPerUnitIdr), crewNote: o.crewNote ?? null, lasts: false, best: false };
     const empty = { quantity: null, price: null, materialIdr: null, labourIdr: null, equipmentIdr: null, totalIdr: null, costPerYearIdr: null };
     const q = quantityFor(o.key, m);
     if (o.choices && o.choices.length > 1) {
-      return { ...base, ...empty, quantity: q, status: 'NEEDS_OM_CHOICE' as const, documentToLoad: null, choices: o.choices.map((c) => ({ name: c.row.nameAsWritten, priceIdr: c.priceIdr, page: c.row.sourcePage, costMid: totalFor(c.priceIdr, q.amount).total.mid })) };
+      return { ...base, ...empty, quantity: q, status: 'NEEDS_OM_CHOICE' as const, documentToLoad: null, choices: o.choices.map((c) => ({ name: c.row.nameAsWritten, priceIdr: c.priceIdr, page: c.row.sourcePage, costMid: totalFor(c.priceIdr, q.amount, o.coefficients).total.mid })) };
     }
     if ('missing' in o.price) return { ...base, ...empty, status: 'PRICE_NOT_AVAILABLE' as const, documentToLoad: o.price.missing, choices: [] };
     const { mat, lab, eq, total } = totalFor(o.price.found.priceIdr, q.amount, o.coefficients);

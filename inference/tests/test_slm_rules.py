@@ -57,16 +57,26 @@ class _FakeSlm:
 BRIEF_VALUES = {"BARU": "6", "LEWAT": "2", "DIPERBAIKI": "5", "GAGAL": "1"}
 
 
-def test_briefing_fills_numbers_only_from_values():
+def test_briefing_numbers_come_only_from_the_code():
     from app.slm import briefing
-    good = "Pagi ini ada {BARU} kasus baru, {LEWAT} lewat tenggat, {DIPERBAIKI} sedang diperbaiki, dan {GAGAL} rusak lagi."
-    out = briefing(BRIEF_VALUES, _FakeSlm(good))
-    assert out["source"] == "SLM" and "6 kasus baru" in out["text"] and "{" not in out["text"]
+    out = briefing(BRIEF_VALUES, _FakeSlm("Dahulukan kasus yang sudah lewat tenggat sebelum kasus baru."))
+    assert out["source"] == "SLM"
+    assert "6 kasus baru" in out["text"] and "2 kasus lewat tenggat" in out["text"]
+    assert out["text"].endswith("sebelum kasus baru.")
 
 
-def test_briefing_falls_back_when_the_model_writes_a_number_or_accuses():
+def test_briefing_drops_advice_with_a_number_or_an_accusation():
     from app.slm import briefing
-    for bad in ("Ada 9 kasus {BARU} {LEWAT} {DIPERBAIKI} {GAGAL} hari ini yang perlu dilihat segera.", "Petugas lalai {BARU} {LEWAT} {DIPERBAIKI} {GAGAL} dan perlu ditindak hari ini juga."):
+    for bad in ("Dahulukan 9 kasus yang paling lama menunggu hari ini.", "Petugas lalai, jadi perlu ditindak hari ini juga.", "Dahulukan {LEWAT} kasus yang lewat tenggat."):
         out = briefing(BRIEF_VALUES, _FakeSlm(bad))
-        assert out["source"] == "TEMPLAT" and "6 kasus baru" in out["text"]
+        assert out["source"] == "TEMPLAT" and "6 kasus baru" in out["text"] and bad not in out["text"]
     assert briefing(BRIEF_VALUES, None)["source"] == "TEMPLAT"
+
+
+def test_briefing_never_claims_what_is_not_there():
+    from app.slm import briefing
+    zero = {"BARU": "0", "LEWAT": "0", "DIPERBAIKI": "0", "GAGAL": "0"}
+    assert briefing(zero, _FakeSlm("Dahulukan pekerjaan yang paling mendesak hari ini."))["source"] == "TEMPLAT"
+    some = {"BARU": "3", "LEWAT": "0", "DIPERBAIKI": "0", "GAGAL": "0"}
+    assert briefing(some, _FakeSlm("Perbaikan yang rusak lagi perlu didahulukan hari ini."))["source"] == "TEMPLAT"
+    assert briefing(some, _FakeSlm("Periksa dan tugaskan kasus baru pagi ini."))["source"] == "SLM"

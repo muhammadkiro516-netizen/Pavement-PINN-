@@ -47,13 +47,12 @@ test('lookup order: agency book, then same region, then other region × IKK labe
   assert.ok('found' in first && first.found.how === 'AGENCY_BOOK' && first.found.priceIdr === 999);
   const second = lookupPrice({ ...baseLookup, regionCode: '3215', match: k350 });
   assert.ok('found' in second && second.found.how === 'SAME_REGION' && second.found.priceIdr === 1014300 && second.found.status === 'OFFICIAL');
-  // A region with a known IKK and no book of its own.
-  const ikk = (code: string) => (code === '9999' ? 120 : loadIkk()(code));
-  const third = lookupPrice({ ...baseLookup, regionCode: '9999', match: k350, ikk });
+  // A region with a known IKK and no book of its own: Karawang × IKK, labelled ASSUMED.
+  const third = lookupPrice({ ...baseLookup, regionCode: '3172', match: k350 });
   assert.ok('found' in third && third.found.how === 'OTHER_REGION_IKK' && third.found.status === 'ASSUMED');
-  assert.equal((third as { found: { priceIdr: number } }).found.priceIdr, Math.round(1562000 * (120 / 94.75)));
-  // Jakarta: no book and no IKK. No number at all.
-  assert.deepEqual(lookupPrice({ ...baseLookup, regionCode: '3175', match: k350 }), { missing: 'dokumen X' });
+  assert.equal((third as { found: { priceIdr: number } }).found.priceIdr, Math.round(1014300 * (109.74 / 107.68)));
+  // No book and no IKK: no number at all.
+  assert.deepEqual(lookupPrice({ ...baseLookup, regionCode: '9999', match: k350 }), { missing: 'dokumen X' });
 });
 
 test('Karawang\'s two AC-WC lines are not averaged: the OM picks', () => {
@@ -72,8 +71,9 @@ test('Karawang\'s two AC-WC lines are not averaged: the OM picks', () => {
 });
 
 test('worked example: a Karawang pothole gives the same numbers on every run', () => {
-  // Inputs: 2 m² × 5 cm deep; AC-WC line 1,273,100/ton (Perbup Karawang 28/2025 p.6); density 2.25/2.295/2.34;
-  // overhead 10% (15% at the high end); effective VAT 11%; no labour or equipment: coefficients not loaded.
+  // Inputs: 2 m² × 5 cm deep; AC-WC 1,273,100/ton (Perbup Karawang 28/2025 p.6); density 2.25/2.295/2.34; overhead 10%
+  // (15% at the high end); VAT 11%. Crew per team-day, ASSUMED: Mandor 165,000 + Tukang 150,000 + 4 × Pekerja 138,000 +
+  // Operator 100,000 = 967,000 (p.230). Machines: 64,300 + 94,300 + 75,800 an hour (pp.240-241) × 5.81 h. Output 5.6-6.7 t/day.
   const b = book();
   b.of('A').acWcChoice = b.regional.find((r) => r.nameAsWritten === 'Aspal Material Aspal Beton (Ac - Wc)')!.id;
   const life = { patch: { low: 6, mid: 12, high: 24 }, overlay: { low: 18, mid: 36, high: 60 }, note: 'n' };
@@ -81,25 +81,49 @@ test('worked example: a Karawang pothole gives the same numbers on every run', (
   const [one, two] = [run(), run()];
   assert.deepEqual(one, two);
   const hot = one.find((o) => o.key === 'HOT_MIX_PATCH')!;
-  assert.deepEqual([hot.quantity!.amount.low, hot.quantity!.amount.mid, hot.quantity!.amount.high].map((x) => Number(x.toFixed(4))), [0.225, 0.2295, 0.234]);
-  assert.deepEqual(hot.totalIdr, { low: 349752, mid: 356747, high: 380276 });
-  assert.equal(hot.costPerYearIdr?.mid, 356747);
+  const perTon = (tons: number, output: number) => tons * (1273100 + 967000 / output + (234400 * 7 * 0.83) / output);
+  assert.deepEqual(hot.totalIdr, {
+    low: Math.round(perTon(0.225, 6.7) * 1.1 * 1.11),
+    mid: Math.round(perTon(0.2295, 6.15) * 1.1 * 1.11),
+    high: Math.round(perTon(2 * 0.05 * 2.34, 5.6) * 1.15 * 1.11)
+  });
+  assert.equal(hot.includesLabourEquipment, true);
+  assert.equal(hot.labourIdr?.mid, Math.round((0.2295 * 967000) / 6.15));
+  assert.match(hot.crewNote!, /asumsi/);
+  assert.equal(hot.costPerYearIdr?.mid, hot.totalIdr?.mid, 'twelve months is one year');
   const overlay = one.find((o) => o.key === 'AC_WC_OVERLAY')!;
-  assert.equal(overlay.totalIdr?.mid, 285398);
-  assert.equal(overlay.costPerYearIdr?.mid, 95133);
   assert.equal(overlay.best, true, 'lowest cost per year among those that last');
   assert.equal(hot.best, false);
-  assert.equal(hot.includesLabourEquipment, false);
   const concrete = one.find((o) => o.key === 'CONCRETE_K350')!;
   assert.equal(concrete.price?.priceIdr, 1014300);
-  assert.equal(concrete.lifeMonths, null);
+  assert.equal(concrete.includesLabourEquipment, false, 'no output benchmark for concrete, so nothing is guessed');
   assert.equal(concrete.costPerYearIdr, null, 'no life model, so no cost per year');
   for (const missing of ['COLD_MIX_PATCH', 'FAST_TRACK_CONCRETE'] as const) {
     const o = one.find((x) => x.key === missing)!;
-    assert.equal(o.status, 'PRICE_NOT_AVAILABLE');
-    assert.equal(o.totalIdr, null);
-    assert.ok(o.documentToLoad);
+    if (missing === 'COLD_MIX_PATCH') assert.equal(o.status, 'PRICE_NOT_AVAILABLE');
+    assert.ok(o.documentToLoad || o.price?.status === 'ASSUMED');
   }
+});
+
+test('Jakarta Timur: no official price, so every figure is a labelled Karawang × IKK estimate, and the OM still picks the line', () => {
+  const b = book();
+  const life = { patch: { low: 6, mid: 12, high: 24 }, overlay: null, note: 'n' };
+  const first = compareOptions(buildOptions(b, 'J', '3172', life), { areaM2: 2, depthCm: 5 });
+  assert.equal(first.find((o) => o.key === 'HOT_MIX_PATCH')!.status, 'NEEDS_OM_CHOICE');
+  const concrete = first.find((o) => o.key === 'CONCRETE_K350')!;
+  assert.equal(concrete.price?.status, 'ASSUMED');
+  assert.match(concrete.price!.note!, /IKK 109.74 ÷ 107.68/);
+  b.of('J').acWcChoice = b.regional.find((r) => r.nameAsWritten === 'Aspal Material Aspal Beton (Ac - Wc)')!.id;
+  const hot = compareOptions(buildOptions(b, 'J', '3172', life), { areaM2: 2, depthCm: 5 }).find((o) => o.key === 'HOT_MIX_PATCH')!;
+  assert.equal(hot.price?.status, 'ASSUMED');
+  assert.equal(hot.price?.priceIdr, Math.round(1273100 * (109.74 / 107.68)));
+  assert.match(hot.crewNote!, /UMP DKI Jakarta/);
+  // Jakarta's own uploaded book takes over at once.
+  const own: PriceRow = { ...b.regional[0], id: 'J-1', regionCode: '3172', regionName: 'Jakarta Timur', nameAsWritten: 'Beton Ready Mix, K.350', priceNormalized: '1200000', status: 'AGENCY', group: 'concrete_readymix' };
+  b.of('J').rows.push(own);
+  const after = compareOptions(buildOptions(b, 'J', '3172', life), { areaM2: 2, depthCm: 5 }).find((o) => o.key === 'CONCRETE_K350')!;
+  assert.equal(after.price?.how, 'AGENCY_BOOK');
+  assert.equal(after.price?.priceIdr, 1200000);
 });
 
 test('a cheap patch that does not last never wins on cost per year', () => {

@@ -475,7 +475,7 @@ export function registerV6Insights(router: Router, deps: Deps): void {
     const reply = await callInference('POST', '/v1/briefing', { values: { BARU: String(n.newCases), LEWAT: String(n.late), DIPERBAIKI: String(n.inRepair), GAGAL: String(n.failedInWarranty) } }, 120_000);
     const body = ('unavailable' in reply || !reply.ok ? {} : reply.body) as { text?: string; source?: string };
     if (!body.text) return sendFail(res, 503, 'MODEL_UNAVAILABLE', 'Layanan penulisan belum tersedia. Coba lagi.');
-    res.json({ success: true, data: { text: body.text, source: body.source, label: 'Disusun AI, perlu dibaca ulang' } });
+    res.json({ success: true, data: { text: body.text, source: body.source, label: body.source === 'SLM' ? 'Saran disusun AI, perlu dibaca ulang' : 'Dari templat. Model AI belum memberi saran yang lolos pemeriksaan.' } });
   });
 
   // Staff discussion on a case. Neutral words only, like everything else in the record.

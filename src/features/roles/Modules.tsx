@@ -4,11 +4,15 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import * as maplibregl from 'maplibre-gl';
+import { BASEMAP_SOURCES } from '../../components/maps/basemap';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { V5_STATE_LABELS, type V5State } from '../../domain/v5/model';
 import { v5, v6 } from './api';
 import { useV5 } from './context';
 import { Card, ErrorNote, RolePavi, useAction, useLoad, when } from './ui';
 import { CaseList, type StaffCase } from './StaffPages';
+
+maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
 export type ModuleId = 'today' | 'inbox' | 'field' | 'work' | 'cost' | 'monitor' | 'report' | 'audit' | 'team' | 'settings';
 
@@ -75,7 +79,7 @@ export function TodayModule() {
                 {error && <p>{error.message}</p>}
                 {(data?.briefing ?? ['Memuat…']).map((line) => <p key={line}>{line}</p>)}
                 <p className="v5-caption">{data?.briefingSource}</p>
-                {ai && <div className="v5-note" data-testid="v6-ai-briefing"><p className="v5-warn">{ai.label}</p><p>{ai.text}</p><p className="v5-caption">{ai.source === 'SLM' ? 'Ditulis Qwen2.5 lewat OpenVINO GenAI; angka diisi sistem.' : 'Model tidak lolos pemeriksaan, jadi memakai templat.'}</p></div>}
+                {ai && <div className="v5-note" data-testid="v6-ai-briefing"><p className="v5-warn">{ai.label}</p><p>{ai.text}</p><p className="v5-caption">{ai.source === 'SLM' ? 'Saran ditulis Qwen2.5 lewat OpenVINO GenAI; angka ditulis sistem.' : 'Semua kalimat ditulis sistem.'}</p></div>}
                 <button type="button" className="v5-link" disabled={write.busy} onClick={() => write.run(async () => setAi(await v6('/today/ai-briefing', {})))} data-testid="v6-ai-briefing-run">{write.busy ? 'AI sedang menulis…' : 'Tulis dengan AI'}</button>
                 <ErrorNote error={write.error} />
               </div>
@@ -106,7 +110,7 @@ function InboxMap({ cases, rings }: { cases: StaffCase[]; rings: [number, number
     if (!box.current || !start || map.current) return;
     map.current = new maplibregl.Map({
       container: box.current,
-      style: { version: 8, sources: { osm: { type: 'raster', tiles: ['https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap, © CARTO' } }, layers: [{ id: 'osm', type: 'raster', source: 'osm' }] },
+      style: { version: 8, sources: { base: { type: 'raster', tiles: [BASEMAP_SOURCES.DARK.url], tileSize: 256, attribution: BASEMAP_SOURCES.DARK.attribution }, area: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } } }, layers: [{ id: 'base', type: 'raster', source: 'base' }, { id: 'area-line', type: 'line', source: 'area', paint: { 'line-color': '#FFD60A', 'line-width': 3 } }] },
       center: start as [number, number],
       zoom: 12,
       attributionControl: { compact: true }
@@ -118,13 +122,17 @@ function InboxMap({ cases, rings }: { cases: StaffCase[]; rings: [number, number
   useEffect(() => {
     const m = map.current;
     if (!m || rings.length === 0) return;
-    const draw = () => {
-      if (m.getSource('area')) return;
-      m.addSource('area', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'MultiLineString', coordinates: rings.map((r) => r.map(([lat, lon]) => [lon, lat])) } } });
-      m.addLayer({ id: 'area-line', type: 'line', source: 'area', paint: { 'line-color': '#FFD60A', 'line-width': 2, 'line-dasharray': [2, 2] } });
+    // The layer is part of the style, so it does not wait for the map tiles.
+    let timer = 0;
+    const fill = () => {
+      const source = m.getSource('area') as maplibregl.GeoJSONSource | undefined;
+      if (!source) { timer = window.setTimeout(fill, 200); return; }
+      source.setData({ type: 'Feature', properties: {}, geometry: { type: 'MultiLineString', coordinates: rings.map((r) => r.map(([lat, lon]) => [lon, lat])) } });
+      const points = rings.flat();
+      m.fitBounds([[Math.min(...points.map((q) => q[1])), Math.min(...points.map((q) => q[0]))], [Math.max(...points.map((q) => q[1])), Math.max(...points.map((q) => q[0]))]], { padding: 24, animate: false });
     };
-    if (m.isStyleLoaded()) draw();
-    else m.once('load', draw);
+    fill();
+    return () => window.clearTimeout(timer);
   }, [rings, hasStart]);
   useEffect(() => {
     if (!map.current) return;

@@ -12,7 +12,7 @@ import { parseCsv } from '../v5/routing';
 import type { V5Store } from '../v5/store';
 import { caseVisibleTo } from '../../src/domain/v5/stateMachine';
 import type { V5Actor, V5Case } from '../../src/domain/v5/model';
-import { compareOptions, compareSubmitted, lookupPrice, nonMonotonicKSeries, validateImport, type FoundPrice, type Lookup, type OptionInput, type OptionKey, type PriceRow, type PriceStatus } from '../../src/domain/v6/costV6';
+import { CREW_ASSUMPTION, compareOptions, compareSubmitted, crewPerTon, lookupPrice, nonMonotonicKSeries, validateImport, type Coefficients, type FoundPrice, type Lookup, type OptionInput, type OptionKey, type PriceRow, type PriceStatus } from '../../src/domain/v6/costV6';
 import { checkReauth } from './routes';
 import type { Workspaces } from './workspaces';
 
@@ -42,13 +42,48 @@ export function loadRegional(): PriceRow[] {
   }));
 }
 
-const IKK_AREA: Record<string, string> = { '3215': 'Kabupaten Karawang', '3603': 'Kabupaten Tangerang', '3175': 'Kota Jakarta (5 kota adm.)', '31': 'DKI Jakarta', '18': 'Lampung' };
+const IKK_AREA: Record<string, string> = { '3603': 'Kabupaten Tangerang', '31': 'DKI Jakarta', '18': 'Lampung' };
 
+/** Values found since the v5 pack (ikk_2025_additions.csv) first, then the pack's own table. */
 export function loadIkk(): (regionCode: string) => number | null {
   const rows = parseCsv(fs.readFileSync(path.join(process.cwd(), 'docs', 'v5', 'data', 'ikk_2025.csv'), 'utf8'));
+  const added = read('ikk_2025_additions.csv');
   return (code) => {
-    const v = rows.find((r) => r.area === IKK_AREA[code])?.ikk_2025;
-    return v ? Number(v) : null;
+    const hit = added.find((r) => r.region_code === code)?.ikk_2025 ?? rows.find((r) => r.area === IKK_AREA[code])?.ikk_2025;
+    return hit ? Number(hit) : null;
+  };
+}
+
+/** Karawang is the only region with wage and equipment tables; others use it × IKK or the provincial minimum wage. */
+const WAGE_REGION = '3215';
+const UMP_BY_PREFIX: Record<string, string> = { '31': 'DKI Jakarta', '32': 'Jawa Barat', '36': 'Banten', '18': 'Lampung', '74': 'Sulawesi Tenggara' };
+
+function ratesFor(regionCode: string, ikk: (c: string) => number | null, key: 'HOT_MIX_PATCH' | 'AC_WC_OVERLAY'): { coefficients: Coefficients; note: string } | null {
+  const wages = read('wages_daily_2026.csv');
+  const machines = read('equipment_rental_2026.csv');
+  const here = wages.some((w) => w.region_code === regionCode);
+  let dayWage: number;
+  let wageNote: string;
+  if (here) {
+    dayWage = CREW_ASSUMPTION.people.reduce((sum, [role, n]) => sum + n * Number(wages.find((w) => w.region_code === regionCode && w.role_as_written === role)!.wage_idr_per_day), 0);
+    wageNote = 'Upah resmi Perbup Karawang 28/2025 hal. 230.';
+  } else {
+    const ump = parseCsv(fs.readFileSync(path.join(process.cwd(), 'docs', 'v5', 'data', 'ump_2026.csv'), 'utf8')).find((u) => u.province === UMP_BY_PREFIX[regionCode.slice(0, 2)]);
+    const monthly = ump ? Number(Object.values(ump).find((v) => /^\d{6,8}$/.test(String(v)))) : NaN;
+    if (!Number.isFinite(monthly)) return null;
+    dayWage = (monthly / 25) * CREW_ASSUMPTION.people.reduce((sum, [, n]) => sum + n, 0);
+    wageNote = `Upah dihitung dari UMP ${ump!.province} ÷ 25 hari.`;
+  }
+  const target = ikk(regionCode);
+  const source = ikk(WAGE_REGION);
+  const scale = regionCode === WAGE_REGION ? 1 : target !== null && source !== null ? target / source : null;
+  if (scale === null) return null;
+  const hourly = CREW_ASSUMPTION.machines[key].reduce((sum, name) => sum + Number(machines.find((m) => m.region_code === WAGE_REGION && m.equipment_as_written === name)!.rent_idr), 0) * scale;
+  const { labour, equipment } = crewPerTon(dayWage, hourly);
+  const machineNote = regionCode === WAGE_REGION ? 'Sewa alat resmi hal. 240-241.' : `Sewa alat Karawang × IKK ${target} ÷ ${source} (asumsi).`;
+  return {
+    coefficients: { labourPerUnitIdr: labour, equipmentPerUnitIdr: equipment, source: 'ASSUMED' },
+    note: `${wageNote} ${machineNote} Jumlah orang dan produktivitas (${CREW_ASSUMPTION.tonsPerTeamDay.low}-${CREW_ASSUMPTION.tonsPerTeamDay.high} ton per tim per hari) masih asumsi sampai koefisien AHSP resmi dimuat.`
   };
 }
 
@@ -89,10 +124,18 @@ const WANTS: Record<Exclude<OptionKey, 'HOT_MIX_PATCH' | 'AC_WC_OVERLAY'>, (r: P
 const isAcWc = (r: PriceRow) => /AC Wearing|Ac\s*-\s*Wc/i.test(r.nameAsWritten);
 
 const DOC_FOR: Record<string, string> = {
-  '3175': 'HSPK / e-HSPK DKI 2026 (jdih.jakarta.go.id)',
+  '3172': 'lampiran harga Pergub DKI 17/2025 (SSH 2026), yang belum terbuka untuk umum. Bila instansi memilikinya, unggah lewat Impor CSV',
   '3215': 'daftar harga instansi (HSPK Kabupaten Karawang), lewat Impor CSV',
   default: 'SSH atau HSPK daerah TA berjalan, lewat Impor CSV'
 };
+
+/** A region with no AC-WC line of its own borrows Karawang's two, scaled; the OM still picks one. */
+export function acWcRowsFor(book: PriceBook, agencyId: string, regionCode: string): PriceRow[] {
+  const rows = [...book.of(agencyId).rows, ...book.regional];
+  const own = rows.filter((r) => r.regionCode === regionCode && isAcWc(r));
+  if (own.length || book.ikk(regionCode) === null || book.ikk(WAGE_REGION) === null) return own;
+  return rows.filter((r) => r.regionCode === WAGE_REGION && isAcWc(r));
+}
 
 export interface LifeByOption { patch: { low: number; mid: number; high: number } | null; overlay: { low: number; mid: number; high: number } | null; note: string }
 
@@ -100,18 +143,25 @@ export interface LifeByOption { patch: { low: number; mid: number; high: number 
 export function buildOptions(book: PriceBook, agencyId: string, regionCode: string, life: LifeByOption): OptionInput[] {
   const own = book.of(agencyId);
   const base = { agencyBook: own.rows, regional: book.regional, confirmedIds: new Set(own.confirmedIds), ikk: book.ikk, regionCode, documentToLoad: DOC_FOR[regionCode] ?? DOC_FOR.default };
-  const acRows = [...own.rows, ...book.regional].filter((r) => r.regionCode === regionCode && isAcWc(r));
-  const toFound = (r: PriceRow): FoundPrice => ({ row: r, priceIdr: Number(r.priceNormalized), status: r.status, how: own.rows.includes(r) ? 'AGENCY_BOOK' : 'SAME_REGION', note: null });
+  const acRows = acWcRowsFor(book, agencyId, regionCode);
+  const target = book.ikk(regionCode);
+  const toFound = (r: PriceRow): FoundPrice => {
+    if (r.regionCode === regionCode) return { row: r, priceIdr: Number(r.priceNormalized), status: r.status, how: own.rows.includes(r) ? 'AGENCY_BOOK' : 'SAME_REGION', note: null };
+    const source = book.ikk(r.regionCode)!;
+    return { row: r, priceIdr: Math.round(Number(r.priceNormalized) * (target! / source)), status: 'ASSUMED', how: 'OTHER_REGION_IKK', note: `Harga ${r.regionName} dikali IKK ${target} ÷ ${source}.` };
+  };
   const chosen = acRows.find((r) => r.id === own.acWcChoice);
   const acPrice: Lookup = chosen ? { found: toFound(chosen) } : lookupPrice({ ...base, match: isAcWc });
   const choices = !chosen && acRows.length > 1 ? acRows.map(toFound) : undefined;
+  const patchCrew = ratesFor(regionCode, book.ikk, 'HOT_MIX_PATCH');
+  const overlayCrew = ratesFor(regionCode, book.ikk, 'AC_WC_OVERLAY');
   const noLife = 'Umur bahan ini belum bisa dihitung; modelnya hanya mencakup aspal.';
   return [
-    { key: 'HOT_MIX_PATCH', price: acPrice, choices, lifeMonths: life.patch, lifeNote: life.patch ? life.note : noLife },
+    { key: 'HOT_MIX_PATCH', price: acPrice, choices, coefficients: patchCrew?.coefficients, crewNote: patchCrew?.note, lifeMonths: life.patch, lifeNote: life.patch ? life.note : noLife },
     { key: 'COLD_MIX_PATCH', price: lookupPrice({ ...base, match: WANTS.COLD_MIX_PATCH, documentToLoad: 'harga cold mix/CPHMA dari HSPK instansi, lewat Impor CSV' }), lifeMonths: null, lifeNote: noLife },
     { key: 'FAST_TRACK_CONCRETE', price: lookupPrice({ ...base, match: WANTS.FAST_TRACK_CONCRETE }), lifeMonths: null, lifeNote: noLife },
     { key: 'CONCRETE_K350', price: lookupPrice({ ...base, match: WANTS.CONCRETE_K350 }), lifeMonths: null, lifeNote: noLife },
-    { key: 'AC_WC_OVERLAY', price: acPrice, choices, lifeMonths: life.overlay, lifeNote: life.overlay ? life.note : noLife }
+    { key: 'AC_WC_OVERLAY', price: acPrice, choices, coefficients: overlayCrew?.coefficients, crewNote: overlayCrew?.note, lifeMonths: life.overlay, lifeNote: life.overlay ? life.note : noLife }
   ];
 }
 
@@ -154,7 +204,8 @@ export function registerPriceRoutes(router: Router, deps: Deps): PriceBook {
       rows: [...own.rows, ...book.regional],
       confirmedIds: own.confirmedIds,
       acWcChoice: own.acWcChoice,
-      acWcRows: [...own.rows, ...book.regional].filter((r) => r.regionCode === agency?.region && isAcWc(r)).map((r) => ({ id: r.id, name: r.nameAsWritten, price: r.priceNormalized, page: r.sourcePage })),
+      acWcRows: acWcRowsFor(book, actor.agencyId!, agency?.region ?? '').map((r) => ({ id: r.id, name: r.nameAsWritten, price: r.priceNormalized, page: r.sourcePage, region: r.regionName })),
+      ownRegionHasBook: [...own.rows, ...book.regional].some((r) => r.regionCode === agency?.region),
       wages,
       equipment: read('equipment_rental_2026.csv'),
       qa: read('qa_test_prices_2026.csv').map((q) => ({ ...q, purpose: QA_RECOMMEND[q.test_as_written] ?? null })),
@@ -216,7 +267,7 @@ export function registerPriceRoutes(router: Router, deps: Deps): PriceBook {
     if (!actor) return;
     const own = book.of(actor.agencyId!);
     const region = workspaces.agency(actor.agencyId!)?.region;
-    const row = [...own.rows, ...book.regional].find((r) => r.id === req.body?.rowId && r.regionCode === region && isAcWc(r));
+    const row = acWcRowsFor(book, actor.agencyId!, region ?? '').find((r) => r.id === req.body?.rowId);
     if (!row) return sendFail(res, 400, 'VALIDATION', 'Pilih salah satu baris AC-WC wilayah Anda.');
     own.acWcChoice = row.id;
     book.save();
@@ -255,7 +306,8 @@ export function registerPriceRoutes(router: Router, deps: Deps): PriceBook {
     const options = compareOptions(buildOptions(book, actor.agencyId!, agency?.region ?? '', life), { areaM2, depthCm });
     const best = options.find((o) => o.best);
     const now = new Date().toISOString();
-    const costComparison = { bestLabel: best?.label ?? null, ranAt: now, options, excluded: 'Belum termasuk upah dan alat: koefisien AHSP resmi (SE 30/SE/Dk/2025 Lampiran V) belum dimuat.', regionCode: agency?.region ?? '', measure: { areaM2, depthCm } };
+    const estimated = options.some((o) => o.price?.how === 'OTHER_REGION_IKK');
+    const costComparison = { bestLabel: best?.label ?? null, ranAt: now, options, excluded: `${estimated ? 'Harga resmi wilayah ini belum tersedia. Angka di bawah hanya perkiraan dari Karawang × IKK. ' : ''}Upah dan alat dihitung untuk aspal; jumlah orang dan produktivitasnya masih asumsi sampai koefisien AHSP resmi dimuat. Beton belum termasuk upah dan alat.`, regionCode: agency?.region ?? '', measure: { areaM2, depthCm } };
     const next = store.record(c, { costComparison }, 'cost.compared', { region: agency?.region ?? '', options: options.map((o) => ({ key: o.key, status: o.status, mid_idr: o.totalIdr?.mid ?? null, per_year_idr: o.costPerYearIdr?.mid ?? null })), best: best?.key ?? null }, actor, now);
     res.json({ success: true, data: next.costComparison });
   });

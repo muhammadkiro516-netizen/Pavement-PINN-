@@ -18,7 +18,8 @@ interface Prices {
   rows: Row[];
   confirmedIds: string[];
   acWcChoice: string | null;
-  acWcRows: { id: string; name: string; price: string; page: string }[];
+  acWcRows: { id: string; name: string; price: string; page: string; region: string }[];
+  ownRegionHasBook: boolean;
   wages: Record<string, string>[];
   equipment: Record<string, string>[];
   qa: (Record<string, string> & { purpose: string | null })[];
@@ -89,6 +90,12 @@ export function CostModule() {
           <ErrorNote error={action.error} />
         </Card>
       )}
+      {!data.ownRegionHasBook && (
+        <Card title="Harga resmi wilayah Anda belum tersedia" testId="v6-no-book">
+          <p>Lampiran harga resmi wilayah ini belum terbuka untuk umum. {isOm ? 'Kalau instansi Anda memilikinya, unggah lewat Impor CSV di bawah.' : 'Operations Manager bisa mengunggahnya lewat Impor CSV.'}</p>
+          <p className="v5-warn">Sampai saat itu, angka biaya hanya perkiraan dari harga Karawang dikali IKK, dan selalu diberi label Asumsi.</p>
+        </Card>
+      )}
       <Card title="Buku harga" testId="v6-price-book">
         <div className="v5-tabs-inline">{regions.map(([code, name]) => <button key={code} type="button" className={`v5-tab${code === shownRegion ? ' v5-tab-on' : ''}`} onClick={() => setRegion(code)}>{name}</button>)}</div>
         <label className="v5-field"><span>Cari barang</span><input value={q} onChange={(e) => setQ(e.target.value)} data-testid="v6-price-search" /></label>
@@ -143,7 +150,7 @@ interface Option {
   quantity: { amount: Range; unit: string; how: string } | null;
   price: { priceIdr: number; status: string; how: string; note: string | null; row: { sourceDoc: string; sourcePage: string; sourceUrl: string; nameAsWritten: string; unitAsWritten: string } } | null;
   choices: { name: string; priceIdr: number; page: string; costMid: number }[];
-  materialIdr: Range | null; totalIdr: Range | null; lifeMonths: Range | null; lifeNote: string; costPerYearIdr: Range | null; best: boolean; lasts: boolean;
+  materialIdr: Range | null; labourIdr: Range | null; equipmentIdr: Range | null; crewNote: string | null; totalIdr: Range | null; lifeMonths: Range | null; lifeNote: string; costPerYearIdr: Range | null; best: boolean; lasts: boolean;
 }
 interface Comparison { bestLabel: string | null; ranAt: string; options: Option[]; excluded: string; audit?: { submittedIdr: number; differencePct: number; needsClarification: boolean; optionKey: string } }
 
@@ -185,7 +192,9 @@ export function CompareOptions({ c }: { c: V5Case }) {
                     {o.choices.map((x) => <p key={x.name} className="v5-caption">{x.name}: {rp(x.priceIdr)}/ton (hal. {x.page}), biaya sekitar {rp(x.costMid)}</p>)}
                   </div>
                 )}
+                {o.price?.how === 'OTHER_REGION_IKK' && <p className="v5-warn" data-testid={`v6-option-estimate-${o.key}`}>Harga resmi belum tersedia. Ini perkiraan, bukan harga wilayah ini.</p>}
                 {o.totalIdr && <p className="v6-money" data-testid={`v6-option-total-${o.key}`}>{rangeWord(o.totalIdr)}</p>}
+                {o.totalIdr && <p className="v5-caption">{o.labourIdr ? 'Termasuk bahan, upah, dan alat' : 'Bahan saja, belum termasuk upah dan alat'}</p>}
                 <p className="v5-caption">{o.lifeMonths ? `Tahan sekitar ${Math.round(o.lifeMonths.mid)} bulan (${Math.round(o.lifeMonths.low)} sampai ${Math.round(o.lifeMonths.high)})` : 'Umur belum bisa dihitung'}</p>
                 {o.costPerYearIdr && <p data-testid={`v6-option-year-${o.key}`}><strong>{rp(o.costPerYearIdr.mid)}</strong> per tahun</p>}
                 {o.price && (
@@ -197,7 +206,8 @@ export function CompareOptions({ c }: { c: V5Case }) {
                 )}
                 <TechDetails>
                   {o.quantity && <p>Jumlah: {o.quantity.amount.mid.toFixed(3)} {o.quantity.unit}. {o.quantity.how}.</p>}
-                  {o.materialIdr && <p>Bahan {rp(o.materialIdr.mid)} + overhead 10-15% + PPN efektif 11%.</p>}
+                  {o.materialIdr && <p>Bahan {rp(o.materialIdr.mid)}{o.labourIdr ? ` + upah ${rp(o.labourIdr.mid)}` : ''}{o.equipmentIdr ? ` + alat ${rp(o.equipmentIdr.mid)}` : ''} + overhead 10-15% + PPN efektif 11%.</p>}
+                  {o.crewNote && o.totalIdr && <p>{o.crewNote}</p>}
                   <p>{o.lifeNote}</p>
                 </TechDetails>
               </div>

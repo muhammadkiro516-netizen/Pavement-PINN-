@@ -193,37 +193,56 @@ def draft(facts: dict, values: dict[str, str], slm: Slm | None) -> dict:
     }
 
 
-BRIEFING_FIELDS = ("{BARU}", "{LEWAT}", "{DIPERBAIKI}", "{GAGAL}")
 BRIEFING_SYSTEM = (
-    "Anda menulis ringkasan pagi untuk kepala seksi pemeliharaan jalan, dalam bahasa Indonesia sehari-hari dan netral. "
-    "Aturan mutlak: jangan menulis angka atau digit. Setiap jumlah ditulis sebagai placeholder persis: {BARU} kasus baru, "
-    "{LEWAT} lewat tenggat, {DIPERBAIKI} sedang diperbaiki, {GAGAL} rusak lagi dalam masa pemeliharaan. Jangan menyebut nama "
-    "orang, jangan menuduh, jangan mengarang fakta. Tulis dua sampai tiga kalimat tanpa judul dan tanpa daftar."
+    "Anda membantu kepala seksi pemeliharaan jalan. Tulis satu kalimat saran urutan kerja hari ini, dalam bahasa Indonesia "
+    "sehari-hari dan netral, hanya berdasarkan fakta yang diberikan. Aturan mutlak: jangan menulis angka atau digit, jangan "
+    "menyebut nama orang, jangan menuduh, jangan mengarang fakta."
 )
-BRIEFING_TEMPLATE = "Hari ini ada {BARU} kasus baru dan {DIPERBAIKI} sedang diperbaiki. Sebanyak {LEWAT} kasus lewat tenggat, dan {GAGAL} perbaikan rusak lagi dalam masa pemeliharaan."
 
 
-def check_briefing(text: str) -> list[str]:
-    """Reasons the briefing is not acceptable (empty list = accepted)."""
-    problems = [f"missing {f}" for f in BRIEFING_FIELDS if f not in text]
+def briefing_numbers(values: dict[str, str]) -> str:
+    """The amounts, in sentences the code writes. The model never places a number."""
+    return (
+        f"Hari ini ada {values['BARU']} kasus baru dan {values['DIPERBAIKI']} sedang diperbaiki. "
+        f"Sebanyak {values['LEWAT']} kasus lewat tenggat, dan {values['GAGAL']} perbaikan rusak lagi dalam masa pemeliharaan."
+    )
+
+
+BRIEFING_TOPICS = {
+    "BARU": ("kasus baru", r"baru"),
+    "LEWAT": ("kasus lewat tenggat", r"tenggat|terlambat"),
+    "DIPERBAIKI": ("perbaikan yang sedang berjalan", r"diperbaiki|berjalan"),
+    "GAGAL": ("perbaikan yang rusak lagi", r"rusak lagi|gagal"),
+}
+
+
+def briefing_facts(values: dict[str, str]) -> str | None:
+    """Only what exists is told, so the model cannot turn an absent thing into a present one."""
+    present = [BRIEFING_TOPICS[k][0] for k in BRIEFING_TOPICS if values[k] != "0"]
+    return f"Yang ada hari ini: {', '.join(present)}. Tulis sarannya." if present else None
+
+
+def check_briefing(text: str, values: dict[str, str]) -> list[str]:
+    """Reasons the suggestion is not acceptable (empty list = accepted)."""
+    problems = [f"mentions absent {k}" for k, (_, word) in BRIEFING_TOPICS.items() if values[k] == "0" and re.search(word, text, re.I)]
     if re.search(r"\d", text):
         problems.append("digit")
-    problems += [f"unknown placeholder {p}" for p in re.findall(r"\{[A-Z_]+\}", text) if p not in BRIEFING_FIELDS]
+    if "{" in text:
+        problems.append("placeholder")
     problems += [f"banned {b}" for b in BANNED if re.search(b, text, re.I)]
-    if not 40 <= len(text) <= 700:
+    if not 20 <= len(text) <= 240:
         problems.append("length")
     return problems
 
 
 def briefing(values: dict[str, str], slm: "Slm | None") -> dict:
-    """The model writes the words; the numbers are only ever filled in here."""
-    text, source = BRIEFING_TEMPLATE, "TEMPLAT"
-    if slm is not None:
+    """The code states the numbers; the model only adds one checked sentence of advice."""
+    text, source = briefing_numbers(values), "TEMPLAT"
+    facts = briefing_facts(values)
+    if slm is not None and facts:
         for _ in range(2):
-            candidate = slm.generate("Tulis ringkasan pagi ini.", max_new_tokens=120, system=BRIEFING_SYSTEM)["text"]
-            if not check_briefing(candidate):
-                text, source = candidate, "SLM"
+            advice = slm.generate(facts, max_new_tokens=70, system=BRIEFING_SYSTEM)["text"].strip()
+            if not check_briefing(advice, values):
+                text, source = f"{text} {advice}", "SLM"
                 break
-    for key, value in values.items():
-        text = text.replace("{" + key + "}", value)
     return {"text": text, "source": source}
